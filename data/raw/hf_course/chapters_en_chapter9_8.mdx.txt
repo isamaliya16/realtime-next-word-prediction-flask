@@ -1,0 +1,25 @@
+Gradio, check!
+
+This wraps up the chapter on building cool ML demos with Gradio - we hope you enjoyed it! To recap, in this chapter we learned:
+
+How to create Gradio demos with the high-level <code> API, and how to configure different input and output modalities.
+
+Different ways to share Gradio demos, through temporary links and hosting on Hugging Face Spaces.
+
+How to integrate Gradio demos with models and Spaces on the Hugging Face Hub.
+
+Advanced features like storing state in a demo or providing authentication.
+
+How to have full control of the data flow and layout of your demo with Gradio Blocks.
+
+If you'd like to test your understanding of the concepts covered in this chapter, check out the quiz in the next section!
+
+Where to next?
+
+If you want to learn more about Gradio you can.
+
+Take a look at Demos in the repo, there are quite a lot of examples there.
+
+See the Guides page, where you can find guides about cool and advanced features.
+
+Check the Docs page to learn the details.

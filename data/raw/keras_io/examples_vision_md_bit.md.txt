@@ -1,0 +1,63 @@
+Image Classification using BigTransfer (BiT).
+
+Introduction.
+
+BigTransfer (also known as BiT) is a state-of-the-art transfer learning method for image classification. Transfer of pre-trained representations improves sample efficiency and simplifies hyperparameter tuning when training deep neural networks for vision. BiT revisit the paradigm of pre-training on large supervised datasets and fine-tuning the model on a target task. The importance of appropriately choosing normalization layers and scaling the architecture capacity as the amount of pre-training data increases.
+
+BigTransfer(BiT) is trained on public datasets, along with code in TF2, Jax and Pytorch. This will help anyone to reach state of the art performance on their task of interest, even with just a handful of labeled images per class.
+
+You can find BiT models pre-trained on ImageNet and ImageNet-21k in TFHub as TensorFlow2 SavedModels that you can use easily as Keras Layers. There are a variety of sizes ranging from a standard ResNet50 to a ResNet152x4 (152 layers deep, 4x wider than a typical ResNet50) for users with larger computational and memory budgets but higher accuracy requirements.
+
+Figure: The x-axis shows the number of images used per class, ranging from 1 to the full dataset. On the plots on the left, the curve in blue above is our BiT-L model, whereas the curve below is a ResNet-50 pre-trained on ImageNet (ILSVRC-2012).
+
+Setup.
+
+Gather Flower Dataset.
+
+Visualise the dataset.
+
+Define hyperparameters.
+
+The hyperparamteres like <code> and <code> are determined based on empirical results. The method has been explained in the original paper and in their Google AI Blog Post.
+
+The <code> is aslo determined whether to use MixUp Augmentation or not. You can also find an easy MixUp Implementation in Keras Coding Examples.
+
+Define preprocessing helper functions.
+
+Define the data pipeline.
+
+Visualise the training samples.
+
+Load pretrained TF-Hub model into a <code>.
+
+Create BigTransfer (BiT) model.
+
+To create the new model, we:
+
+Cut off the BiT model’s original head. This leaves us with the “pre-logits” output. We do not have to do this if we use the ‘feature extractor’ models (i.e. all those in subdirectories titled <code>), since for those models the head has already been cut off.
+
+Add a new head with the number of outputs equal to the number of classes of our new task. Note that it is important that we initialise the head to all zeroes.
+
+Define optimizer and loss.
+
+Compile the model.
+
+Set up callbacks.
+
+Train the model.
+
+Plot the training and validation metrics.
+
+Evaluate the model.
+
+Conclusion.
+
+BiT performs well across a surprisingly wide range of data regimes -- from 1 example per class to 1M total examples. BiT achieves 87.5% top-1 accuracy on ILSVRC-2012, 99.4% on CIFAR-10, and 76.3% on the 19 task Visual Task Adaptation Benchmark (VTAB). On small datasets, BiT attains 76.8% on ILSVRC-2012 with 10 examples per class, and 97.0% on CIFAR-10 with 10 examples per class.
+
+You can experiment further with the BigTransfer Method by following the original paper.
+
+Example available on HuggingFace.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

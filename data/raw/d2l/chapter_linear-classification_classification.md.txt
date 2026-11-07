@@ -1,0 +1,41 @@
+The Base Classification Model.
+
+You may have noticed that the implementations from scratch and the concise implementation using framework functionality were quite similar in the case of regression. The same is true for classification. Since many models in this book deal with classification, it is worth adding functionalities to support this setting specifically. This section provides a base class for classification models to simplify future code.
+
+The <code> Class.
+
+We define the <code> class below. In the <code> we report both the loss value and the classification accuracy on a validation batch. We draw an update for every <code> batches. This has the benefit of generating the averaged loss and accuracy on the whole validation data. These average numbers are not exactly correct if the final batch contains fewer examples, but we ignore this minor difference to keep the code simple.
+
+We define the <code> class below. In the <code> we report both the loss value and the classification accuracy on a validation batch. We draw an update for every <code> batches. This has the benefit of generating the averaged loss and accuracy on the whole validation data. These average numbers are not exactly correct if the last batch contains fewer examples, but we ignore this minor difference to keep the code simple.
+
+We also redefine the <code> method for JAX since all models that will subclass <code> later will have a loss that returns auxiliary data. This auxiliary data can be used for models with batch normalization (to be explained in section <num>), while in all other cases we will make the loss also return a placeholder (empty dictionary) to represent the auxiliary data.
+
+By default we use a stochastic gradient descent optimizer, operating on minibatches, just as we did in the context of linear regression.
+
+Accuracy.
+
+Given the predicted probability distribution <code>, we typically choose the class with the highest predicted probability whenever we must output a hard prediction. Indeed, many applications require that we make a choice. For instance, Gmail must categorize an email into "Primary", "Social", "Updates", "Forums", or "Spam". It might estimate probabilities internally, but at the end of the day it has to choose one among the classes.
+
+When predictions are consistent with the label class <code>, they are correct. The classification accuracy is the fraction of all predictions that are correct. Although it can be difficult to optimize accuracy directly (it is not differentiable), it is often the performance measure that we care about the most. It is often the relevant quantity in benchmarks. As such, we will nearly always report it when training classifiers.
+
+Accuracy is computed as follows. First, if <code> is a matrix, we assume that the second dimension stores prediction scores for each class. We use <code> to obtain the predicted class by the index for the largest entry in each row. Then we [compare the predicted class with the ground truth <code> elementwise.] Since the equality operator <code> is sensitive to data types, we convert <code>'s data type to match that of <code>. The result is a tensor containing entries of 0 (false) and 1 (true). Taking the sum yields the number of correct predictions.
+
+Summary.
+
+Classification is a sufficiently common problem that it warrants its own convenience functions. Of central importance in classification is the accuracy of the classifier. Note that while we often care primarily about accuracy, we train classifiers to optimize a variety of other objectives for statistical and computational reasons. However, regardless of which loss function was minimized during training, it is useful to have a convenience method for assessing the accuracy of our classifier empirically.
+
+Exercises.
+
+Denote by <math> the validation loss, and let <math> be its quick and dirty estimate computed by the loss function averaging in this section. Lastly, denote by <math> the loss on the last minibatch. Express <math> in terms of <math>, <math>, and the sample and minibatch sizes.
+
+Show that the quick and dirty estimate <math> is unbiased. That is, show that <math>. Why would you still want to use <math> instead?
+
+Given a multiclass classification loss, denoting by <math> the penalty of estimating <math> when we see <math> and given a probabilty <math>, formulate the rule for an optimal selection of <math>. Hint: express the expected loss, using <math> and <math>.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

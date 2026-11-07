@@ -1,0 +1,167 @@
+DreamBooth.
+
+Introduction.
+
+In this example, we implement DreamBooth, a fine-tuning technique to teach new visual concepts to text-conditioned Diffusion models with just 3 - 5 images. DreamBooth was proposed in DreamBooth: Fine Tuning Text-to-Image Diffusion Models for Subject-Driven Generation by Ruiz et al.
+
+DreamBooth, in a sense, is similar to the traditional way of fine-tuning a text-conditioned Diffusion model except for a few gotchas. This example assumes that you have basic familiarity with Diffusion models and how to fine-tune them. Here are some reference examples that might help you to get familiarized quickly:
+
+Teach StableDiffusion new concepts via Textual Inversion.
+
+Fine-tuning Stable Diffusion.
+
+This example is resource-intensive. For reliable execution, use a GPU with at least 80 GB of VRAM.
+
+Initial imports.
+
+Usage of DreamBooth.
+
+... is very versatile. By teaching Stable Diffusion about your favorite visual concepts, you can.
+
+Recontextualize objects in interesting ways:
+
+Generate artistic renderings of the underlying visual concept:
+
+And many other applications. We welcome you to check out the original DreamBooth paper in this regard.
+
+Downloading data from.
+
+5556967/5556967 ━━━━━━━━━━━━━━━━━━━━ 1s 0us/step.
+
+Downloading data from.
+
+9093120/9093120 ━━━━━━━━━━━━━━━━━━━━ 1s 0us/step.
+
+Visualize images.
+
+First, let's load the image paths.
+
+Then we load the images from the paths.
+
+And then we make use a utility function to plot the loaded images.
+
+Instance images:
+
+Class images:
+
+Prepare datasets.
+
+Dataset preparation includes two stages: (1): preparing the captions, (2) processing the images.
+
+Prepare the captions.
+
+Next, we embed the prompts to save some compute.
+
+Loading Stable Diffusion 3 (will be reused for training)...
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3_medium/5/config.json...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 4.19k/4.19k [00:00<00:00, 9.05MB/s].
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3_medium/5/model.weights.h5...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 5.57G/5.57G [00:43<00:00, 137MB/s].
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3_medium/5/preprocessor.json...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 4.08k/4.08k [00:00<00:00, 14.2MB/s].
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3medium/5/assets/clipl_tokenizer/vocabulary.json...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 976k/976k [00:00<00:00, 5.01MB/s].
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3medium/5/assets/clipl_tokenizer/merges.txt...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 512k/512k [00:00<00:00, 3.07MB/s].
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3medium/5/assets/clipg_tokenizer/vocabulary.json...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 976k/976k [00:00<00:00, 5.04MB/s].
+
+Downloading to /home/kharshith/.cache/kagglehub/models/keras/stablediffusion3/keras/stablediffusion3medium/5/assets/clipg_tokenizer/merges.txt...
+
+0%███████████████████████████████████████████████████████████████████████████████████████100%| 512k/512k [00:00<00:00, 3.50MB/s].
+
+Encoding 2 unique prompts (instead of 400)...
+
+Text embedding shapes: (200, 154, 4096), (200, 154, 4096) Pooled embedding shapes: (200, 2048), (200, 2048).
+
+Prepare the images.
+
+Assemble dataset.
+
+Check shapes.
+
+Now that the dataset has been prepared, let's quickly check what's inside it.
+
+dictkeys(['instanceimages', 'instanceembeddedtexts', 'instancepooledembeddings']) dictkeys(['classimages', 'classembeddedtexts', 'classpooledembeddings']) instanceimages (1, 512, 512, 3) instanceembeddedtexts (1, 154, 4096) instancepooledembeddings (1, 2048) classimages (1, 512, 512, 3) classembeddedtexts (1, 154, 4096) classpooledembeddings (1, 2048).
+
+During training, we make use of these keys to gather the images and text embeddings and concat them accordingly.
+
+DreamBooth training loop.
+
+Our DreamBooth training loop is very much inspired by this script provided by the Diffusers team at Hugging Face. However, there is an important difference to note. We only fine-tune the diffusion model (the component responsible for predicting noise / velocity) and don't fine-tune the text encoder in this example. If you're looking for an implementation that also performs the additional fine-tuning of the text encoder, refer to this repository.
+
+Trainer initialization.
+
+Reusing SD3 backbone from text encoding step...
+
+Train!
+
+We first calculate the number of epochs, we need to train for.
+
+Training for 6 epochs.
+
+And then we start training!
+
+Starting training (resolution: 512x512)...
+
+Epoch 1/6.
+
+200/200 ━━━━━━━━━━━━━━━━━━━━ 2037s 10s/step - loss: 0.9379.
+
+Epoch 2/6.
+
+200/200 ━━━━━━━━━━━━━━━━━━━━ 1962s 10s/step - loss: 0.8031.
+
+Epoch 3/6.
+
+200/200 ━━━━━━━━━━━━━━━━━━━━ 1964s 10s/step - loss: 0.6908.
+
+Epoch 4/6.
+
+200/200 ━━━━━━━━━━━━━━━━━━━━ 1972s 10s/step - loss: 0.6907.
+
+Epoch 5/6.
+
+200/200 ━━━━━━━━━━━━━━━━━━━━ 1971s 10s/step - loss: 0.6913.
+
+Epoch 6/6.
+
+200/200 ━━━━━━━━━━━━━━━━━━━━ 1970s 10s/step - loss: 0.6932.
+
+Experiments and inference.
+
+We ran various experiments with a slightly modified version of this example. Our experiments are based on this repository and are inspired by this blog post from Hugging Face.
+
+First, let's see how we can use the fine-tuned checkpoint for running inference.
+
+Loading Stable Diffusion 3 with 512x512 resolution (float32)...
+
+Loading fine-tuned weights from dreambooth-unet.weights.h5...
+
+The default number of steps for generating an image with Stable Diffusion 3 is 50. Let's increase it to 100 for potentially better quality.
+
+Generating images for prompt: 'A photo of sks dog in a bucket'...
+
+Feel free to experiment with different prompts (don't forget to add the unique identifier and the class label!) to see how the results change. We welcome you to check out our codebase and more experimental results here. You can also read this blog post to get more ideas.
+
+Acknowledgements.
+
+Thanks to the DreamBooth example script provided by Hugging Face which helped us a lot in getting the initial implementation ready quickly.
+
+Getting DreamBooth to work on human faces can be challenging. We have compiled some general recommendations here. Thanks to Abhishek Thakur for helping with these.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

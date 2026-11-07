@@ -1,0 +1,71 @@
+Generative Adversarial Networks.
+
+Throughout most of this book, we have talked about how to make predictions. In some form or another, we used deep neural networks to learn mappings from data examples to labels. This kind of learning is called discriminative learning, as in, we'd like to be able to discriminate between photos of cats and photos of dogs. Classifiers and regressors are both examples of discriminative learning. And neural networks trained by backpropagation have upended everything we thought we knew about discriminative learning on large complicated datasets. Classification accuracies on high-res images have gone from useless to human-level (with some caveats) in just 5-6 years. We will spare you another spiel about all the other discriminative tasks where deep neural networks do astoundingly well.
+
+But there is more to machine learning than just solving discriminative tasks. For example, given a large dataset, without any labels, we might want to learn a model that concisely captures the characteristics of this data. Given such a model, we could sample synthetic data examples that resemble the distribution of the training data. For example, given a large corpus of photographs of faces, we might want to be able to generate a new photorealistic image that looks like it might plausibly have come from the same dataset. This kind of learning is called generative modeling.
+
+Until recently, we had no method that could synthesize novel photorealistic images. But the success of deep neural networks for discriminative learning opened up new possibilities. One big trend over the last three years has been the application of discriminative deep nets to overcome challenges in problems that we do not generally think of as supervised learning problems. The recurrent neural network language models are one example of using a discriminative network (trained to predict the next character) that once trained can act as a generative model.
+
+In 2014, a breakthrough paper introduced Generative adversarial networks (GANs) , a clever new way to leverage the power of discriminative models to get good generative models. At their heart, GANs rely on the idea that a data generator is good if we cannot tell fake data apart from real data. In statistics, this is called a two-sample test - a test to answer the question whether datasets <math> and <math> were drawn from the same distribution. The main difference between most statistics papers and GANs is that the latter use this idea in a constructive way. In other words, rather than just training a model to say "hey, these two datasets do not look like they came from the same distribution", they use the two-sample test to provide training signals to a generative model. This allows us to improve the data generator until it generates something that resembles the real data. At the very least, it needs to fool the classifier even if our classifier is a state of the art deep neural network.
+
+The GAN architecture is illustrated in section <num>. As you can see, there are two pieces in GAN architecture - first off, we need a device (say, a deep network but it really could be anything, such as a game rendering engine) that might potentially be able to generate data that looks just like the real thing. If we are dealing with images, this needs to generate images. If we are dealing with speech, it needs to generate audio sequences, and so on. We call this the generator network. The second component is the discriminator network. It attempts to distinguish fake and real data from each other. Both networks are in competition with each other. The generator network attempts to fool the discriminator network. At that point, the discriminator network adapts to the new fake data. This information, in turn is used to improve the generator network, and so on.
+
+The discriminator is a binary classifier to distinguish if the input <math> is real (from real data) or fake (from the generator). Typically, the discriminator outputs a scalar prediction <math> for input <math>, such as using a fully connected layer with hidden size 1, and then applies sigmoid function to obtain the predicted probability <math>. Assume the label <math> for the true data is <math> and <math> for the fake data. We train the discriminator to minimize the cross-entropy loss, i.e.
+
+<math>.
+
+For the generator, it first draws some parameter <math> from a source of randomness, e.g., a normal distribution <math>. We often call <math> as the latent variable. It then applies a function to generate <math>. The goal of the generator is to fool the discriminator to classify <math> as true data, i.e., we want <math>. In other words, for a given discriminator <math>, we update the parameters of the generator <math> to maximize the cross-entropy loss when <math>, i.e.
+
+<math>.
+
+If the generator does a perfect job, then <math>, so the above loss is near 0, which results in the gradients that are too small to make good progress for the discriminator. So commonly, we minimize the following loss:
+
+<math>.
+
+which is just feeding <math> into the discriminator but giving label <math>.
+
+To sum up, <math> and <math> are playing a "minimax" game with the comprehensive objective function:
+
+<math>.
+
+Many of the GANs applications are in the context of images. As a demonstration purpose, we are going to content ourselves with fitting a much simpler distribution first. We will illustrate what happens if we use GANs to build the world's most inefficient estimator of parameters for a Gaussian. Let's get started.
+
+Generate Some "Real" Data.
+
+Since this is going to be the world's lamest example, we simply generate data drawn from a Gaussian.
+
+Let's see what we got. This should be a Gaussian shifted in some rather arbitrary way with mean <math> and covariance matrix <math>.
+
+Generator.
+
+Our generator network will be the simplest network possible - a single layer linear model. This is since we will be driving that linear network with a Gaussian data generator. Hence, it literally only needs to learn the parameters to fake things perfectly.
+
+Discriminator.
+
+For the discriminator we will be a bit more discriminating: we will use an MLP with 3 layers to make things a bit more interesting.
+
+Training.
+
+First we define a function to update the discriminator.
+
+The generator is updated similarly. Here we reuse the cross-entropy loss but change the label of the fake data from <math> to <math>.
+
+Both the discriminator and the generator performs a binary logistic regression with the cross-entropy loss. We use Adam to smooth the training process. In each iteration, we first update the discriminator and then the generator. We visualize both losses and generated examples.
+
+Now we specify the hyperparameters to fit the Gaussian distribution.
+
+Summary.
+
+Generative adversarial networks (GANs) composes of two deep networks, the generator and the discriminator.
+
+The generator generates the image as much closer to the true image as possible to fool the discriminator, via maximizing the cross-entropy loss, i.e., <math>.
+
+The discriminator tries to distinguish the generated images from the true images, via minimizing the cross-entropy loss, i.e., <math>.
+
+Exercises.
+
+Does an equilibrium exist where the generator wins, i.e. the discriminator ends up unable to distinguish the two distributions on finite samples?
+
+Discussions.
+
+Discussions.

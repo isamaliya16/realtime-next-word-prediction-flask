@@ -1,0 +1,119 @@
+Debugging Hangs with Flight Recorder Using TorchComms and Debug Server.
+
+TorchComms is a Python library that provides a high-level communicator abstraction over PyTorch's distributed backends (NCCL, Gloo, etc.). It wraps collective operations with a hook system that lets you attach instrumentation, such as logging, profiling, or recording, without modifying application code. For more information, see TorchComms Documentation.
+
+The TorchComms Flight Recorder is one such hook (<code>). It maintains a fixed-size ring buffer that silently records every collective operation issued through a TorchComms communicator that captures the operation type, sequence number, tensor shapes, execution state, and the Python stack trace at the call site. For a reference on the Flight Recorder, see Flight Recorder Hook in TorchComms.
+
+The Debug Server (<code>) runs an HTTP server on each rank that can periodically dump Flight Recorder snapshots and Python stack traces to disk. For full API documentation on the debug server, its endpoints and periodic dumping, see the torch.distributed debug HTTP server docs.
+
+This tutorial walks you through a concrete example: a two-rank job where one rank hangs before a collective, and shows how to use the Flight Recorder and Debug Server to diagnose it step by step.
+
+Prerequisites.
+
+PyTorch 2.5 or later with <code>.
+
+<code> installed (<code>).
+
+A CUDA host with 2 or more GPUs, or use <code> for CPU-only testing.
+
+Familiarity with distributed PyTorch concepts.
+
+What You Will Learn.
+
+How to attach the <code> to a TorchComms communicator.
+
+How to start the Debug Server with periodic Flight Recorder dumps.
+
+How to read aggregated text dumps to identify missing ranks and mismatched collectives.
+
+How to use per-rank pickle traces with the FR CLI for cross-rank analysis.
+
+How to interpret stack trace snapshots to pinpoint the exact line of a hang.
+
+Flight Recorder Overview.
+
+Each Flight Recorder entry captures:
+
+When periodic dumping is enabled on the debug server, each dump cycle produces two kinds of output:
+
+Aggregated text files (<code>) — the frontend on rank 0 fetches FR data from all ranks and writes a human-readable table.
+
+Per-rank pickle files (<code>) — each rank's worker server writes its own pickle trace. These can be fed to the FR CLI (<code>) for automated cross-rank mismatch detection.
+
+The Scenario.
+
+The demo script below creates a two-phase workload:
+
+Phase 1 (all ranks): 3 <code> + 1 <code> operations complete normally.
+
+Phase 2:
+
+The hanging rank enters <code>.
+
+Other ranks issue another <code> that times out waiting for the hanging rank.
+
+When the timeout fires, the dump directory contains:
+
+: Demo Script.
+
+Save the following as <code>:
+
+Running the Demo.
+
+Launch.
+
+Expected output.
+
+: Reading the Aggregated Text Dumps.
+
+The debug server writes periodic text snapshots aggregating data from all ranks:
+
+Open one of the snapshots written during the hang:
+
+The Collectives table shows every recorded operation:
+
+: The NCCL Calls table shows which ranks participated:
+
+: The Dump File section confirms per-rank pickle files were written:
+
+: The <code> files show Python tracebacks, pinpointing the exact line each rank is stuck at:
+
+Rank 1 never issued <code>. The stacks dump confirms it is stuck in <code>, not in a collective.
+
+Running the FR CLI on Per-Rank Pickle Dumps.
+
+The periodic dump also triggers each rank's worker server to write a pickle trace file into the <code> subdirectory:
+
+Cross-rank mismatch analysis.
+
+Output:
+
+: The CLI detected that rank 1 never issued <code>.
+
+Side-by-side raw entry view.
+
+Output:
+
+: Rank 0 has 5 entries (3 <code> + 1 <code> + the stuck <code>). Rank 1 has only 4 — the 5th <code> is missing because rank 1 hung before issuing it.
+
+With stack traces.
+
+This adds Python stack traces to each entry, showing exactly where in user code each collective was called.
+
+What to Look For.
+
+FR CLI Quick Reference.
+
+Conclusion.
+
+In this tutorial, you have learned how to use the TorchComms Flight Recorder and the Debug Server to diagnose a single-rank hang in a distributed PyTorch job. By examining the aggregated text dumps, per-rank pickle traces, and stack trace snapshots, you identified which collective was stuck, which rank failed to participate, and the exact line of code responsible for the hang. You can apply this same workflow to debug real-world distributed training hangs — replace the simulated <code> with whatever your job is actually stuck on, and the Flight Recorder will show you where ranks diverged.
+
+See Also.
+
+TorchComms Documentation.
+
+Flight Recorder Hook API.
+
+torch.distributed Debug HTTP Server.
+
+/unstable/flightrecordertutorial — environment-variable-based Flight Recorder configuration.

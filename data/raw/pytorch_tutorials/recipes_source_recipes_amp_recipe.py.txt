@@ -1,0 +1,85 @@
+Automatic Mixed Precision Author: Michael Carilli.
+
+torch.cuda.amp provides convenience methods for mixed precision, where some operations use the <code> (<code>) datatype and other operations use <code> (<code>). Some ops, like linear layers and convolutions, are much faster in <code> or <code>. Other ops, like reductions, often require the dynamic range of <code>. Mixed precision tries to match each op to its appropriate datatype, which can reduce your network's runtime and memory footprint.
+
+Ordinarily, "automatic mixed precision training" uses torch.autocast and torch.cuda.amp.GradScaler together.
+
+This recipe measures the performance of a simple network in default precision, then walks through adding <code> and <code> to run the same network in mixed precision with improved performance.
+
+You may download and run this recipe as a standalone Python script. The only requirements are PyTorch 1.6 or later and a CUDA-capable GPU.
+
+Mixed precision primarily benefits Tensor Core-enabled architectures (Volta, Turing, Ampere). This recipe should show significant (2-3X) speedup on those architectures. On earlier architectures (Kepler, Maxwell, Pascal), you may observe a modest speedup. Run <code> to display your GPU's architecture.
+
+A simple network The following sequence of linear layers and ReLUs should show a speedup with mixed precision.
+
+<code>, <code>, <code>, and <code> are chosen to be large enough to saturate the GPU with work. Typically, mixed precision provides the greatest speedup when the GPU is saturated. Small networks may be CPU bound, in which case mixed precision won't improve performance. Sizes are also chosen such that linear layers' participating dimensions are multiples of 8, to permit Tensor Core usage on Tensor Core-capable GPUs (see Troubleshooting below).
+
+Exercise: Vary participating sizes and see how the mixed precision speedup changes.
+
+Default Precision Without <code>, the following simple network executes all ops in default precision (<code>):
+
+Adding <code> Instances of torch.autocast serve as context managers that allow regions of your script to run in mixed precision.
+
+In these regions, CUDA ops run in a <code> chosen by <code> to improve performance while maintaining accuracy. See the Autocast Op Reference for details on what precision <code> chooses for each op, and under what circumstances.
+
+Adding <code> Gradient scaling helps prevent gradients with small magnitudes from flushing to zero ("underflowing") when training with mixed precision.
+
+torch.cuda.amp.GradScaler performs the steps of gradient scaling conveniently.
+
+All together: "Automatic Mixed Precision" (The following also demonstrates <code>, an optional convenience argument to <code> and <code>. If False, <code> and <code>\ 's calls become no-ops. This allows switching between default precision and mixed precision without if/else statements.).
+
+Inspecting/modifying gradients (e.g., clipping) All gradients produced by <code> are scaled. If you wish to modify or inspect the parameters' <code> attributes between <code> and <code>, you should unscale them first using scaler.unscale_(optimizer).
+
+Saving/Resuming To save/resume Amp-enabled runs with bitwise accuracy, use scaler.statedict and scaler.loadstate_dict.
+
+When saving, save the <code> state dict alongside the usual model and optimizer state <code>. Do this either at the beginning of an iteration before any forward passes, or at the end of an iteration after <code>.
+
+When resuming, load the <code> state dict alongside the model and optimizer state <code>. Read checkpoint as desired, for example:
+
+If a checkpoint was created from a run without Amp, and you want to resume training with Amp, load model and optimizer states from the checkpoint as usual. The checkpoint won't contain a saved <code> state, so use a fresh instance of <code>.
+
+If a checkpoint was created from a run with Amp and you want to resume training without <code>, load model and optimizer states from the checkpoint as usual, and ignore the saved <code> state.
+
+Inference/Evaluation <code> may be used by itself to wrap inference or evaluation forward passes. <code> is not necessary.
+
+Advanced topics See the Automatic Mixed Precision Examples for advanced use cases including:
+
+Gradient accumulation.
+
+Gradient penalty/double backward.
+
+Networks with multiple models, optimizers, or losses.
+
+Multiple GPUs (<code> or <code>).
+
+Custom autograd functions (subclasses of <code>).
+
+If you perform multiple convergence runs in the same script, each run should use a dedicated fresh <code> instance. <code> instances are lightweight.
+
+If you're registering a custom C++ op with the dispatcher, see the autocast section of the dispatcher tutorial.
+
+Troubleshooting Speedup with Amp is minor.
+
+Your network may fail to saturate the GPU(s) with work, and is therefore CPU bound. Amp's effect on GPU performance won't matter.
+
+A rough rule of thumb to saturate the GPU is to increase batch and/or network size(s) as much as you can without running OOM.
+
+Try to avoid excessive CPU-GPU synchronization (<code> calls, or printing values from CUDA tensors).
+
+Try to avoid sequences of many small CUDA ops (coalesce these into a few large CUDA ops if you can).
+
+Your network may be GPU compute bound (lots of <code>/convolutions) but your GPU does not have Tensor Cores. In this case a reduced speedup is expected.
+
+The <code> dimensions are not Tensor Core-friendly. Make sure <code> participating sizes are multiples of 8. (For NLP models with encoders/decoders, this can be subtle. Also, convolutions used to have similar size constraints for Tensor Core use, but for CuDNN versions 7.3 and later, no such constraints exist. See here for guidance.).
+
+Loss is inf/NaN First, check if your network fits an advanced use case. See also Prefer binarycrossentropywithlogits over binarycrossentropy.
+
+If you're confident your Amp usage is correct, you may need to file an issue, but before doing so, it's helpful to gather the following information:
+
+Disable <code> or <code> individually (by passing <code> to their constructor) and see if <code>/<code> persist.
+
+If you suspect part of your network (e.g., a complicated loss function) overflows , run that forward region in <code> and see if <code>/<code>s persist. The autocast docstring's last code snippet shows forcing a subregion to run in <code> (by locally disabling <code> and casting the subregion's inputs).
+
+Type mismatch error (may manifest as <code>) <code> tries to cover all ops that benefit from or require casting. Ops that receive explicit coverage are chosen based on numerical properties, but also on experience. If you see a type mismatch error in an <code> enabled forward region or a backward pass following that region, it's possible <code> missed an op.
+
+Please file an issue with the error backtrace. <code> before running your script to provide fine-grained information on which backend op is failing.

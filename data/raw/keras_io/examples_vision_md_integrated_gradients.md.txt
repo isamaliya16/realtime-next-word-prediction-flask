@@ -1,0 +1,39 @@
+Model interpretability with Integrated Gradients.
+
+Integrated Gradients.
+
+Integrated Gradients is a technique for attributing a classification model's prediction to its input features. It is a model interpretability technique: you can use it to visualize the relationship between input features and model predictions.
+
+Integrated Gradients is a variation on computing the gradient of the prediction output with regard to features of the input. To compute integrated gradients, we need to perform the following steps:
+
+Identify the input and the output. In our case, the input is an image and the output is the last layer of our model (dense layer with softmax activation).
+
+Compute which features are important to a neural network when making a prediction on a particular data point. To identify these features, we need to choose a baseline input. A baseline input can be a black image (all pixel values set to zero) or random noise. The shape of the baseline input needs to be the same as our input image, e.g. (299, 299, 3).
+
+Interpolate the baseline for a given number of steps. The number of steps represents the steps we need in the gradient approximation for a given input image. The number of steps is a hyperparameter. The authors recommend using anywhere between 20 and 1000 steps.
+
+Preprocess these interpolated images and do a forward pass.
+
+Get the gradients for these interpolated images.
+
+Approximate the gradients integral using the trapezoidal rule.
+
+To read in-depth about integrated gradients and why this method works, consider reading this excellent article.
+
+References:
+
+Integrated Gradients original paper.
+
+Original implementation.
+
+Setup.
+
+Integrated Gradients algorithm.
+
+Helper class for visualizing gradients and integrated gradients.
+
+Let's test-drive it.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 10: Interpreting what ConvNets learn.

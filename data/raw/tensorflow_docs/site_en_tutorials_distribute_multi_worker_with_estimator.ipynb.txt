@@ -1,0 +1,77 @@
+Multi-worker training with Estimator.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Overview.
+
+Note: While you can use Estimators with <code> API, it's recommended to use Keras with <code>, see multi-worker training with Keras. Estimator training with <code> has limited support.
+
+This tutorial demonstrates how <code> can be used for distributed multi-worker training with <code>. If you write your code using <code>, and you're interested in scaling beyond a single machine with high performance, this tutorial is for you.
+
+Before getting started, please read the distribution strategy guide. The multi-GPU training tutorial is also relevant, because this tutorial uses the same model.
+
+Setup.
+
+First, setup TensorFlow and the necessary imports.
+
+Note: Starting from TF2.4 multi worker mirrored strategy fails with estimators if run with eager enabled (the default). The error in TF2.4 is <code>, See issue #46556 for details. The workaround is to disable eager execution.
+
+Input function.
+
+This tutorial uses the MNIST dataset from TensorFlow Datasets. The code here is similar to the multi-GPU training tutorial with one key difference: when using Estimator for multi-worker training, it is necessary to shard the dataset by the number of workers to ensure model convergence. The input data is sharded by worker index, so that each worker processes <code> distinct portions of the dataset.
+
+Another reasonable approach to achieve convergence would be to shuffle the dataset with distinct seeds at each worker.
+
+Multi-worker configuration.
+
+One of the key differences in this tutorial (compared to the multi-GPU training tutorial) is the multi-worker setup. The <code> environment variable is the standard way to specify the cluster configuration to each worker that is part of the cluster.
+
+There are two components of <code>: <code> and <code>. <code> provides information about the entire cluster, namely the workers and parameter servers in the cluster. <code> provides information about the current task. The first component <code> is the same for all workers and parameter servers in the cluster, and the second component <code> is different on each worker and parameter server and specifies its own <code> and <code>. In this example, the task <code> is <code> and the task <code> is <code>.
+
+For illustration purposes, this tutorial shows how to set a <code> with 2 workers on <code>. In practice, you would create multiple workers on an external IP address and port, and set <code> on each worker appropriately, i.e., modify the task <code>.
+
+Warning: Do not execute the following code in Colab. TensorFlow's runtime will attempt to create a gRPC server at the specified IP address and port, which will likely fail. See the keras version of this tutorial for an example of how you can test run multiple workers on a single machine.
+
+Define the model.
+
+Write the layers, the optimizer, and the loss function for training. This tutorial defines the model with Keras layers, similar to the multi-GPU training tutorial.
+
+Note: Although the learning rate is fixed in this example, in general it may be necessary to adjust the learning rate based on the global batch size.
+
+MultiWorkerMirroredStrategy.
+
+To train the model, use an instance of <code>. <code> creates copies of all variables in the model's layers on each device across all workers. It uses <code>, a TensorFlow op for collective communication, to aggregate gradients and keep the variables in sync. The <code> guide has more details about this strategy.
+
+Train and evaluate the model.
+
+Next, specify the distribution strategy in the <code> for the estimator, and train and evaluate by invoking <code>. This tutorial distributes only the training by specifying the strategy via <code>. It is also possible to distribute the evaluation via <code>.
+
+Optimize training performance.
+
+You now have a model and a multi-worker capable Estimator powered by <code>. You can try the following techniques to optimize performance of multi-worker training:
+
+Increase the batch size: The batch size specified here is per-GPU. In general, the largest batch size that fits the GPU memory is advisable.
+
+Cast variables: Cast the variables to <code> if possible. The official ResNet model includes an example of how this can be done.
+
+Use collective communication: <code> provides multiple collective communication implementations.
+
+<code> implements ring-based collectives using gRPC as the cross-host communication layer.
+
+<code> uses Nvidia's NCCL to implement collectives.
+
+<code> defers the choice to the runtime.
+
+The best choice of collective implementation depends upon the number and kind of GPUs, and the network interconnect in the cluster. To override the automatic choice, specify a valid value to the <code> parameter of <code>'s constructor, e.g. <code>.
+
+Visit the Performance section in the guide to learn more about other strategies and tools you can use to optimize the performance of your TensorFlow models.
+
+Other code examples.
+
+End to end example for multi worker training in tensorflow/ecosystem using Kubernetes templates. This example starts with a Keras model and converts it to an Estimator using the <code> API.
+
+Official models, many of which can be configured to run multiple distribution strategies.

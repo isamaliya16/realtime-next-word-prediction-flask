@@ -1,0 +1,159 @@
+Working with sparse tensors.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+When working with tensors that contain a lot of zero values, it is important to store them in a space- and time-efficient manner. Sparse tensors enable efficient storage and processing of tensors that contain a lot of zero values. Sparse tensors are used extensively in encoding schemes like TF-IDF as part of data pre-processing in NLP applications and for pre-processing images with a lot of dark pixels in computer vision applications.
+
+Sparse tensors in TensorFlow.
+
+TensorFlow represents sparse tensors through the <code> object. Currently, sparse tensors in TensorFlow are encoded using the coordinate list (COO) format. This encoding format is optimized for hyper-sparse matrices such as embeddings.
+
+The COO encoding for sparse tensors is comprised of:
+
+<code>: A 1D tensor with shape <code> containing all nonzero values.
+
+<code>: A 2D tensor with shape <code>, containing the indices of the nonzero values.
+
+<code>: A 1D tensor with shape <code>, specifying the shape of the tensor.
+
+A nonzero value in the context of a <code> is a value that's not explicitly encoded. It is possible to explicitly include zero values in the <code> of a COO sparse matrix, but these "explicit zeros" are generally not included when referring to nonzero values in a sparse tensor.
+
+Note: <code> does not require that indices/values be in any particular order, but several ops assume that they're in row-major order. Use <code> to create a copy of the sparse tensor that is sorted in the canonical row-major order.
+
+Creating a <code>.
+
+Construct sparse tensors by directly specifying their <code>, <code>, and <code>.
+
+When you use the <code> function to print a sparse tensor, it shows the contents of the three component tensors:
+
+It is easier to understand the contents of a sparse tensor if the nonzero <code> are aligned with their corresponding <code>. Define a helper function to pretty-print sparse tensors such that each nonzero value is shown on its own line.
+
+You can also construct sparse tensors from dense tensors by using <code>, and convert them back to dense tensors by using <code>.
+
+Manipulating sparse tensors.
+
+Use the utilities in the <code> package to manipulate sparse tensors. Ops like <code> that you can use for arithmetic manipulation of dense tensors do not work with sparse tensors.
+
+Add sparse tensors of the same shape by using <code>.
+
+Use <code> to multiply sparse tensors with dense matrices.
+
+Put sparse tensors together by using <code> and take them apart by using <code>.
+
+If you're using TensorFlow 2.4 or above, use <code> for elementwise operations on nonzero values in sparse tensors.
+
+Note that only the nonzero values were modified – the zero values stay zero.
+
+Equivalently, you can follow the design pattern below for earlier versions of TensorFlow:
+
+Using <code> with other TensorFlow APIs.
+
+Sparse tensors work transparently with these TensorFlow APIs:
+
+<code>.
+
+<code>.
+
+<code> protobuf.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+Examples are shown below for a few of the above APIs.
+
+<code>.
+
+A subset of the <code> API supports sparse tensors without expensive casting or conversion ops. The Keras API lets you pass sparse tensors as inputs to a Keras model. Set <code> when calling <code> or <code>. You can pass sparse tensors between Keras layers, and also have Keras models return them as outputs. If you use sparse tensors in <code> layers in your model, they will output dense tensors.
+
+The example below shows you how to pass a sparse tensor as an input to a Keras model if you use only layers that support sparse inputs.
+
+<code>.
+
+The <code> API enables you to build complex input pipelines from simple, reusable pieces. Its core data structure is <code>, which represents a sequence of elements in which each element consists of one or more components.
+
+Building datasets with sparse tensors.
+
+Build datasets from sparse tensors using the same methods that are used to build them from <code>s or NumPy arrays, such as <code>. This op preserves the sparsity (or sparse nature) of the data.
+
+Batching and unbatching datasets with sparse tensors.
+
+You can batch (combine consecutive elements into a single element) and unbatch datasets with sparse tensors using the <code> and <code> methods respectively.
+
+You can also use <code> to batch dataset elements of varying shapes into sparse tensors.
+
+Transforming Datasets with sparse tensors.
+
+Transform and create sparse tensors in Datasets using <code>.
+
+tf.train.Example.
+
+<code> is a standard protobuf encoding for TensorFlow data. When using sparse tensors with <code>, you can:
+
+Read variable-length data into a <code> using <code>. However, you should consider using <code> instead.
+
+Read arbitrary sparse data into a <code> using <code>, which uses three separate feature keys to store the <code>, <code>, and <code>.
+
+<code>.
+
+The <code> decorator precomputes TensorFlow graphs for Python functions, which can substantially improve the performance of your TensorFlow code. Sparse tensors work transparently with both <code> and concrete functions.
+
+Distinguishing missing values from zero values.
+
+Most ops on <code>s treat missing values and explicit zero values identically. This is by design — a <code> is supposed to act just like a dense tensor.
+
+However, there are a few cases where it can be useful to distinguish zero values from missing values. In particular, this allows for one way to encode missing/unknown data in your training data. For example, consider a use case where you have a tensor of scores (that can have any floating point value from -Inf to +Inf), with some missing scores. You can encode this tensor using a sparse tensor where the explicit zeros are known zero scores but the implicit zero values actually represent missing data and not zero.
+
+Note: This is generally not the intended usage of <code>s; and you might want to also consider other techniques for encoding this such as for example using a separate mask tensor that identifies the locations of known/unknown values. However, exercise caution while using this approach, since most sparse operations will treat explicit and implicit zero values identically.
+
+Note that some ops like <code> do not treat missing values as if they were zero. For example, when you run the code block below, the expected output is <code>. However, because of this exception, the output is <code>.
+
+In contrast, when you apply <code> to a dense tensor, the output is 0 as expected.
+
+Further reading and resources.
+
+Refer to the tensor guide to learn about tensors.
+
+Read the ragged tensor guide to learn how to work with ragged tensors, a type of tensor that lets you work with non-uniform data.
+
+Check out this object detection model in the TensorFlow Model Garden that uses sparse tensors in a <code> data decoder.

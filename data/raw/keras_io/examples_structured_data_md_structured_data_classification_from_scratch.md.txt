@@ -1,0 +1,429 @@
+Structured data classification from scratch.
+
+Introduction.
+
+This example demonstrates how to do structured data classification, starting from a raw CSV file. Our data includes both numerical and categorical features. We will use Keras preprocessing layers to normalize the numerical features and vectorize the categorical ones.
+
+Note that this example should be run with TensorFlow 2.5 or higher.
+
+The dataset.
+
+Our dataset is provided by the Cleveland Clinic Foundation for Heart Disease. It's a CSV file with 303 rows. Each row contains information about a patient (a sample), and each column describes an attribute of the patient (a feature). We use the features to predict whether a patient has a heart disease (binary classification).
+
+Here's the description of each feature:
+
+Column| Description| Feature Type ------------|--------------------|---------------------- Age | Age in years | Numerical Sex | (1 = male; 0 = female) | Categorical CP | Chest pain type (0, 1, 2, 3, 4) | Categorical Trestbpd | Resting blood pressure (in mm Hg on admission) | Numerical Chol | Serum cholesterol in mg/dl | Numerical FBS | fasting blood sugar in 120 mg/dl (1 = true; 0 = false) | Categorical RestECG | Resting electrocardiogram results (0, 1, 2) | Categorical Thalach | Maximum heart rate achieved | Numerical Exang | Exercise induced angina (1 = yes; 0 = no) | Categorical Oldpeak | ST depression induced by exercise relative to rest | Numerical Slope | Slope of the peak exercise ST segment | Numerical CA | Number of major vessels (0-3) colored by fluoroscopy | Both numerical & categorical Thal | 3 = normal; 6 = fixed defect; 7 = reversible defect | Categorical Target | Diagnosis of heart disease (1 = true; 0 = false) | Target.
+
+Setup.
+
+Preparing the data.
+
+Let's download the data and load it into a Pandas dataframe:
+
+The dataset includes 303 samples with 14 columns per sample (13 features, plus the target label):
+
+Here's a preview of a few samples:
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+age sex cp trestbps chol fbs restecg thalach exang oldpeak slope ca thal target.
+
+0 63 1 1 145 233 1 2 150 0 2.3 3 0 fixed 0.
+
+1 67 1 4 160 286 0 2 108 1 1.5 2 3 normal 1.
+
+2 67 1 4 120 229 0 2 129 1 2.6 2 2 reversible 0.
+
+3 37 1 3 130 250 0 0 187 0 3.5 3 0 normal 0.
+
+4 41 0 2 130 204 0 2 172 0 1.4 1 0 normal 0.
+
+The last column, "target", indicates whether the patient has a heart disease (1) or not (0).
+
+Let's split the data into a training and validation set:
+
+Define dataset metadata.
+
+Here, we define the metadata of the dataset that will be useful for reading and parsing the data into input features, and encoding the input features with respect to their types.
+
+Feature preprocessing with Keras layers.
+
+The following features are categorical features encoded as integers:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+We will encode these features using one-hot encoding. We have two options here:
+
+Use <code>, which requires knowing the range of input values and will error on input outside the range.
+
+Use <code> which will build a lookup table for inputs and reserve an output index for unkown input values.
+
+For this example, we want a simple solution that will handle out of range inputs at inference, so we will use <code>.
+
+We also have a categorical feature encoded as a string: <code>. We will create an index of all possible features and encode output using the <code> layer.
+
+Finally, the following feature are continuous numerical features:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+For each of these features, we will use a <code> layer to make sure the mean of each feature is 0 and its standard deviation is 1.
+
+Below, we define 2 utility functions to do the operations:
+
+<code> to apply featurewise normalization to numerical features.
+
+<code> to one-hot encode string or integer categorical features.
+
+Let's generate <code> objects for each dataframe:
+
+Each <code> yields a tuple <code> where <code> is a dictionary of features and <code> is the value <code> or <code>:
+
+Let's batch the datasets:
+
+Build a model.
+
+With this done, we can create our end-to-end model:
+
+Let's visualize our connectivity graph:
+
+Train the model.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 102ms/step - accuracy: 0.4688 - loss: 8.0563.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 8ms/step - accuracy: 0.4732 - loss: 7.9796.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.4725 - loss: 7.9848 - valaccuracy: 0.2295 - valloss: 12.0816.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 105ms/step - accuracy: 0.5000 - loss: 6.6368.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 8ms/step - accuracy: 0.4532 - loss: 7.8320.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 18ms/step - accuracy: 0.4547 - loss: 7.8310 - valaccuracy: 0.2459 - valloss: 6.2543.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 91ms/step - accuracy: 0.5000 - loss: 7.6558.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.5041 - loss: 7.3378.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 19ms/step - accuracy: 0.5087 - loss: 7.2802 - valaccuracy: 0.6885 - valloss: 2.1633.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 93ms/step - accuracy: 0.4375 - loss: 8.9030.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 8ms/step - accuracy: 0.4815 - loss: 8.0109.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 19ms/step - accuracy: 0.4858 - loss: 7.9351 - valaccuracy: 0.7705 - valloss: 3.3916.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 88ms/step - accuracy: 0.4688 - loss: 8.1279.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.5049 - loss: 7.4815.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.5117 - loss: 7.4054 - valaccuracy: 0.7705 - valloss: 3.6911.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 107ms/step - accuracy: 0.4688 - loss: 7.8832.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.4940 - loss: 7.4615.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.5121 - loss: 7.1851 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 101ms/step - accuracy: 0.5312 - loss: 6.9446.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 12ms/step - accuracy: 0.5357 - loss: 6.5511.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.5497 - loss: 6.3711 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 110ms/step - accuracy: 0.5938 - loss: 6.3905.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6192 - loss: 5.9601.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6101 - loss: 6.0728 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 108ms/step - accuracy: 0.5938 - loss: 6.5442.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6006 - loss: 6.3309.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 21ms/step - accuracy: 0.5949 - loss: 6.3647 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 113ms/step - accuracy: 0.5625 - loss: 6.8250.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 10ms/step - accuracy: 0.5675 - loss: 6.5020.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.5764 - loss: 6.3308 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 116ms/step - accuracy: 0.6250 - loss: 4.3582.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.6053 - loss: 5.4824.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6076 - loss: 5.4500 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 118ms/step - accuracy: 0.5625 - loss: 7.0064.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.5740 - loss: 6.4431.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 21ms/step - accuracy: 0.5787 - loss: 6.3510 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 115ms/step - accuracy: 0.7500 - loss: 3.7382.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 10ms/step - accuracy: 0.6812 - loss: 4.7893.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 21ms/step - accuracy: 0.6712 - loss: 4.9453 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 114ms/step - accuracy: 0.6562 - loss: 5.5498.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.6580 - loss: 5.4636.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 20ms/step - accuracy: 0.6578 - loss: 5.4379 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 113ms/step - accuracy: 0.5938 - loss: 5.8118.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 8ms/step - accuracy: 0.5978 - loss: 5.9295.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 21ms/step - accuracy: 0.6045 - loss: 5.8426 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 115ms/step - accuracy: 0.6562 - loss: 4.4893.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.5763 - loss: 5.9135.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.5814 - loss: 5.8590 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 127ms/step - accuracy: 0.5625 - loss: 7.0281.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6071 - loss: 6.0424.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.6179 - loss: 5.8262 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 130ms/step - accuracy: 0.6562 - loss: 5.3547.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6701 - loss: 5.0648.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 25ms/step - accuracy: 0.6713 - loss: 5.0607 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 121ms/step - accuracy: 0.7500 - loss: 4.0295.
+
+5/8 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 13ms/step - accuracy: 0.7157 - loss: 4.3995.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 25ms/step - accuracy: 0.7077 - loss: 4.4886 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 129ms/step - accuracy: 0.6250 - loss: 6.0278.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6479 - loss: 5.4982.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.6461 - loss: 5.4898 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 134ms/step - accuracy: 0.5938 - loss: 5.8592.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6782 - loss: 4.7529.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.6627 - loss: 5.0219 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 127ms/step - accuracy: 0.6875 - loss: 5.0149.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6342 - loss: 5.5898.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 25ms/step - accuracy: 0.6290 - loss: 5.6701 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 121ms/step - accuracy: 0.5938 - loss: 6.0783.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6259 - loss: 5.6908.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.6352 - loss: 5.5719 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 112ms/step - accuracy: 0.7812 - loss: 3.1021.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 12ms/step - accuracy: 0.7353 - loss: 3.8725.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.7163 - loss: 4.1637 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 112ms/step - accuracy: 0.5625 - loss: 6.9224.
+
+5/8 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 13ms/step - accuracy: 0.6331 - loss: 5.5663.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.6416 - loss: 5.4024 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 117ms/step - accuracy: 0.6875 - loss: 4.4043.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6668 - loss: 5.0742.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6743 - loss: 4.9986 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 104ms/step - accuracy: 0.6562 - loss: 5.3405.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 8ms/step - accuracy: 0.6868 - loss: 4.7990.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 20ms/step - accuracy: 0.6838 - loss: 4.8458 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 116ms/step - accuracy: 0.6562 - loss: 4.8092.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.7061 - loss: 4.3996.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 20ms/step - accuracy: 0.7053 - loss: 4.4297 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 114ms/step - accuracy: 0.6250 - loss: 5.6655.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 10ms/step - accuracy: 0.6536 - loss: 5.3912.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 21ms/step - accuracy: 0.6589 - loss: 5.3014 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 116ms/step - accuracy: 0.7812 - loss: 3.5258.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.6900 - loss: 4.7711.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 20ms/step - accuracy: 0.6882 - loss: 4.8074 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 123ms/step - accuracy: 0.5938 - loss: 6.5425.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 10ms/step - accuracy: 0.6346 - loss: 5.6779.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6423 - loss: 5.5672 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 120ms/step - accuracy: 0.6250 - loss: 5.6215.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6451 - loss: 5.2140.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.6556 - loss: 5.0993 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 115ms/step - accuracy: 0.7188 - loss: 4.2096.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.7218 - loss: 4.3075.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.7143 - loss: 4.4143 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 114ms/step - accuracy: 0.5625 - loss: 7.0242.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6608 - loss: 5.3428.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.6675 - loss: 5.2031 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 105ms/step - accuracy: 0.6875 - loss: 5.0369.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6601 - loss: 5.2386.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.6675 - loss: 5.0972 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 114ms/step - accuracy: 0.6562 - loss: 4.8957.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.7086 - loss: 4.4144.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.6980 - loss: 4.5912 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 115ms/step - accuracy: 0.6250 - loss: 6.0333.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6438 - loss: 5.6852.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 23ms/step - accuracy: 0.6551 - loss: 5.4504 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 119ms/step - accuracy: 0.5938 - loss: 6.4043.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6659 - loss: 5.2220.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6751 - loss: 5.0637 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 122ms/step - accuracy: 0.5625 - loss: 7.0517.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 10ms/step - accuracy: 0.6782 - loss: 5.0396.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6854 - loss: 4.9129 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 121ms/step - accuracy: 0.6562 - loss: 5.4278.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.6575 - loss: 5.2183.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6676 - loss: 5.0430 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 120ms/step - accuracy: 0.7500 - loss: 3.9611.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 10ms/step - accuracy: 0.7322 - loss: 4.2233.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.7325 - loss: 4.2274 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 127ms/step - accuracy: 0.8438 - loss: 2.5075.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.7483 - loss: 3.8605.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 26ms/step - accuracy: 0.7305 - loss: 4.1423 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 132ms/step - accuracy: 0.7188 - loss: 4.5277.
+
+5/8 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 15ms/step - accuracy: 0.6698 - loss: 5.2541.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 27ms/step - accuracy: 0.6831 - loss: 4.9995 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 1s 149ms/step - accuracy: 0.7188 - loss: 4.3368.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 12ms/step - accuracy: 0.6884 - loss: 4.8941.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 26ms/step - accuracy: 0.6877 - loss: 4.9237 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 113ms/step - accuracy: 0.7188 - loss: 3.6048.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.6953 - loss: 4.5189.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 24ms/step - accuracy: 0.6914 - loss: 4.6078 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 120ms/step - accuracy: 0.7188 - loss: 4.5277.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.7298 - loss: 4.2710.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 25ms/step - accuracy: 0.7214 - loss: 4.4175 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 117ms/step - accuracy: 0.7500 - loss: 4.0295.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.6962 - loss: 4.8892.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 26ms/step - accuracy: 0.6981 - loss: 4.8478 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 122ms/step - accuracy: 0.7812 - loss: 3.4540.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 9ms/step - accuracy: 0.7095 - loss: 4.5553.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 21ms/step - accuracy: 0.7080 - loss: 4.5585 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 117ms/step - accuracy: 0.6875 - loss: 4.5707.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 10ms/step - accuracy: 0.6914 - loss: 4.7756.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6939 - loss: 4.7445 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 124ms/step - accuracy: 0.7188 - loss: 4.0735.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 11ms/step - accuracy: 0.7049 - loss: 4.3802.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step - accuracy: 0.6987 - loss: 4.5132 - valaccuracy: 0.7705 - valloss: 3.6992.
+
+We quickly get to 80% validation accuracy.
+
+Inference on new data.
+
+To get a prediction for a new sample, you can simply call <code>. There are just two things you need to do:
+
+wrap scalars into a list so as to have a batch dimension (models only process batches of data, not single samples).
+
+Call <code> on each feature.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 77ms/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 79ms/step.
+
+Conclusions.
+
+The orignal model (the one that runs only on tensorflow) converges quickly to around 80% and remains there for extended periods and at times hits 85%.
+
+The updated model (the backed-agnostic) model may fluctuate between 78% and 83% and at times hitting 86% validation accuracy and converges around 80% also.

@@ -1,0 +1,71 @@
+Image similarity estimation using a Siamese Network with a contrastive loss.
+
+Introduction.
+
+Siamese Networks are neural networks which share weights between two or more sister networks, each producing embedding vectors of its respective inputs.
+
+In supervised similarity learning, the networks are then trained to maximize the contrast (distance) between embeddings of inputs of different classes, while minimizing the distance between embeddings of similar classes, resulting in embedding spaces that reflect the class segmentation of the training inputs.
+
+Setup.
+
+Hyperparameters.
+
+Load the MNIST dataset.
+
+Define training and validation sets.
+
+Create pairs of images.
+
+We will train the model to differentiate between digits of different classes. For example, digit <code> needs to be differentiated from the rest of the digits (<code> through <code>), digit <code> - from <code> and <code> through <code>, and so on. To carry this out, we will select N random images from class A (for example, for digit <code>) and pair them with N random images from another class B (for example, for digit <code>). Then, we can repeat this process for all classes of digits (until digit <code>). Once we have paired digit <code> with other digits, we can repeat this process for the remaining classes for the rest of the digits (from <code> until <code>).
+
+We get:
+
+pairs_train.shape = (60000, 2, 28, 28).
+
+We have 60,000 pairs.
+
+Each pair contains 2 images.
+
+Each image has shape <code>.
+
+Split the training pairs.
+
+Split the validation pairs.
+
+Split the test pairs.
+
+Visualize pairs and their labels.
+
+Inspect training pairs.
+
+Inspect validation pairs.
+
+Inspect test pairs.
+
+Define the model.
+
+There are two input layers, each leading to its own network, which produces embeddings. A <code> layer then merges them using an Euclidean distance and the merged output is fed to the final network.
+
+Define the contrastive Loss.
+
+Define accuracy metric.
+
+Compile the model with the contrastive loss.
+
+Model: "functional".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩ │ inputlayer1 │ ( None , 28 , 28 , 1 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ inputlayer2 │ ( None , 28 , 28 , 1 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ embedding │ ( None , 10 ) │ 5,318 │ inputlayer1[ 0 ]… │ │ ( Functional ) │ │ │ inputlayer2[ 0 ]… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ lambda ( Lambda ) │ ( None , 1 ) │ 0 │ embedding 0 , │ │ │ │ │ embedding 1 │ └─────────────────────┴───────────────────┴────────────┴───────────────────┘.
+
+Total params: 5,318 (20.77 KB).
+
+Trainable params: 4,804 (18.77 KB).
+
+Non-trainable params: 514 (2.01 KB).
+
+Train the model.
+
+Visualize results.
+
+Evaluate the model.
+
+Visualize the predictions.

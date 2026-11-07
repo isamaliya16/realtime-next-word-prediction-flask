@@ -1,0 +1,53 @@
+Parameter Initialization.
+
+Now that we know how to access the parameters, let's look at how to initialize them properly. We discussed the need for proper initialization in section <num>. The deep learning framework provides default random initializations to its layers. However, we often want to initialize our weights according to various other protocols. The framework provides most commonly used protocols, and also allows to create a custom initializer.
+
+By default, MXNet initializes weight parameters by randomly drawing from a uniform distribution <math>, clearing bias parameters to zero. MXNet's <code> module provides a variety of preset initialization methods.
+
+By default, PyTorch initializes weight and bias matrices uniformly by drawing from a range that is computed according to the input and output dimension. PyTorch's <code> module provides a variety of preset initialization methods.
+
+By default, Keras initializes weight matrices uniformly by drawing from a range that is computed according to the input and output dimension, and the bias parameters are all set to zero. TensorFlow provides a variety of initialization methods both in the root module and the <code> module.
+
+By default, Flax initializes weights using <code>, i.e., by drawing samples from a truncated normal distribution centered on 0 with the standard deviation set as the squared root of <math> where <code> is the number of input units in the weight tensor. The bias parameters are all set to zero. Jax's <code> module provides a variety of preset initialization methods.
+
+[Built-in Initialization].
+
+Let's begin by calling on built-in initializers. The code below initializes all weight parameters as Gaussian random variables with standard deviation 0.01, while bias parameters are cleared to zero.
+
+We can also initialize all the parameters to a given constant value (say, 1).
+
+[We can also apply different initializers for certain blocks.] For example, below we initialize the first layer with the Xavier initializer and initialize the second layer to a constant value of 42.
+
+[Custom Initialization].
+
+Sometimes, the initialization methods we need are not provided by the deep learning framework. In the example below, we define an initializer for any weight parameter <math> using the following strange distribution:
+
+<math>.
+
+Here we define a subclass of the <code> class. Usually, we only need to implement the <code> function which takes a tensor argument (<code>) and assigns to it the desired initialized values.
+
+Again, we implement a <code> function to apply to <code>.
+
+Here we define a subclass of <code> and implement the <code> function that return a desired tensor given the shape and data type.
+
+Jax initialization functions take as arguments the <code>, <code> and <code>. Here we implement the function <code> that returns a desired tensor given the shape and data type.
+
+Note that we always have the option of setting parameters directly.
+
+When initializing parameters in JAX and Flax, the the dictionary of parameters returned has a <code> type. It is not advisable in the Jax ecosystem to directly alter the values of an array, hence the datatypes are generally immutable. One might use <code> to make changes.
+
+Summary.
+
+We can initialize parameters using built-in and custom initializers.
+
+Exercises.
+
+Look up the online documentation for more built-in initializers.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

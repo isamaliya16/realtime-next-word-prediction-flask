@@ -1,0 +1,51 @@
+Extending PyTorch with Custom C++ Classes.
+
+This tutorial introduces an API for binding C++ classes into PyTorch. The API is very similar to pybind11, and most of the concepts will transfer over if you're familiar with that system.
+
+Implementing and Binding the Class in C++.
+
+For this tutorial, we are going to define a simple C++ class that maintains persistent state in a member variable.
+
+There are several things to note:
+
+<code> is the header you need to include to extend PyTorch with your custom class.
+
+Notice that whenever we are working with instances of the custom class, we do it via instances of <code>. Think of <code> as a smart pointer like <code>, but the reference count is stored directly in the object, as opposed to a separate metadata block (as is done in <code>. <code> internally uses the same pointer type; and custom classes have to also use this pointer type so that we can consistently manage different object types.
+
+The second thing to notice is that the user-defined class must inherit from <code>. This ensures that the custom class has space to store the reference count.
+
+Now let's take a look at how we will make this class visible to PyTorch, a process called binding the class:
+
+Building the Example as a C++ Project With CMake.
+
+Now, we're going to build the above C++ code with the CMake build system. First, take all the C++ code we've covered so far and place it in a file called <code>. Then, write a simple <code> file and place it in the same directory. Here is what <code> should look like:
+
+Also, create a <code> directory. Your file tree should look like this: Go ahead and invoke cmake and then make to build the project:
+
+What you'll find is there is now (among other things) a dynamic library file present in the build directory. On Linux, this is probably named <code>. So the file tree should look like: Using the C++ Class from Python.
+
+Now that we have our class and its registration compiled into an <code> file, we can load that <code> into Python and try it out. Here's a script that demonstrates that:
+
+Defining Serialization/Deserialization Methods for Custom C++ Classes.
+
+If you try to save a <code> with a custom-bound C++ class as an attribute, you'll get the following error:
+
+This is because PyTorch cannot automatically figure out what information save from your C++ class. You must specify that manually. The way to do that is to define <code> and <code> methods on the class using the special <code> method on <code>.
+
+Here is an example of the <code> call we can add to the registration of <code> to include serialization methods:
+
+Once we have defined the (de)serialization behavior in this way, our script can now run successfully:
+
+Defining Custom Operators that Take or Return Bound C++ Classes.
+
+Once you've defined a custom C++ class, you can also use that class as an argument or return from a custom operator (i.e. free functions). Suppose you have the following free function:
+
+You can register it running the following code inside your <code> block:
+
+Once this is done, you can use the op like the following example:
+
+Conclusion.
+
+This tutorial walked you through how to expose a C++ class to PyTorch, how to register its methods, how to use that class from Python, and how to save and load code using the class and run that code in a standalone C++ process. You are now ready to extend your PyTorch models with C++ classes that interface with third party C++ libraries or implement any other use case that requires the lines between Python and C++ to blend smoothly.
+
+As always, if you run into any problems or have questions, you can use our forum or GitHub issues to get in touch. Also, our frequently asked questions (FAQ) page may have helpful information.

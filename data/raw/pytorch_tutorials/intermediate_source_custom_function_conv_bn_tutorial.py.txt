@@ -1,0 +1,35 @@
+Fusing Convolution and Batch Norm using Custom Function.
+
+Fusing adjacent convolution and batch norm layers together is typically an inference-time optimization to improve run-time. It is usually achieved by eliminating the batch norm layer entirely and updating the weight and bias of the preceding convolution [0]. However, this technique is not applicable for training models.
+
+In this tutorial, we will show a different technique to fuse the two layers that can be applied during training. Rather than improved runtime, the objective of this optimization is to reduce memory usage.
+
+The idea behind this optimization is to see that both convolution and batch norm (as well as many other ops) need to save a copy of their input during forward for the backward pass. For large batch sizes, these saved inputs are responsible for most of your memory usage, so being able to avoid allocating another input tensor for every convolution batch norm pair can be a significant reduction.
+
+In this tutorial, we avoid this extra allocation by combining convolution and batch norm into a single layer (as a custom function). In the forward of this combined layer, we perform normal convolution and batch norm as-is, with the only difference being that we will only save the inputs to the convolution. To obtain the input of batch norm, which is necessary to backward through it, we recompute convolution forward again during the backward pass.
+
+It is important to note that the usage of this optimization is situational. Though (by avoiding one buffer saved) we always reduce the memory allocated at the end of the forward pass, there are cases when the peak memory allocated may not actually be reduced. See the final section for more details.
+
+For simplicity, in this tutorial we hardcode <code>, <code>, <code>, <code>, and <code> for Conv2D. For BatchNorm2D, we hardcode <code>, <code>, <code>, and <code>. Another small difference is that we add epsilon in the denominator outside of the square root in the computation of batch norm.
+
+Backward Formula Implementation for Convolution Implementing a custom function requires us to implement the backward ourselves. In this case, we need both the backward formulas for Conv2D and BatchNorm2D. Eventually we'd chain them together in our unified backward function, but below we first implement them as their own custom functions so we can validate their correctness individually.
+
+When testing with <code>, it is important to use double precision.
+
+Backward Formula Implementation for Batch Norm Batch Norm has two modes: training and <code> mode. In training mode the sample statistics are a function of the inputs. In <code> mode, we use the saved running statistics, which are not a function of the inputs. This makes non-training mode's backward significantly simpler. Below we implement and test only the training mode case.
+
+Testing with <code>.
+
+Fusing Convolution and BatchNorm Now that the bulk of the work has been done, we can combine them together. Note that in (1) we only save a single buffer for backward, but this also means we recompute convolution forward in (5). Also see that in (2), (3), (4), and (6), it's the same exact code as the examples above.
+
+The next step is to wrap our functional variant in a stateful <code>.
+
+Use <code> to validate the correctness of our backward formula.
+
+Testing out our new Layer Use <code> to train a basic network The code below is after some light modifications to the example here:
+
+A Comparison of Memory Usage If CUDA is enabled, print out memory usage for both <code> and <code> For an example run on NVIDIA GeForce RTX 3070, NVIDIA CUDA® Deep Neural Network library (cuDNN) 8.0.5: fused peak memory: 1.56GB, unfused peak memory: 2.68GB.
+
+It is important to note that the peak memory usage for this model may vary depending the specific cuDNN convolution algorithm used. For shallower models, it may be possible for the peak memory allocated of the fused model to exceed that of the unfused model! This is because the memory allocated to compute certain cuDNN convolution algorithms can be high enough to "hide" the typical peak you would expect to be near the start of the backward pass.
+
+For this reason, we also record and display the memory allocated at the end of the forward pass as an approximation, and to demonstrate that we indeed allocate one fewer buffer per fused <code> pair.

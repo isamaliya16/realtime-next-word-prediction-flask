@@ -1,0 +1,37 @@
+Create an Estimator from a Keras model.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Overview.
+
+TensorFlow Estimators are supported in TensorFlow, and can be created from new and existing <code> models. This tutorial contains a complete, minimal example of that process.
+
+Note: If you have a Keras model, you can use it directly with <code> strategies without converting it to an estimator. As such, <code> is no longer recommended.
+
+Setup.
+
+Create a simple Keras model.
+
+In Keras, you assemble layers to build models. A model is (usually) a graph of layers. The most common type of model is a stack of layers: the <code> model.
+
+To build a simple, fully-connected network (i.e. multi-layer perceptron):
+
+Compile the model and get a summary.
+
+Create an input function.
+
+Use the Datasets API to scale to large datasets or multi-device training.
+
+Estimators need control of when and how their input pipeline is built. To allow this, they require an "Input function" or <code>. The <code> will call this function with no arguments. The <code> must return a <code>.
+
+Test out your <code>.
+
+Create an Estimator from the tf.keras model.
+
+A <code> can be trained with the <code> API by converting the model to an <code> object with <code>.
+
+Train and evaluate the estimator.

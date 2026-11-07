@@ -1,0 +1,107 @@
+Keras debugging tips.
+
+Introduction.
+
+It's generally possible to do almost anything in Keras without writing code per se: whether you're implementing a new type of GAN or the latest convnet architecture for image segmentation, you can usually stick to calling built-in methods. Because all built-in methods do extensive input validation checks, you will have little to no debugging to do. A Functional API model made entirely of built-in layers will work on first try -- if you can compile it, it will run.
+
+However, sometimes, you will need to dive deeper and write your own code. Here are some common examples:
+
+Creating a new <code> subclass.
+
+Creating a custom <code> subclass.
+
+Implementing a custom <code> on a <code>.
+
+This document provides a few simple tips to help you navigate debugging in these situations.
+
+Tip 1: test each part before you test the whole.
+
+If you've created any object that has a chance of not working as expected, don't just drop it in your end-to-end process and watch sparks fly. Rather, test your custom object in isolation first. This may seem obvious -- but you'd be surprised how often people don't start with this.
+
+If you write a custom layer, don't call <code> on your entire model just yet. Call your layer on some test data first.
+
+If you write a custom metric, start by printing its output for some reference inputs.
+
+Here's a simple example. Let's write a custom layer a bug in it:
+
+Now, rather than using it in a end-to-end model directly, let's try to call the layer on some test data:
+
+We get the following error:
+
+Looks like our input tensor in the <code> op may have an incorrect shape. Let's add a print statement to check the actual shapes:
+
+We get the following:
+
+Turns out we had the wrong axis for the <code> op! We should be concatenating <code> and <code> alongside the feature axis 1, not the batch axis 0. Here's the correct version:
+
+Now our code works fine:
+
+Tip 2: use <code> and <code> to check layer output shapes.
+
+If you're working with complex network topologies, you're going to need a way to visualize how your layers are connected and how they transform the data that passes through them.
+
+Here's an example. Consider this model with three inputs and two outputs (lifted from the Functional API guide):
+
+Calling <code> can help you check the output shape of each layer:
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩ │ title ( InputLayer ) │ ( None , None ) │ 0 │ - │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ body ( InputLayer ) │ ( None , None ) │ 0 │ - │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ embedding │ ( None , None , 64 ) │ 640,000 │ title 0 │ │ ( Embedding ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ embedding1 │ ( None , None , 64 ) │ 640,000 │ body 0 │ │ ( Embedding ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ lstm ( LSTM ) │ ( None , 128 ) │ 98,816 │ embedding 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ lstm1 ( LSTM ) │ ( None , 32 ) │ 12,416 │ embedding1 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ tags ( InputLayer ) │ ( None , 12 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ concatenate │ ( None , 172 ) │ 0 │ lstm 0 , │ │ ( Concatenate ) │ │ │ lstm1 0 , │ │ │ │ │ tags 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ priority ( Dense ) │ ( None , 1 ) │ 173 │ concatenate 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ department ( Dense ) │ ( None , 4 ) │ 692 │ concatenate 0 │ └─────────────────────┴───────────────────┴─────────┴──────────────────────┘.
+
+Total params: 1,392,097 (5.31 MB).
+
+Trainable params: 1,392,097 (5.31 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+You can also visualize the entire network topology alongside output shapes using <code>:
+
+With this plot, any connectivity-level error becomes immediately obvious.
+
+Tip 3: to debug what happens during <code>, use <code>.
+
+The <code> method is fast: it runs a well-optimized, fully-compiled computation graph. That's great for performance, but it also means that the code you're executing isn't the Python code you've written. This can be problematic when debugging. As you may recall, Python is slow -- so we use it as a staging language, not as an execution language.
+
+Thankfully, there's an easy way to run your code in "debug mode", fully eagerly: pass <code> to <code>. Your call to <code> will now get executed line by line, without any optimization. It's slower, but it makes it possible to print the value of intermediate tensors, or to use a Python debugger. Great for debugging.
+
+Here's a basic example: let's write a really simple model with a custom <code> method. Our model just implements gradient descent, but instead of first-order gradients, it uses a combination of first-order and second-order gradients. Pretty simple so far.
+
+Can you spot what we're doing wrong?
+
+Let's train a one-layer model on MNIST with this custom loss function.
+
+We pick, somewhat at random, a batch size of 1024 and a learning rate of 0.1. The general idea being to use larger batches and a larger learning rate than usual, since our "improved" gradients should lead us to quicker convergence.
+
+Oh no, it doesn't converge! Something is not working as planned.
+
+Time for some step-by-step printing of what's going on with our gradients.
+
+We add various <code> statements in the <code> method, and we make sure to pass <code> to <code> to run our code step-by-step, eagerly.
+
+What did we learn?
+
+The first order and second order gradients can have values that differ by orders of magnitudes.
+
+Sometimes, they may not even have the same sign.
+
+Their values can vary greatly at each step.
+
+This leads us to an obvious idea: let's normalize the gradients before combining them.
+
+Now, training converges! It doesn't work well at all, but at least the model learns something.
+
+After spending a few minutes tuning parameters, we get to the following configuration that works somewhat well (achieves 97% validation accuracy and seems reasonably robust to overfitting):
+
+Use <code> for combining gradients.
+
+Use a learning rate that decays linearly over time.
+
+I'm not going to say that the idea works -- this isn't at all how you're supposed to do second-order optimization (pointers: see the Newton & Gauss-Newton methods, quasi-Newton methods, and BFGS). But hopefully this demonstration gave you an idea of how you can debug your way out of uncomfortable training situations.
+
+Remember: use <code> for debugging what happens in <code>. And when your code is finally working as expected, make sure to remove this flag in order to get the best runtime performance!
+
+Here's our final training run:
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

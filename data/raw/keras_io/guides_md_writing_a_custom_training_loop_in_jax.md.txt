@@ -1,0 +1,121 @@
+Writing a training loop from scratch in JAX.
+
+Setup.
+
+Introduction.
+
+Keras provides default training and evaluation loops, <code> and <code>. Their usage is covered in the guide Training & evaluation with the built-in methods.
+
+If you want to customize the learning algorithm of your model while still leveraging the convenience of <code> (for instance, to train a GAN using <code>), you can subclass the <code> class and implement your own <code> method, which is called repeatedly during <code>.
+
+Now, if you want very low-level control over training & evaluation, you should write your own training & evaluation loops from scratch. This is what this guide is about.
+
+A first end-to-end example.
+
+To write a custom training loop, we need the following ingredients:
+
+A model to train, of course.
+
+An optimizer. You could either use an optimizer from <code>, or one from the <code> package.
+
+A loss function.
+
+A dataset. The standard in the JAX ecosystem is to load data via <code>, so that's what we'll use.
+
+Let's line them up.
+
+First, let's get the model and the MNIST dataset:
+
+Next, here's the loss function and the optimizer. We'll use a Keras optimizer in this case.
+
+Getting gradients in JAX.
+
+Let's train our model using mini-batch gradient with a custom training loop.
+
+In JAX, gradients are computed via metaprogramming: you call the <code> (or <code> on a function in order to create a gradient-computing function for that first function.
+
+So the first thing we need is a function that returns the loss value. That's the function we'll use to generate the gradient function. Something like this:
+
+Once you have such a function, you can compute gradients via metaprogramming as such:
+
+Typically, you don't just want to get the gradient values, you also want to get the loss value. You can do this by using <code> instead of <code>:
+
+JAX computation is purely stateless.
+
+In JAX, everything must be a stateless function -- so our loss computation function must be stateless as well. That means that all Keras variables (e.g. weight tensors) must be passed as function inputs, and any variable that has been updated during the forward pass must be returned as function output. The function have no side effect.
+
+During the forward pass, the non-trainable variables of a Keras model might get updated. These variables could be, for instance, RNG seed state variables or BatchNormalization statistics. We're going to need to return those. So we need something like this:
+
+Once you have such a function, you can get the gradient function by specifying <code> in <code>: it tells JAX that the loss computation function returns more outputs than just the loss. Note that the loss should always be the first output.
+
+Now that we have established the basics, let's implement this <code> function. Keras models have a <code> method which will come in handy here. It works just like <code>, but it requires you to explicitly pass the value of all the variables in the model, and it returns not just the <code> outputs but also the (potentially updated) non-trainable variables.
+
+Let's get the gradient function:
+
+The training step function.
+
+Next, let's implement the end-to-end training step, the function that will both run the forward pass, compute the loss, compute the gradients, but also use the optimizer to update the trainable variables. This function also needs to be stateless, so it will get as input a <code> tuple that includes every state element we're going to use:
+
+<code> and <code>: the model's variables.
+
+<code>: the optimizer's state variables, such as momentum accumulators.
+
+To update the trainable variables, we use the optimizer's stateless method <code>. It's equivalent to <code>, but it requires always passing <code> and <code>. It returns both the updated trainable variables and the updated optimizer_variables.
+
+Make it fast with <code>.
+
+By default, JAX operations run eagerly, just like in TensorFlow eager mode and PyTorch eager mode. And just like TensorFlow eager mode and PyTorch eager mode, it's pretty slow -- eager mode is better used as a debugging environment, not as a way to do any actual work. So let's make our <code> fast by compiling it.
+
+When you have a stateless JAX function, you can compile it to XLA via the <code> decorator. It will get traced during its first execution, and in subsequent executions you will be executing the traced graph (this is just like <code>. Let's try it:
+
+We're now ready to train our model. The training loop itself is trivial: we just repeatedly call <code>.
+
+Note:
+
+We convert the TF tensors yielded by the <code> to NumPy before passing them to our JAX function.
+
+All variables must be built beforehand: the model must be built and the optimizer must be built. Since we're using a Functional API model, it's already built, but if it were a subclassed model you'd need to call it on a batch of data to build it.
+
+A key thing to notice here is that the loop is entirely stateless -- the variables attached to the model (<code>) are never getting updated during the loop. Their new values are only stored in the <code> tuple. That means that at some point, before saving the model, you should be attaching the new variable values back to the model.
+
+Just call <code> on each model variable you want to update:
+
+Low-level handling of metrics.
+
+Let's add metrics monitoring to this basic training loop.
+
+You can readily reuse built-in Keras metrics (or custom ones you wrote) in such training loops written from scratch. Here's the flow:
+
+Instantiate the metric at the start of the loop.
+
+Include <code> in the <code> arguments and <code> arguments.
+
+Call <code> in the <code> function. It's equivalent to <code> -- only stateless.
+
+When you need to display the current value of the metric, outside the <code> (in the eager scope), attach the new metric variable values to the metric object and vall <code>.
+
+Call <code> when you need to clear the state of the metric (typically at the end of an epoch).
+
+Let's use this knowledge to compute <code> on training and validation data at the end of training:
+
+We'll also prepare an evaluation step function:
+
+Here are our loops:
+
+Low-level handling of losses tracked by the model.
+
+Layers & models recursively track any losses created during the forward pass by layers that call <code>. The resulting list of scalar loss values are available via the property <code> at the end of the forward pass.
+
+If you want to be using these loss components, you should sum them and add them to the main loss in your training step.
+
+Consider this layer, that creates an activity regularization loss:
+
+Let's build a really simple model that uses it:
+
+Here's what our <code> function should look like now:
+
+Pass <code> to <code>.
+
+Sum the resulting <code> and add them to the main loss.
+
+That's it!

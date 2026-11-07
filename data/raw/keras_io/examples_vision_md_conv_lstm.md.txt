@@ -1,0 +1,39 @@
+Next-Frame Video Prediction with Convolutional LSTMs.
+
+Introduction.
+
+The Convolutional LSTM architectures bring together time series processing and computer vision by introducing a convolutional recurrent cell in a LSTM layer. In this example, we will explore the Convolutional LSTM model in an application to next-frame prediction, the process of predicting what video frames come next given a series of past frames.
+
+Setup.
+
+Dataset Construction.
+
+For this example, we will be using the Moving MNIST dataset.
+
+We will download the dataset and then construct and preprocess training and validation sets.
+
+For next-frame prediction, our model will be using a previous frame, which we'll call <code>, to predict a new frame, called <code>. To allow the model to create these predictions, we'll need to process the data such that we have "shifted" inputs and outputs, where the input data is frame <code>, being used to predict frame <code>.
+
+Data Visualization.
+
+Our data consists of sequences of frames, each of which are used to predict the upcoming frame. Let's take a look at some of these sequential frames.
+
+Model Construction.
+
+To build a Convolutional LSTM model, we will use the <code> layer, which will accept inputs of shape <code>, and return a prediction movie of the same shape.
+
+Model Training.
+
+With our model and data constructed, we can now train the model.
+
+Frame Prediction Visualizations.
+
+With our model now constructed and trained, we can generate some example frame predictions based on a new video.
+
+We'll pick a random example from the validation set and then choose the first ten frames from them. From there, we can allow the model to predict 10 new frames, which we can compare to the ground truth frame predictions.
+
+Predicted Videos.
+
+Finally, we'll pick a few examples from the validation set and construct some GIFs with them to see the model's predicted videos.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.

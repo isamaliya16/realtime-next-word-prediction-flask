@@ -1,0 +1,145 @@
+Stochastic Gradient Descent.
+
+In earlier chapters we kept using stochastic gradient descent in our training procedure, however, without explaining why it works. To shed some light on it, we just described the basic principles of gradient descent in section <num>. In this section, we go on to discuss stochastic gradient descent in greater detail.
+
+Stochastic Gradient Updates.
+
+In deep learning, the objective function is usually the average of the loss functions for each example in the training dataset. Given a training dataset of <math> examples, we assume that <math> is the loss function with respect to the training example of index <math>, where <math> is the parameter vector. Then we arrive at the objective function.
+
+<math>.
+
+The gradient of the objective function at <math> is computed as.
+
+<math>.
+
+If gradient descent is used, the computational cost for each independent variable iteration is <math>, which grows linearly with <math>. Therefore, when the training dataset is larger, the cost of gradient descent for each iteration will be higher.
+
+Stochastic gradient descent (SGD) reduces computational cost at each iteration. At each iteration of stochastic gradient descent, we uniformly sample an index <math> for data examples at random, and compute the gradient <math> to update <math>:
+
+<math>.
+
+where <math> is the learning rate. We can see that the computational cost for each iteration drops from <math> of the gradient descent to the constant <math>. Moreover, we want to emphasize that the stochastic gradient <math> is an unbiased estimate of the full gradient <math> because.
+
+<math>.
+
+This means that, on average, the stochastic gradient is a good estimate of the gradient.
+
+Now, we will compare it with gradient descent by adding random noise with a mean of 0 and a variance of 1 to the gradient to simulate a stochastic gradient descent.
+
+As we can see, the trajectory of the variables in the stochastic gradient descent is much more noisy than the one we observed in gradient descent in section <num>. This is due to the stochastic nature of the gradient. That is, even when we arrive near the minimum, we are still subject to the uncertainty injected by the instantaneous gradient via <math>. Even after 50 steps the quality is still not so good. Even worse, it will not improve after additional steps (we encourage you to experiment with a larger number of steps to confirm this). This leaves us with the only alternative: change the learning rate <math>. However, if we pick this too small, we will not make any meaningful progress initially. On the other hand, if we pick it too large, we will not get a good solution, as seen above. The only way to resolve these conflicting goals is to reduce the learning rate dynamically as optimization progresses.
+
+This is also the reason for adding a learning rate function <code> into the <code> step function. In the example above any functionality for learning rate scheduling lies dormant as we set the associated <code> function to be constant.
+
+Dynamic Learning Rate.
+
+Replacing <math> with a time-dependent learning rate <math> adds to the complexity of controlling convergence of an optimization algorithm. In particular, we need to figure out how rapidly <math> should decay. If it is too quick, we will stop optimizing prematurely. If we decrease it too slowly, we waste too much time on optimization. The following are a few basic strategies that are used in adjusting <math> over time (we will discuss more advanced strategies later):
+
+<math>.
+
+In the first piecewise constant scenario we decrease the learning rate, e.g., whenever progress in optimization stalls. This is a common strategy for training deep networks. Alternatively we could decrease it much more aggressively by an exponential decay. Unfortunately this often leads to premature stopping before the algorithm has converged. A popular choice is polynomial decay with <math>. In the case of convex optimization there are a number of proofs that show that this rate is well behaved.
+
+Let's see what the exponential decay looks like in practice.
+
+As expected, the variance in the parameters is significantly reduced. However, this comes at the expense of failing to converge to the optimal solution <math>. Even after 1000 iteration steps are we are still very far away from the optimal solution. Indeed, the algorithm fails to converge at all. On the other hand, if we use a polynomial decay where the learning rate decays with the inverse square root of the number of steps, convergence gets better after only 50 steps.
+
+There exist many more choices for how to set the learning rate. For instance, we could start with a small rate, then rapidly ramp up and then decrease it again, albeit more slowly. We could even alternate between smaller and larger learning rates. There exists a large variety of such schedules. For now let's focus on learning rate schedules for which a comprehensive theoretical analysis is possible, i.e., on learning rates in a convex setting. For general nonconvex problems it is very difficult to obtain meaningful convergence guarantees, since in general minimizing nonlinear nonconvex problems is NP hard. For a survey see e.g., the excellent lecture notes of Tibshirani 2015.
+
+Convergence Analysis for Convex Objectives.
+
+The following convergence analysis of stochastic gradient descent for convex objective functions is optional and primarily serves to convey more intuition about the problem. We limit ourselves to one of the simplest proofs . Significantly more advanced proof techniques exist, e.g., whenever the objective function is particularly well behaved.
+
+Suppose that the objective function <math> is convex in <math> for all <math>. More concretely, we consider the stochastic gradient descent update:
+
+<math>.
+
+where <math> is the objective function with respect to the training example <math> drawn from some distribution at step <math> and <math> is the model parameter. Denote by.
+
+<math>.
+
+the expected risk and by <math> its minimum with regard to <math>. Last let <math> be the minimizer (we assume that it exists within the domain where <math> is defined). In this case we can track the distance between the current parameter <math> at time <math> and the risk minimizer <math> and see whether it improves over time:
+
+<math>.
+
+We assume that the <math> norm of stochastic gradient <math> is bounded by some constant <math>, hence we have that.
+
+<math>.
+
+We are mostly interested in how the distance between <math> and <math> changes in expectation. In fact, for any specific sequence of steps the distance might well increase, depending on whichever <math> we encounter. Hence we need to bound the dot product. Since for any convex function <math> it holds that <math> for all <math> and <math>, by convexity we have.
+
+<math>.
+
+Plugging both inequalities <num> and <num> into <num> we obtain a bound on the distance between parameters at time <math> as follows:
+
+<math>.
+
+This means that we make progress as long as the difference between current loss and the optimal loss outweighs <math>. Since this difference is bound to converge to zero it follows that the learning rate <math> also needs to vanish.
+
+Next we take expectations over <num>. This yields.
+
+<math>.
+
+The last step involves summing over the inequalities for <math>. Since the sum telescopes and by dropping the lower term we obtain.
+
+<math>.
+
+Note that we exploited that <math> is given and thus the expectation can be dropped. Last define.
+
+<math>.
+
+Since.
+
+<math>.
+
+by Jensen's inequality (setting <math>, <math> in <num>) and convexity of <math> it follows that <math>, thus.
+
+<math>.
+
+Plugging this into the inequality <num> yields the bound.
+
+<math>.
+
+where <math> is a bound on the distance between the initial choice of parameters and the final outcome. In short, the speed of convergence depends on how the norm of stochastic gradient is bounded (<math>) and how far away from optimality the initial parameter value is (<math>). Note that the bound is in terms of <math> rather than <math>. This is the case since <math> is a smoothed version of the optimization path. Whenever <math>, and <math> are known we can pick the learning rate <math>. This yields as upper bound <math>. That is, we converge with rate <math> to the optimal solution.
+
+Stochastic Gradients and Finite Samples.
+
+So far we have played a bit fast and loose when it comes to talking about stochastic gradient descent. We posited that we draw instances <math>, typically with labels <math> from some distribution <math> and that we use this to update the model parameters in some manner. In particular, for a finite sample size we simply argued that the discrete distribution <math> for some functions <math> and <math> allows us to perform stochastic gradient descent over it.
+
+However, this is not really what we did. In the toy examples in the current section we simply added noise to an otherwise non-stochastic gradient, i.e., we pretended to have pairs <math>. It turns out that this is justified here (see the exercises for a detailed discussion). More troubling is that in all previous discussions we clearly did not do this. Instead we iterated over all instances exactly once. To see why this is preferable consider the converse, namely that we are sampling <math> observations from the discrete distribution with replacement. The probability of choosing an element <math> at random is <math>. Thus to choose it at least once is.
+
+<math>.
+
+A similar reasoning shows that the probability of picking some sample (i.e., training example) exactly once is given by.
+
+<math>.
+
+Sampling with replacement leads to an increased variance and decreased data efficiency relative to sampling without replacement. Hence, in practice we perform the latter (and this is the default choice throughout this book). Last note that repeated passes through the training dataset traverse it in a different random order.
+
+Summary.
+
+For convex problems we can prove that for a wide choice of learning rates stochastic gradient descent will converge to the optimal solution.
+
+For deep learning this is generally not the case. However, the analysis of convex problems gives us useful insight into how to approach optimization, namely to reduce the learning rate progressively, albeit not too quickly.
+
+Problems occur when the learning rate is too small or too large. In practice a suitable learning rate is often found only after multiple experiments.
+
+When there are more examples in the training dataset, it costs more to compute each iteration for gradient descent, so stochastic gradient descent is preferred in these cases.
+
+Optimality guarantees for stochastic gradient descent are in general not available in nonconvex cases since the number of local minima that require checking might well be exponential.
+
+Exercises.
+
+Experiment with different learning rate schedules for stochastic gradient descent and with different numbers of iterations. In particular, plot the distance from the optimal solution <math> as a function of the number of iterations.
+
+Prove that for the function <math> adding normal noise to the gradient is equivalent to minimizing a loss function <math> where <math> is drawn from a normal distribution.
+
+Compare convergence of stochastic gradient descent when you sample from <math> with replacement and when you sample without replacement.
+
+How would you change the stochastic gradient descent solver if some gradient (or rather some coordinate associated with it) was consistently larger than all the other gradients?
+
+Assume that <math>. How many local minima does <math> have? Can you change <math> in such a way that to minimize it one needs to evaluate all the local minima?
+
+Discussions.
+
+Discussions.
+
+Discussions.

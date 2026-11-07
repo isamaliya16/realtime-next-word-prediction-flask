@@ -1,0 +1,39 @@
+Load your dataset to Argilla.
+
+Depending on the NLP task that you're working with and the specific use case or application, your data and the annotation task will look differently. For this section of the course, we'll use a dataset collecting news to complete two tasks: a text classification on the topic of each text and a token classification to identify the named entities mentioned.
+
+It is possible to import datasets from the Hub using the Argilla UI directly, but we'll be using the SDK to learn how we can make further edits to the data if needed.
+
+Configure your dataset.
+
+The first step is to connect to our Argilla instance as we did in the previous section:
+
+We can now think about the settings of our dataset in Argilla. These represent the annotation task we'll do over our data. First, we can load the dataset from the Hub and inspect its features, so that we can make sure that we configure the dataset correctly.
+
+These are the features of our dataset:
+
+It contains a <code> and also some initial labels for the text classification. We'll add those to our dataset settings together with a <code> question for the named entities:
+
+Let's dive a bit deeper into what these settings mean. First, we've defined fields, these include the information that we'll be annotating. In this case, we only have one field and it comes in the form of a text, so we've choosen a <code>.
+
+Then, we define questions that represent the tasks that we want to perform on our data:
+
+For the text classification task we've chosen a <code> and we used the unique values of the <code> column as our labels, to make sure that the question is compatible with the labels that already exist in the dataset.
+
+For the token classification task, we'll need a <code>. We've defined a set of labels that we'll be using for that task, plus the field on which we'll be drawing the spans.
+
+To learn more about all the available types of fields and questions and other advanced settings, like metadata and vectors, go to the Argilla docs.
+
+Upload the dataset.
+
+Now that we've defined some settings, we can create the dataset:
+
+The dataset now appears in our Argilla instance, but you will see that it's empty:
+
+Now we need to add the records that we'll be annotating i.e., the rows in our dataset. To do that, we'll simply need to log the data as records and provide a mapping for those elements that don't have the same name in the hub and Argilla datasets:
+
+In our mapping, we've specified that the <code> column in the dataset should be mapped to the question with the name <code>. In this way, we'll use the existing labels in the dataset as pre-annotations so we can annotate faster.
+
+While the records continue to log, you can already start working with your dataset in the Argilla UI. At this point, it should look like this:
+
+Now our dataset is ready to start annotating!

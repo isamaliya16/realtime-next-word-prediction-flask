@@ -1,0 +1,141 @@
+Custom training loop with Keras and MultiWorkerMirroredStrategy.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+This tutorial demonstrates how to perform multi-worker distributed training with a Keras model and with custom training loops using the <code> API. The training loop is distributed via <code>, such that a <code> model—designed to run on single-worker—can seamlessly work on multiple workers with minimal code changes. Custom training loops provide flexibility and a greater control on training, while also making it easier to debug the model. Learn more about writing a basic training loop, writing a training loop from scratch and custom training.
+
+If you are looking for how to use <code> with <code>, refer to this tutorial instead.
+
+Distributed Training in TensorFlow guide is available for an overview of the distribution strategies TensorFlow supports for those interested in a deeper understanding of <code> APIs.
+
+Setup.
+
+First, some necessary imports.
+
+Before importing TensorFlow, make a few changes to the environment:
+
+Disable all GPUs. This prevents errors caused by all workers trying to use the same GPU. In a real-world application, each worker would be on a different machine.
+
+Reset the <code> environment variable (you'll see more about this later).
+
+Make sure that the current directory is on Python's path. This allows the notebook to import the files written by <code> later.
+
+Now import TensorFlow.
+
+Dataset and model definition.
+
+Next, create an <code> file with a simple model and dataset setup. This Python file will be used by the worker-processes in this tutorial:
+
+Multi-worker configuration.
+
+Now let's enter the world of multi-worker training. In TensorFlow, the <code> environment variable is required for training on multiple machines. Each machine may have a different role. The <code> variable used below is a JSON string that specifies the cluster configuration on each worker that is part of the cluster. This is the default method for specifying a cluster, using <code>, but there are other options available in the <code> module. Learn more about setting up the <code> variable in the Distributed training guide.
+
+Describe your cluster.
+
+Here is an example configuration:
+
+Note that <code> is just a local variable in Python. To use it for training configuration, serialize it as a JSON and place it in a <code> environment variable. Here is the same <code> serialized as a JSON string:
+
+There are two components of <code>: <code> and <code>.
+
+<code> is the same for all workers and provides information about the training cluster, which is a dict consisting of different types of jobs such as <code>. In multi-worker training with <code>, there is usually one <code> that takes on a little more responsibility like saving checkpoints and writing summary files for TensorBoard in addition to what a regular <code> does. Such a worker is referred to as the <code> worker, and it is customary that the <code> with <code> 0 is appointed as the chief <code>.
+
+<code> provides information of the current task and is different on each worker. It specifies the <code> and <code> of that worker.
+
+In this example, you set the task <code> to <code> and the task <code> to <code>. This machine is the first worker and will be appointed as the chief worker and do more work than the others. Note that other machines will need to have the <code> environment variable set as well, and it should have the same <code> dict, but different task <code> or task <code> depending on what the roles of those machines are.
+
+For illustration purposes, this tutorial shows how one may set a <code> with two workers on <code>. In practice, users would create multiple workers on external IP addresses/ports, and set <code> on each worker appropriately.
+
+This example uses two workers. The first worker's <code> is shown above. For the second worker, set <code>.
+
+Environment variables and subprocesses in notebooks.
+
+Subprocesses inherit environment variables from their parent. So if you set an environment variable in this Jupyter Notebook process:
+
+you can then access the environment variable from a subprocess:
+
+In the next section, you'll use this to pass the <code> to the worker subprocesses. You would never really launch your jobs this way, but it's sufficient for the purposes of this tutorial: To demonstrate a minimal multi-worker example.
+
+MultiWorkerMirroredStrategy.
+
+Before training the model, first create an instance of <code>:
+
+Note: <code> is parsed and TensorFlow's GRPC servers are started at the time you call <code> Therefore, you must set the <code> environment variable before you instantiate a <code>. To save time in this illustrative example, this is not demonstrated in this tutorial, so that servers do not need to start. You can find a full example in the last section of this tutorial.
+
+Use <code> to specify that a strategy should be used when building your model. This allows the strategy to control things like variable placement—it will create copies of all variables in the model's layers on each device across all workers.
+
+Auto-shard your data across workers.
+
+In multi-worker training, dataset sharding is needed to ensure convergence and reproducibility. Sharding means handing each worker a subset of the entire dataset—it helps create the experience similar to training on a single worker. In the example below, you're relying on the default autosharding policy of <code>. You can also customize it by setting the <code> of the <code>. To learn more, refer to the Sharding section of the Distributed input tutorial.
+
+Define a custom training loop and train the model.
+
+Specify an optimizer:
+
+Define a training step with <code>:
+
+Checkpoint saving and restoring.
+
+As you write a custom training loop, you need to handle checkpoint saving manually instead of relying on a Keras callback. Note that for <code>, saving a checkpoint or a complete model requires the participation of all workers, because attempting to save only on the chief worker could lead to a deadlock. Workers also need to write to different paths to avoid overwriting each other. Here's an example of how to configure the directories:
+
+Create one <code> that tracks the model, which is managed by a <code>, so that only the latest checkpoints are preserved:
+
+Now, when you need to restore a checkpoint, you can find the latest checkpoint saved using the convenient <code> function (or by calling <code>).
+
+After restoring the checkpoint, you can continue with training your custom training loop.
+
+Complete code at a glance.
+
+To sum up all the procedures discussed so far:
+
+You create worker processes.
+
+Pass <code>s to the worker processes.
+
+Let each work process run the script below that contains the training code.
+
+The current directory now contains both Python files:
+
+So JSON-serialize the <code> and add it to the environment variables:
+
+Now, you can launch a worker process that will run the <code> and use the <code>:
+
+There are a few things to note about the above command:
+
+It uses the <code> which is a notebook "magic" to run some bash commands.
+
+It uses the <code> flag to run the <code> process in the background, because this worker will not terminate. It waits for all the workers before it starts.
+
+The backgrounded worker process won't print the output to this notebook. The <code> redirects its output to a file, so that you can inspect what happened.
+
+Wait a few seconds for the process to start up:
+
+Now, check the output to the worker's log file so far:
+
+The last line of the log file should say: <code>. The first worker is now ready, and is waiting for all the other worker(s) to be ready to proceed.
+
+Update the <code> for the second worker's process to pick up:
+
+Now launch the second worker. This will start the training since all the workers are active (so there's no need to background this process):
+
+If you recheck the logs written by the first worker, notice that it participated in training that model:
+
+Multi-worker training in depth.
+
+This tutorial has demonstrated a custom training loop workflow of the multi-worker setup. Detailed descriptions of other topics is available in the Multi-worker training with Keras (<code>) tutorial applicable to custom training loops.
+
+Learn more.
+
+The Distributed training in TensorFlow guide provides an overview of the available distribution strategies.
+
+Official models, many of which can be configured to run multiple distribution strategies.
+
+The Performance section in the <code> guide provides information about other strategies and tools you can use to optimize the performance of your TensorFlow models.

@@ -1,0 +1,65 @@
+Beam Search.
+
+In section <num>, we introduced the encoder--decoder architecture, and the standard techniques for training them end-to-end. However, when it came to test-time prediction, we mentioned only the greedy strategy, where we select at each time step the token given the highest predicted probability of coming next, until, at some time step, we find that we have predicted the special end-of-sequence " " token. In this section, we will begin by formalizing this greedy search strategy and identifying some problems that practitioners tend to run into. Subsequently, we compare this strategy with two alternatives: exhaustive search (illustrative but not practical) and beam search (the standard method in practice).
+
+Let's begin by setting up our mathematical notation, borrowing conventions from section <num>. At any time step <math>, the decoder outputs predictions representing the probability of each token in the vocabulary coming next in the sequence (the likely value of <math>), conditioned on the previous tokens <math> and the context variable <math>, produced by the encoder to represent the input sequence. To quantify computational cost, denote by <math> the output vocabulary (including the special end-of-sequence token " "). Let's also specify the maximum number of tokens of an output sequence as <math>. Our goal is to search for an ideal output from all <math> possible output sequences. Note that this slightly overestimates the number of distinct outputs because there are no subsequent tokens once the " " token occurs. However, for our purposes, this number roughly captures the size of the search space.
+
+Greedy Search.
+
+Consider the simple greedy search strategy from section <num>. Here, at any time step <math>, we simply select the token with the highest conditional probability from <math>, i.e.
+
+<math>.
+
+Once our model outputs " " (or we reach the maximum length <math>) the output sequence is completed.
+
+This strategy might look reasonable, and in fact it is not so bad! Considering how computationally undemanding it is, you'd be hard pressed to get more bang for your buck. However, if we put aside efficiency for a minute, it might seem more reasonable to search for the most likely sequence, not the sequence of (greedily selected) most likely tokens. It turns out that these two objects can be quite different. The most likely sequence is the one that maximizes the expression <math>. In our machine translation example, if the decoder truly recovered the probabilities of the underlying generative process, then this would give us the most likely translation. Unfortunately, there is no guarantee that greedy search will give us this sequence.
+
+Let's illustrate it with an example. Suppose that there are four tokens "A", "B", "C", and " " in the output dictionary. In section <num>, the four numbers under each time step represent the conditional probabilities of generating "A", "B", "C", and " " respectively, at that time step.
+
+At each time step, greedy search selects the token with the highest conditional probability. Therefore, the output sequence "A", "B", "C", and " " will be predicted (section <num>). The conditional probability of this output sequence is <math>.
+
+Next, let's look at another example in section <num>. Unlike in section <num>, at time step 2 we select the token "C", which has the second highest conditional probability.
+
+Since the output subsequences at time steps 1 and 2, on which time step 3 is based, have changed from "A" and "B" in section <num> to "A" and "C" in section <num>, the conditional probability of each token at time step 3 has also changed in section <num>. Suppose that we choose the token "B" at time step 3. Now time step 4 is conditional on the output subsequence at the first three time steps "A", "C", and "B", which has changed from "A", "B", and "C" in section <num>. Therefore, the conditional probability of generating each token at time step 4 in section <num> is also different from that in section <num>. As a result, the conditional probability of the output sequence "A", "C", "B", and " " in section <num> is <math>, which is greater than that of greedy search in section <num>. In this example, the output sequence "A", "B", "C", and " " obtained by the greedy search is not optimal.
+
+Exhaustive Search.
+
+If the goal is to obtain the most likely sequence, we may consider using exhaustive search: enumerate all the possible output sequences with their conditional probabilities, and then output the one that scores the highest predicted probability.
+
+While this would certainly give us what we desire, it would come at a prohibitive computational cost of <math>, exponential in the sequence length and with an enormous base given by the vocabulary size. For example, when <math> and <math>, both small numbers when compared with ones in real applications, we will need to evaluate <math> sequences, which is already beyond the capabilities of any foreseeable computers. On the other hand, the computational cost of greedy search is <math>: miraculously cheap but far from optimal. For example, when <math> and <math>, we only need to evaluate <math> sequences.
+
+Beam Search.
+
+You could view sequence decoding strategies as lying on a spectrum, with beam search striking a compromise between the efficiency of greedy search and the optimality of exhaustive search. The most straightforward version of beam search is characterized by a single hyperparameter, the beam size, <math>. Let's explain this terminology. At time step 1, we select the <math> tokens with the highest predicted probabilities. Each of them will be the first token of <math> candidate output sequences, respectively. At each subsequent time step, based on the <math> candidate output sequences at the previous time step, we continue to select <math> candidate output sequences with the highest predicted probabilities from <math> possible choices.
+
+section <num> demonstrates the process of beam search with an example. Suppose that the output vocabulary contains only five elements: <math>, where one of them is “ ”. Let the beam size be two and the maximum length of an output sequence be three. At time step 1, suppose that the tokens with the highest conditional probabilities <math> are <math> and <math>. At time step 2, for all <math> we compute.
+
+<math>.
+
+and pick the largest two among these ten values, say <math> and <math>. Then at time step 3, for all <math>, we compute.
+
+<math>.
+
+and pick the largest two among these ten values, say <math> and <math> As a result, we get six candidates output sequences: (i) <math>; (ii) <math>; (iii) <math>, <math>; (iv) <math>, <math>; (v) <math>, <math>, <math>; and (vi) <math>, <math>, <math>.
+
+In the end, we obtain the set of final candidate output sequences based on these six sequences (e.g., discard portions including and after “ ”). Then we choose the output sequence which maximizes the following score:
+
+<math>.
+
+here <math> is the length of the final candidate sequence and <math> is usually set to 0.75. Since a longer sequence has more logarithmic terms in the summation of <num>, the term <math> in the denominator penalizes long sequences.
+
+The computational cost of beam search is <math>. This result is in between that of greedy search and that of exhaustive search. Greedy search can be treated as a special case of beam search arising when the beam size is set to 1.
+
+Summary.
+
+Sequence searching strategies include greedy search, exhaustive search, and beam search. Beam search provides a trade-off between accuracy and computational cost via the flexible choice of the beam size.
+
+Exercises.
+
+Can we treat exhaustive search as a special type of beam search? Why or why not?
+
+Apply beam search in the machine translation problem in section <num>. How does the beam size affect the translation results and the prediction speed?
+
+We used language modeling for generating text following user-provided prefixes in section <num>. Which kind of search strategy does it use? Can you improve it?
+
+Discussions.

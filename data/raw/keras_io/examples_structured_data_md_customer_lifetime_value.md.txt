@@ -1,0 +1,27 @@
+Deep Learning for Customer Lifetime Value.
+
+Introduction.
+
+A hybrid deep learning architecture combining Transformer encoders and LSTM networks for predicting customer purchase patterns and lifetime value using transaction history. While many existing review articles focus on classic parametric models and traditional machine learning algorithms ,this implementation leverages recent advancements in Transformer-based models for time series prediction. The approach handles multi-granularity prediction across different temporal scales.
+
+Setting up Libraries for the Deep Learning Project.
+
+List of Packages to Install.
+
+uciml: For the purpose of the tutorial; we will be using the UK Retail Dataset.
+
+keras_hub: Access to the transformer encoder layer.
+
+Preprocessing the UK Retail dataset.
+
+Scaling and Splitting.
+
+Evaluation.
+
+Hybrid Transformer / LSTM model architecture.
+
+The hybrid nature of this model is particularly significant because it combines RNN's ability to handle sequential data with Transformer's attention mechanisms for capturing global patterns across countries and seasonality.
+
+Conclusion.
+
+While LSTMs excel at sequence to sequence learning as demonstrated through the work of Sutskever, I., Vinyals, O., & Le, Q. V. (2014) Sequence to sequence learning with neural networks. The hybrid approach here enhances this foundation. The addition of attention mechanisms allows the model to adaptively focus on relevant temporal/geographical patterns while maintaining the LSTM's inherent strengths in sequence learning. This combination has proven especially effective for handling both periodic patterns and special events in time series forecasting from Zhou, H., Zhang, S., Peng, J., Zhang, S., Li, J., Xiong, H., & Zhang, W. (2021). Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting.

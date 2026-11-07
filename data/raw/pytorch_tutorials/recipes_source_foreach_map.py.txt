@@ -1,0 +1,25 @@
+Explicit horizontal fusion with foreach_map and torch.compile.
+
+Horizontal fusion is a key optimization in ML compilers. In eager, this is typically expressed using the torch.foreach ops which parallelizes operations across a list of tensors. However, supporting all possible permutations of arguments is quite difficult (e.g. mixtures of scalars and lists). Foreachmap allows conversion of any pointwise op in <code> to a horiztonally fused foreach variant. In this tutorial, we will demonstrate how to implement the Adam optimizer with <code> to generate a fully fused kernel.
+
+Prerequisites.
+
+PyTorch v2.7.0 or later.
+
+Model Setup For this example, we'll use a simple sequence of linear layers. We instantiate an independent copy to compare the two optimizer implementations.
+
+Helper functions for foreach_map implementation.
+
+In this section, we'll begin our implementation of the Adam optimizer.
+
+Setting up and running the compiled kernel.
+
+In this section, we'll run our Adam optimizer and compare the results.
+
+Conclusion In this tutorial, we successfully implemented a custom fully-fused Adam optimizer using foreachmap. By leveraging the power of foreachmap and torch.compile, we were able to create an optimized version of the Adam optimizer that can be used in various machine learning applications. This tutorial provides a comprehensive guide on how to use foreach_map and torch.compile to optimize machine learning models, and serves as a valuable resource for developers looking to improve the performance of their models with horizontal fusion.
+
+See also:
+
+Compiled optimizer tutorial - an intro into the compiled optimizer.
+
+Compiling the optimizer with PT2 - deeper technical details on the compiled optimizer.

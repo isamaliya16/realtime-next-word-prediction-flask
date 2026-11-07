@@ -1,0 +1,113 @@
+Segment Anything in KerasHub.
+
+Overview.
+
+The Segment Anything Model (SAM) produces high quality object masks from input prompts such as points or boxes, and it can be used to generate masks for all objects in an image. It has been trained on a dataset of 11 million images and 1.1 billion masks, and has strong zero-shot performance on a variety of segmentation tasks.
+
+In this guide, we will show how to use KerasHub's implementation of the Segment Anything Model and show how powerful TensorFlow's and JAX's performance boost is.
+
+First, let's get all our dependencies and images for our demo.
+
+Choose your backend.
+
+With Keras 3, you can choose to use your favorite backend!
+
+Helper functions.
+
+Let's define some helper functions for visulazing the images, prompts, and the segmentation results.
+
+Get the pretrained SAM model.
+
+We can initialize a trained SAM model using KerasHub's <code> factory method. Here, we use the huge ViT backbone trained on the SA-1B dataset (<code>) for high-quality segmentation masks. You can also use one of the <code> or <code> for better performance (at the cost of decreasing quality of segmentation masks).
+
+Understanding Prompts.
+
+Segment Anything allows prompting an image using points, boxes, and masks:
+
+Point prompts are the most basic of all: the model tries to guess the object given a point on an image. The point can either be a foreground point (i.e. the desired segmentation mask contains the point in it) or a backround point (i.e. the point lies outside the desired mask).
+
+Another way to prompt the model is using boxes. Given a bounding box, the model tries to segment the object contained in it.
+
+Finally, the model can also be prompted using a mask itself. This is useful, for instance, to refine the borders of a previously predicted or known segmentation mask.
+
+What makes the model incredibly powerful is the ability to combine the prompts above. Point, box, and mask prompts can be combined in several different ways to achieve the best result.
+
+Let's see the semantics of passing these prompts to the Segment Anything model in KerasHub. Input to the SAM model is a dictionary with keys:
+
+<code>: A batch of images to segment. Must be of shape <code>.
+
+<code>: A batch of point prompts. Each point is an <code> coordinate originating from the top-left corner of the image. In other works, each point is of the form <code> where <code> and <code> are the row and column of the pixel in the image. Must be of shape `(B, N, 2)`.
+
+<code>: A batch of labels for the given points. <code> represents foreground points and <code> represents background points. Must be of shape <code>.
+
+<code>: A batch of boxes. Note that the model only accepts one box per batch. Hence, the expected shape is <code>. Each box is a collection of 2 points: the top left corner and the bottom right corner of the box. The points here follow the same semantics as the point prompts. Here the <code> in the second dimension represents the presence of box prompts. If the box prompts are missing, a placeholder input of shape <code> must be passed.
+
+<code>: A batch of masks. Just like box prompts, only one mask prompt per image is allowed. The shape of the input mask must be <code> if they are present and <code> for missing mask prompt.
+
+Placeholder prompts are only required when calling the model directly (i.e. <code>). When calling the <code> method, missing prompts can be omitted from the input dictionary.
+
+Point prompts.
+
+First, let's segment an image using point prompts. We load the image and resize it to shape <code>, the image size the pretrained SAM model expects.
+
+Next, we will define the point on the object we want to segment. Let's try to segment the truck's window pane at coordinates <code>.
+
+Now let's call the <code> method of our model to get the segmentation masks.
+
+Note: We don't call the model directly (<code>) since placeholder prompts are required to do so. Missing prompts are handled automatically by the predict method so we call it instead. Also, when no box prompts are present, the points and labels need to be padded with a zero point prompt and <code> label prompt respectively. The cell below demonstrates how this works.
+
+<code> returns two outputs. First are logits (segmentation masks) of shape <code> and the other are the IoU confidence scores (of shape `(1, 4)`) for each mask predicted. The pretrained SAM model predicts four masks: the first is the best mask the model could come up with for the given prompts, and the other 3 are the alternative masks which can be used in case the best prediction doesn't contain the desired object. The user can choose whichever mask they prefer.
+
+Let's visualize the masks returned by the model!
+
+As expected, the model returns a segmentation mask for the truck's window pane. But, our point prompt can also mean a range of other things. For example, another possible mask that contains our point is just the right side of the window pane or the whole truck.
+
+Let's also visualize the other masks the model has predicted.
+
+Nice! SAM was able to capture the ambiguity of our point prompt and also returned other possible segmentation masks.
+
+Box Prompts.
+
+Now, let's see how we can prompt the model using boxes. The box is specified using two points, the top-left corner and the bottom-right corner of the bounding box in xyxy format. Let's prompt the model using a bounding box around the left front tyre of the truck.
+
+Boom! The model perfectly segments out the left front tyre in our bounding box.
+
+Combining prompts.
+
+To get the true potential of the model out, let's combine box and point prompts and see what the model does.
+
+Voila! The model understood that the object we wanted to exclude from our mask was the rim of the tyre.
+
+Text prompts.
+
+Finally, let's see how text prompts can be used along with KerasHub's <code>.
+
+For this demo, we will use the offical Grounding DINO model. Grounding DINO is a model that takes as input a <code> pair and generates a bounding box around the object in the <code> described by the <code>. You can refer to the paper for more details on the implementation of the model.
+
+For this part of the demo, we will need to install the <code> package from source:
+
+Then, we can install the pretrained model's weights and config:
+
+Let's load an image of a dog for this part!
+
+We first predict the bounding box of the object we want to segment using the Grounding DINO model. Then, we prompt the SAM model using the bounding box to get the segmentation mask.
+
+Let's try to segment out the harness of the dog. Change the image and text below to segment whatever you want using text from your image!
+
+And that's it! We got a segmentation mask for our text prompt using the combination of Gounding DINO + SAM! This is a very powerful technique to combine different models to expand the applications!
+
+Let's visualize the results.
+
+Optimizing SAM.
+
+You can use <code> or <code> dtype policies to gain huge speedups and memory optimizations at releatively low precision loss.
+
+Here's a comparison of KerasHub's implementation with the original PyTorch implementation!
+
+The script used to generate the benchmarks is present here.
+
+Conclusion.
+
+KerasHub's <code> supports a variety of applications and, with the help of Keras 3, enables running the model on TensorFlow, JAX, and PyTorch! With the help of XLA in JAX and TensorFlow, the model runs several times faster than the original implementation. Moreover, using Keras's mixed precision support helps optimize memory use and computation time with just one line of code!
+
+For more advanced uses, check out the Automatic Mask Generator demo.

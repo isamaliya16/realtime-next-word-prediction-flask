@@ -1,0 +1,319 @@
+Neural Style Transfer with AdaIN.
+
+Introduction.
+
+Neural Style Transfer is the process of transferring the style of one image onto the content of another. This was first introduced in the seminal paper "A Neural Algorithm of Artistic Style" by Gatys et al. A major limitation of the technique proposed in this work is in its runtime, as the algorithm uses a slow iterative optimization process.
+
+Follow-up papers that introduced Batch Normalization, Instance Normalization and Conditional Instance Normalization allowed Style Transfer to be performed in new ways, no longer requiring a slow iterative process.
+
+Following these papers, the authors Xun Huang and Serge Belongie propose Adaptive Instance Normalization (AdaIN), which allows arbitrary style transfer in real time.
+
+In this example we implement Adaptive Instance Normalization for Neural Style Transfer. We show in the below figure the output of our AdaIN model trained for only 30 epochs.
+
+You can also try out the model with your own images with this Hugging Face demo.
+
+Setup.
+
+We begin by importing the packages used throughout the example and defining a few global hyperparameters that control image size, batch size, and training duration.
+
+Style transfer sample gallery.
+
+For Neural Style Transfer we need style images and content images. In this example we will use the Best Artworks of All Time as our style dataset and Pascal VOC images as our content dataset.
+
+This is a deviation from the original paper implementation by the authors, where they use WIKI-Art as style and MSCOCO as content datasets respectively. We do this to create a minimal yet reproducible example.
+
+Downloading the dataset from Kaggle.
+
+The Best Artworks of All Time dataset is hosted on Kaggle and one can easily download it in Colab by following these steps:
+
+Follow the instructions here in order to obtain your Kaggle API keys in case you don't have them.
+
+Use the following command to upload the Kaggle API keys.
+
+Use the following commands to move the API keys to the proper directory and download the style dataset.
+
+Download Pascal VOC 2012 images and extract them under <code>.
+
+<code> pipeline.
+
+In this section, we build a <code> input pipeline with no <code> dependency.
+
+Both style and content images are read from local folders, decoded, resized, and paired inside a custom <code> implementation.
+
+After loading image paths, we create train, validation, and test <code> instances that the model will consume.
+
+Using fallback local data at /tmp/adain_data because /content paths were not found.
+
+Visualizing the data.
+
+It is always better to visualize the data before training. To ensure the correctness of our preprocessing pipeline, we visualize 10 samples from our dataset.
+
+Architecture.
+
+The style transfer network takes a content image and a style image as inputs and outputs the style transferred image. The authors of AdaIN propose a simple encoder-decoder structure for achieving this.
+
+The content image (<code>) and the style image (<code>) are both fed to the encoder networks. The output from these encoder networks (feature maps) are then fed to the AdaIN layer. The AdaIN layer computes a combined feature map. This feature map is then fed into a randomly initialized decoder network that serves as the generator for the neural style transferred image.
+
+The style feature map (<code>) and the content feature map (<code>) are fed to the AdaIN layer. This layer produced the combined feature map <code>. The function <code> represents the decoder (generator) network.
+
+Encoder.
+
+The encoder is a part of the pretrained (pretrained on imagenet) VGG19 model. We slice the model from the <code> layer. The output layer is as suggested by the authors in their paper.
+
+Adaptive Instance Normalization.
+
+The AdaIN layer takes in the features of the content and style image. The layer can be defined via the following equation:
+
+where <code> is the standard deviation and <code> is the mean for the concerned variable. In the above equation the mean and variance of the content feature map <code> is aligned with the mean and variance of the style feature maps <code>.
+
+It is important to note that the AdaIN layer proposed by the authors uses no other parameters apart from mean and variance. The layer also does not have any trainable parameters. This is why we use a Python function instead of using a Keras layer. The function takes style and content feature maps, computes the mean and standard deviation of the images and returns the adaptive instance normalized feature map.
+
+Decoder.
+
+The authors specify that the decoder network must mirror the encoder network. We have symmetrically inverted the encoder to build our decoder. We have used <code> layers to increase the spatial resolution of the feature maps.
+
+Note that the authors warn against using any normalization layer in the decoder network, and do indeed go on to show that including batch normalization or instance normalization hurts the performance of the overall network.
+
+This is the only portion of the entire architecture that is trainable.
+
+Loss functions.
+
+Here we build the loss functions for the neural style transfer model. The authors propose to use a pretrained VGG-19 to compute the loss function of the network. It is important to keep in mind that this will be used for training only the decoder network. The total loss (<code>) is a weighted combination of content loss (<code>) and style loss (<code>). The <code> term is used to vary the amount of style transferred.
+
+Content Loss.
+
+This is the Euclidean distance between the content image features and the features of the neural style transferred image.
+
+Here the authors propose to use the output from the AdaIn layer <code> as the content target rather than using features of the original image as target. This is done to speed up convergence.
+
+Style Loss.
+
+Rather than using the more commonly used Gram Matrix, the authors propose to compute the difference between the statistical features (mean and variance) which makes it conceptually cleaner. This can be easily visualized via the following equation:
+
+where <code> denotes the layers in VGG-19 used to compute the loss. In this case this corresponds to:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+Neural Style Transfer.
+
+This is the trainer module. We wrap the encoder and decoder inside a <code> subclass and migrate training logic into <code>. This lets Keras run the backend-native training step while we keep custom loss computation for AdaIN.
+
+Train Monitor callback.
+
+This callback is used to visualize the style transfer output of the model at the end of each epoch. The objective of style transfer cannot be quantified properly, and is to be subjectively evaluated by an audience. For this reason, visualization is a key aspect of evaluating the model.
+
+Train the model.
+
+In this section, we define the optimizer, the loss function, and the trainer module. We compile the trainer module with the optimizer and the loss function and then train it.
+
+Note: We train the model for 30 epochs here, but you can reduce this for faster iteration.
+
+Epoch 1/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 69.3327 - styleloss: 140.9464 - total_loss: 210.2792.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 25s 3s/step - contentloss: 64.4736 - styleloss: 129.5553 - totalloss: 194.0289 - valcontentloss: 61.5842 - valstyleloss: 121.2355 - valtotal_loss: 182.8197.
+
+Epoch 2/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 58.3413 - styleloss: 110.8445 - total_loss: 169.1858.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 58.0459 - styleloss: 108.7533 - totalloss: 166.7992 - valcontentloss: 58.5479 - valstyleloss: 110.1745 - valtotal_loss: 168.7224.
+
+Epoch 3/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 55.2051 - styleloss: 100.6297 - total_loss: 155.8348.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 54.5550 - styleloss: 97.7767 - totalloss: 152.3318 - valcontentloss: 56.7784 - valstyleloss: 99.6632 - valtotal_loss: 156.4415.
+
+Epoch 4/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 52.8162 - styleloss: 89.3740 - total_loss: 142.1902.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 52.2626 - styleloss: 88.3876 - totalloss: 140.6502 - valcontentloss: 53.1038 - valstyleloss: 90.5593 - valtotal_loss: 143.6631.
+
+Epoch 5/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 3s/step - contentloss: 48.9089 - styleloss: 79.1898 - total_loss: 128.0987.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 48.3021 - styleloss: 77.6323 - totalloss: 125.9344 - valcontentloss: 49.3859 - valstyleloss: 76.2716 - valtotal_loss: 125.6575.
+
+Epoch 6/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 46.5736 - styleloss: 66.7209 - total_loss: 113.2945.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 46.2035 - styleloss: 64.3224 - totalloss: 110.5259 - valcontentloss: 46.8296 - valstyleloss: 55.3400 - valtotal_loss: 102.1695.
+
+Epoch 7/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 45.0892 - styleloss: 49.0773 - total_loss: 94.1665.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 43.8027 - styleloss: 45.6226 - totalloss: 89.4253 - valcontentloss: 44.6162 - valstyleloss: 47.6259 - valtotal_loss: 92.2422.
+
+Epoch 8/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 41.9670 - styleloss: 42.2324 - total_loss: 84.1994.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 41.9080 - styleloss: 41.7055 - totalloss: 83.6135 - valcontentloss: 42.9081 - valstyleloss: 44.1262 - valtotal_loss: 87.0343.
+
+Epoch 9/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 41.0440 - styleloss: 39.7052 - total_loss: 80.7492.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 40.8874 - styleloss: 38.1873 - totalloss: 79.0748 - valcontentloss: 42.6833 - valstyleloss: 38.9655 - valtotal_loss: 81.6487.
+
+Epoch 10/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 40.2837 - styleloss: 33.6737 - total_loss: 73.9575.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 39.9428 - styleloss: 34.1020 - totalloss: 74.0449 - valcontentloss: 40.4202 - valstyleloss: 36.6194 - valtotal_loss: 77.0396.
+
+Epoch 11/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 37.7901 - styleloss: 32.1251 - total_loss: 69.9152.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 37.6326 - styleloss: 32.0121 - totalloss: 69.6447 - valcontentloss: 38.7432 - valstyleloss: 33.8374 - valtotal_loss: 72.5806.
+
+Epoch 12/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 36.8127 - styleloss: 30.6076 - total_loss: 67.4203.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 36.4167 - styleloss: 29.9773 - totalloss: 66.3941 - valcontentloss: 36.4050 - valstyleloss: 30.8240 - valtotal_loss: 67.2290.
+
+Epoch 13/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 33.8249 - styleloss: 27.3473 - total_loss: 61.1722.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 33.0191 - styleloss: 26.5015 - totalloss: 59.5206 - valcontentloss: 33.8826 - valstyleloss: 28.0350 - valtotal_loss: 61.9177.
+
+Epoch 14/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 30.7907 - styleloss: 24.0908 - total_loss: 54.8815.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 30.9472 - styleloss: 24.6625 - totalloss: 55.6098 - valcontentloss: 31.0826 - valstyleloss: 25.6283 - valtotal_loss: 56.7110.
+
+Epoch 15/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 28.0676 - styleloss: 22.0865 - total_loss: 50.1541.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 27.8455 - styleloss: 22.1264 - totalloss: 49.9719 - valcontentloss: 28.5455 - valstyleloss: 23.5957 - valtotal_loss: 52.1412.
+
+Epoch 16/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 26.2761 - styleloss: 21.0945 - total_loss: 47.3706.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 25.7858 - styleloss: 21.1223 - totalloss: 46.9081 - valcontentloss: 26.5362 - valstyleloss: 21.9274 - valtotal_loss: 48.4636.
+
+Epoch 17/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 3s/step - contentloss: 23.6390 - styleloss: 18.7739 - total_loss: 42.4129.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 23.7391 - styleloss: 19.0580 - totalloss: 42.7971 - valcontentloss: 24.9193 - valstyleloss: 20.4144 - valtotal_loss: 45.3337.
+
+Epoch 18/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 3s/step - contentloss: 22.4734 - styleloss: 17.9847 - total_loss: 40.4581.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 22.4346 - styleloss: 18.0033 - totalloss: 40.4380 - valcontentloss: 23.3949 - valstyleloss: 19.1585 - valtotal_loss: 42.5533.
+
+Epoch 19/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 21.3290 - styleloss: 17.0995 - total_loss: 38.4285.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 21.0454 - styleloss: 16.8622 - totalloss: 37.9076 - valcontentloss: 22.4199 - valstyleloss: 18.0265 - valtotal_loss: 40.4464.
+
+Epoch 20/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 19.8949 - styleloss: 15.9196 - total_loss: 35.8146.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 20.2994 - styleloss: 16.1616 - totalloss: 36.4610 - valcontentloss: 21.6341 - valstyleloss: 17.2532 - valtotal_loss: 38.8873.
+
+Epoch 21/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 19.9996 - styleloss: 15.7381 - total_loss: 35.7377.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 19.5869 - styleloss: 15.2180 - totalloss: 34.8049 - valcontentloss: 20.7572 - valstyleloss: 16.6049 - valtotal_loss: 37.3621.
+
+Epoch 22/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 19.2298 - styleloss: 15.3685 - total_loss: 34.5983.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 18.9491 - styleloss: 14.7553 - totalloss: 33.7044 - valcontentloss: 20.2151 - valstyleloss: 15.9647 - valtotal_loss: 36.1798.
+
+Epoch 23/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 18.6367 - styleloss: 14.3806 - total_loss: 33.0173.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 18.5593 - styleloss: 14.2651 - totalloss: 32.8244 - valcontentloss: 19.5625 - valstyleloss: 15.5629 - valtotal_loss: 35.1255.
+
+Epoch 24/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 18.5452 - styleloss: 14.5071 - total_loss: 33.0524.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 18.0261 - styleloss: 14.1054 - totalloss: 32.1316 - valcontentloss: 19.1599 - valstyleloss: 15.1159 - valtotal_loss: 34.2758.
+
+Epoch 25/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 17.6185 - styleloss: 13.5009 - total_loss: 31.1194.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 17.7612 - styleloss: 13.4830 - totalloss: 31.2442 - valcontentloss: 18.9258 - valstyleloss: 14.6126 - valtotal_loss: 33.5383.
+
+Epoch 26/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 3s/step - contentloss: 17.5533 - styleloss: 12.5722 - total_loss: 30.1255.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 17.3663 - styleloss: 13.0496 - totalloss: 30.4158 - valcontentloss: 18.3139 - valstyleloss: 14.6291 - valtotal_loss: 32.9430.
+
+Epoch 27/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 17.6558 - styleloss: 13.8729 - total_loss: 31.5287.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 17.2391 - styleloss: 13.4659 - totalloss: 30.7049 - valcontentloss: 18.0461 - valstyleloss: 14.3104 - valtotal_loss: 32.3565.
+
+Epoch 28/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 17.0192 - styleloss: 13.0646 - total_loss: 30.0838.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 16.6298 - styleloss: 12.8305 - totalloss: 29.4603 - valcontentloss: 17.8203 - valstyleloss: 14.0111 - valtotal_loss: 31.8314.
+
+Epoch 29/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step - contentloss: 16.4851 - styleloss: 12.4063 - total_loss: 28.8914.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 16.2729 - styleloss: 12.4816 - totalloss: 28.7545 - valcontentloss: 17.5812 - valstyleloss: 13.7577 - valtotal_loss: 31.3390.
+
+Epoch 30/30.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 0s 3s/step - contentloss: 15.9445 - styleloss: 12.1650 - total_loss: 28.1095.
+
+7/7 ━━━━━━━━━━━━━━━━━━━━ 20s 3s/step - contentloss: 16.0177 - styleloss: 12.2860 - totalloss: 28.3037 - valcontentloss: 17.2777 - valstyleloss: 13.4660 - valtotal_loss: 30.7437.
+
+Inference.
+
+After we train the model, we now need to run inference with it. We will pass arbitrary content and style images from the test dataset and take a look at the output images.
+
+NOTE: To try out the model on your own images, you can use this Hugging Face demo.
+
+Conclusion.
+
+Adaptive Instance Normalization allows arbitrary style transfer in real time. It is also important to note that the novel proposition of the authors is to achieve this only by aligning the statistical features (mean and standard deviation) of the style and the content images.
+
+Note: AdaIN also serves as the base for Style-GANs.
+
+Reference.
+
+TF implementation.
+
+Acknowledgement.
+
+We thank Luke Wood for his detailed review.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

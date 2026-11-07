@@ -1,0 +1,75 @@
+Customization basics: tensors and operations.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This is an introductory TensorFlow tutorial that shows how to:
+
+Import the required package.
+
+Create and use tensors.
+
+Use GPU acceleration.
+
+Build a data pipeline with <code>.
+
+Import TensorFlow.
+
+To get started, import the <code> module. As of TensorFlow 2, eager execution is turned on by default. Eager execution enables a more interactive frontend to TensorFlow, which you will later explore in more detail.
+
+Tensors.
+
+A Tensor is a multi-dimensional array. Similar to NumPy <code> objects, <code> objects have a data type and a shape. Additionally, <code>s can reside in accelerator memory (like a GPU). TensorFlow offers a rich library of operations (for example, <code>, <code>, and <code>) that consume and produce <code>s. These operations automatically convert built-in Python types. For example:
+
+Each <code> has a shape and a datatype:
+
+The most obvious differences between NumPy arrays and <code>s are:
+
+Tensors can be backed by accelerator memory (like GPU, TPU).
+
+Tensors are immutable.
+
+NumPy compatibility.
+
+Converting between a TensorFlow <code> and a NumPy <code> is easy:
+
+TensorFlow operations automatically convert NumPy ndarrays to Tensors.
+
+NumPy operations automatically convert Tensors to NumPy ndarrays.
+
+Tensors are explicitly converted to NumPy ndarrays using their <code> method. These conversions are typically cheap since the array and <code> share the underlying memory representation, if possible. However, sharing the underlying representation isn't always possible since the <code> may be hosted in GPU memory while NumPy arrays are always backed by host memory, and the conversion involves a copy from GPU to host memory.
+
+GPU acceleration.
+
+Many TensorFlow operations are accelerated using the GPU for computation. Without any annotations, TensorFlow automatically decides whether to use the GPU or CPU for an operation—copying the tensor between CPU and GPU memory, if necessary. Tensors produced by an operation are typically backed by the memory of the device on which the operation executed. For example:
+
+Device names.
+
+The <code> property provides a fully qualified string name of the device hosting the contents of the tensor. This name encodes many details, such as an identifier of the network address of the host on which this program is executing and the device within that host. This is required for distributed execution of a TensorFlow program. The string ends with <code> if the tensor is placed on the <code>-th GPU on the host.
+
+Explicit device placement.
+
+In TensorFlow, placement refers to how individual operations are assigned (placed on) a device for execution. As mentioned, when there is no explicit guidance provided, TensorFlow automatically decides which device to execute an operation and copies tensors to that device, if needed.
+
+However, TensorFlow operations can be explicitly placed on specific devices using the <code> context manager. For example:
+
+Datasets.
+
+This section uses the <code> API to build a pipeline for feeding data to your model. <code> is used to build performant, complex input pipelines from simple, re-usable pieces that will feed your model's training or evaluation loops. (Refer to the tf.data: Build TensorFlow input pipelines guide to learn more.).
+
+Create a source <code>.
+
+Create a source dataset using one of the factory functions like <code>, <code>, or using objects that read from files like <code> or <code>. Refer to the Reading input data section of the tf.data: Build TensorFlow input pipelines guide for more information.
+
+Apply transformations.
+
+Use the transformations functions like <code>, <code>, and <code> to apply transformations to dataset records.
+
+Iterate.
+
+<code> objects support iteration to loop over records:

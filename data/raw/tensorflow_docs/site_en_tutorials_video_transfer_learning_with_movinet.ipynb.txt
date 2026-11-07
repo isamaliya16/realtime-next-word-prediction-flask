@@ -1,0 +1,101 @@
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Transfer learning for video classification with MoViNet.
+
+MoViNets (Mobile Video Networks) provide a family of efficient video classification models, supporting inference on streaming video. In this tutorial, you will use a pre-trained MoViNet model to classify videos, specifically for an action recognition task, from the UCF101 dataset. A pre-trained model is a saved network that was previously trained on a larger dataset. You can find more details about MoViNets in the MoViNets: Mobile Video Networks for Efficient Video Recognition paper by Kondratyuk, D. et al. (2021). In this tutorial, you will:
+
+Learn how to download a pre-trained MoViNet model.
+
+Create a new model using a pre-trained model with a new classifier by freezing the convolutional base of the MoViNet model.
+
+Replace the classifier head with the number of labels of a new dataset.
+
+Perform transfer learning on the UCF101 dataset.
+
+The model downloaded in this tutorial is from official/projects/movinet. This repository contains a collection of MoViNet models that TF Hub uses in the TensorFlow 2 SavedModel format.
+
+This transfer learning tutorial is the third part in a series of TensorFlow video tutorials. Here are the other three tutorials:
+
+Load video data: This tutorial explains much of the code used in this document; in particular, how to preprocess and load data through the <code> class is explained in more detail.
+
+Build a 3D CNN model for video classification. Note that this tutorial uses a (2+1)D CNN that decomposes the spatial and temporal aspects of 3D data; if you are using volumetric data such as an MRI scan, consider using a 3D CNN instead of a (2+1)D CNN.
+
+MoViNet for streaming action recognition: Get familiar with the MoViNet models that are available on TF Hub.
+
+Setup.
+
+Begin by installing and importing some necessary libraries, including: remotezip to inspect the contents of a ZIP file, tqdm to use a progress bar, OpenCV to process video files (ensure that <code> and <code> are the same version), and TensorFlow models (<code>) to download the pre-trained MoViNet model. The TensorFlow models package are a collection of models that use TensorFlow’s high-level APIs.
+
+Load data.
+
+The hidden cell below defines helper functions to download a slice of data from the UCF-101 dataset, and load it into a <code>. The Loading video data tutorial provides a detailed walkthrough of this code.
+
+The <code> class at the end of the hidden block is the most important utility here. It creates an iterable object that can feed data into the TensorFlow data pipeline. Specifically, this class contains a Python generator that loads the video frames along with its encoded label. The generator (<code>) function yields the frame array produced by <code> and a one-hot encoded vector of the label associated with the set of frames.
+
+Create the training and test datasets:
+
+The labels generated here represent the encoding of the classes. For instance, 'ApplyEyeMakeup' is mapped to the integer Take a look at the labels of the training data to ensure that the dataset has been sufficiently shuffled.
+
+Take a look at the shape of the data.
+
+What are MoViNets?
+
+As mentioned previously, MoViNets are video classification models used for streaming video or online inference in tasks, such as action recognition. Consider using MoViNets to classify your video data for action recognition.
+
+A 2D frame based classifier is efficient and simple to run over whole videos, or streaming one frame at a time. Because they can't take temporal context into account they have limited accuracy and may give inconsistent outputs from frame to frame.
+
+A simple 3D CNN uses bidirectional temporal context which can increase accuracy and temporal consistency. These networks may require more resources and because they look into the future they can't be used for streaming data.
+
+The MoViNet architecture uses 3D convolutions that are "causal" along the time axis (like <code> with <code>). This gives some of the advantages of both approaches, mainly it allow for efficient streaming.
+
+Causal convolution ensures that the output at time t is computed using only inputs up to time t. To demonstrate how this can make streaming more efficient, start with a simpler example you may be familiar with: an RNN. The RNN passes state forward through time:
+
+By setting the RNN's <code> argument you ask it to return the state at the end of the computation. This allows you to pause and then continue where you left off, to get exactly the same result:
+
+Causal convolutions can be used the same way, if handled with care. This technique was used in the Fast Wavenet Generation Algorithm by Le Paine et al. In the MoVinet paper, the <code> is referred to as the "Stream Buffer".
+
+By passing this little bit of state forward, you can avoid recalculating the whole receptive field that shown above.
+
+Download a pre-trained MoViNet model.
+
+In this section, you will:
+
+You can create a MoViNet model using the open source code provided in <code> from TensorFlow models.
+
+Load the pretrained weights.
+
+Freeze the convolutional base, or all other layers except the final classifier head, to speed up fine-tuning.
+
+To build the model, you can start with the <code> configuration because it is the fastest to train when benchmarked against other models. Check out the available MoViNet models on TensorFlow Model Garden to find what might work for your use case.
+
+To build a classifier, create a function that takes the backbone and the number of classes in a dataset. The <code> function will take the backbone and the number of classes in a dataset to build the classifier. In this case, the new classifier will take a <code> outputs (10 classes for this subset of UCF101).
+
+For this tutorial, choose the <code> optimizer and the <code> loss function. Use the metrics argument to the view the accuracy of the model performance at every step.
+
+Train the model. After two epochs, observe a low loss with high accuracy for both the training and test sets.
+
+Evaluate the model.
+
+The model achieved high accuracy on the training dataset. Next, use Keras <code> to evaluate it on the test set.
+
+To visualize model performance further, use a confusion matrix. The confusion matrix allows you to assess the performance of the classification model beyond accuracy. To build the confusion matrix for this multi-class classification problem, get the actual values in the test set and the predicted values.
+
+Next steps.
+
+Now that you have some familiarity with the MoViNet model and how to leverage various TensorFlow APIs (for example, for transfer learning), try using the code in this tutorial with your own dataset. The data does not have to be limited to video data. Volumetric data, such as MRI scans, can also be used with 3D CNNs. The NUSDAT and IMH datasets mentioned in Brain MRI-based 3D Convolutional Neural Networks for Classification of Schizophrenia and Controls could be two such sources for MRI data.
+
+In particular, using the <code> class used in this tutorial and the other video data and classification tutorials will help you load data into your models.
+
+To learn more about working with video data in TensorFlow, check out the following tutorials:
+
+Load video data.
+
+Build a 3D CNN model for video classification.
+
+MoViNet for streaming action recognition.

@@ -1,0 +1,115 @@
+3D volumetric rendering with NeRF.
+
+Introduction.
+
+In this example, we present a minimal implementation of the research paper NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis by Ben Mildenhall et. al. The authors have proposed an ingenious way to synthesize novel views of a scene by modelling the volumetric scene function through a neural network.
+
+To help you understand this intuitively, let's start with the following question: would it be possible to give to a neural network the position of a pixel in an image, and ask the network to predict the color at that position?
+
+as input and asked to predict the color at the coordinates.
+
+The neural network would hypothetically memorize (overfit on) the image. This means that our neural network would have encoded the entire image in its weights. We could query the neural network with each position, and it would eventually reconstruct the entire image.
+
+A question now arises, how do we extend this idea to learn a 3D volumetric scene? Implementing a similar process as above would require the knowledge of every voxel (volume pixel). Turns out, this is quite a challenging task to do.
+
+The authors of the paper propose a minimal and elegant way to learn a 3D scene using a few images of the scene. They discard the use of voxels for training. The network learns to model the volumetric scene, thus generating novel views (images) of the 3D scene that the model was not shown at training time.
+
+There are a few prerequisites one needs to understand to fully appreciate the process. We structure the example in such a way that you will have all the required knowledge before starting the implementation.
+
+Setup.
+
+Download and load the data.
+
+The <code> data file contains images, camera poses, and a focal length. The images are taken from multiple camera angles as shown in Figure 3.
+
+Source: NeRF.
+
+To understand camera poses in this context we have to first allow ourselves to think that a camera is a mapping between the real-world and the 2-D image.
+
+Source: Mathworks.
+
+Consider the following equation:
+
+Where x is the 2-D image point, X is the 3-D world point and P is the camera-matrix. P is a 3 x 4 matrix that plays the crucial role of mapping the real world object onto an image plane.
+
+The camera-matrix is an affine transform matrix that is concatenated with a 3 x 1 column <code> to produce the pose matrix. This matrix is of dimensions 3 x 5 where the first 3 x 3 block is in the camera’s point of view. The axes are <code> or <code> where the camera is facing forwards <code>.
+
+The COLMAP frame is <code> or <code>. Read more about COLMAP here.
+
+Data pipeline.
+
+Now that you've understood the notion of camera matrix and the mapping from a 3D scene to 2D images, let's talk about the inverse mapping, i.e. from 2D image to the 3D scene.
+
+We'll need to talk about volumetric rendering with ray casting and tracing, which are common computer graphics techniques. This section will help you get to speed with these techniques.
+
+Consider an image with <code> pixels. We shoot a ray through each pixel and sample some points on the ray. A ray is commonly parameterized by the equation <code> where <code> is the parameter, <code> is the origin and <code> is the unit directional vector as shown in Figure 6.
+
+In Figure 7, we consider a ray, and we sample some random points on the ray. These sample points each have a unique location <code> and the ray has a viewing angle <code>. The viewing angle is particularly interesting as we can shoot a ray through a single pixel in a lot of different ways, each with a unique viewing angle. Another interesting thing to notice here is the noise that is added to the sampling process. We add a uniform noise to each sample so that the samples correspond to a continuous distribution. In Figure 7 the blue points are the evenly distributed samples and the white points <code> are randomly placed between the samples.
+
+Figure 8 showcases the entire sampling process in 3D, where you can see the rays coming out of the white image. This means that each pixel will have its corresponding rays and each ray will be sampled at distinct points.
+
+These sampled points act as the input to the NeRF model. The model is then asked to predict the RGB color and the volume density at that point.
+
+Source: NeRF.
+
+NeRF model.
+
+The model is a multi-layer perceptron (MLP), with ReLU as its non-linearity.
+
+An excerpt from the paper:
+
+"We encourage the representation to be multiview-consistent by restricting the network to predict the volume density sigma as a function of only the location <code>, while allowing the RGB color <code> to be predicted as a function of both location and viewing direction. To accomplish this, the MLP first processes the input 3D coordinate <code> with 8 fully-connected layers (using ReLU activations and 256 channels per layer), and outputs sigma and a 256-dimensional feature vector. This feature vector is then concatenated with the camera ray's viewing direction and passed to one additional fully-connected layer (using a ReLU activation and 128 channels) that output the view-dependent RGB color.".
+
+Here we have gone for a minimal implementation and have used 64 Dense units instead of 256 as mentioned in the paper.
+
+Training.
+
+The training step is implemented as part of a custom <code> subclass so that we can make use of the <code> functionality.
+
+Visualize the training step.
+
+Here we see the training step. With the decreasing loss, the rendered image and the depth maps are getting better. In your local system, you will see the <code> file generated.
+
+Inference.
+
+In this section, we ask the model to build novel views of the scene. The model was given <code> views of the scene in the training step. The collections of training images cannot contain each and every angle of the scene. A trained model can represent the entire 3-D scene with a sparse set of training images.
+
+Here we provide different poses to the model and ask for it to give us the 2-D image corresponding to that camera view. If we infer the model for all the 360-degree views, it should provide an overview of the entire scenery from all around.
+
+Render 3D Scene.
+
+Here we will synthesize novel 3D views and stitch all of them together to render a video encompassing the 360-degree view.
+
+Visualize the video.
+
+Here we can see the rendered 360 degree view of the scene. The model has successfully learned the entire volumetric space through the sparse set of images in only 20 epochs. You can view the rendered video saved locally, named <code>.
+
+Conclusion.
+
+We have produced a minimal implementation of NeRF to provide an intuition of its core ideas and methodology. This method has been used in various other works in the computer graphics space.
+
+We would like to encourage our readers to use this code as an example and play with the hyperparameters and visualize the outputs. Below we have also provided the outputs of the model trained for more epochs.
+
+Way forward.
+
+If anyone is interested to go deeper into NeRF, we have built a 3-part blog series at PyImageSearch.
+
+Prerequisites of NeRF.
+
+Concepts of NeRF.
+
+Implementing NeRF.
+
+Reference.
+
+NeRF repository: The official repository for NeRF.
+
+NeRF paper: The paper on NeRF.
+
+Manim Repository: We have used manim to build all the animations.
+
+Mathworks: Mathworks for the camera calibration article.
+
+Mathew's video: A great video on NeRF.
+
+You can try the model on Hugging Face Spaces.

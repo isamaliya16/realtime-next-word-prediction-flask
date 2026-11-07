@@ -1,0 +1,105 @@
+Adagrad.
+
+Let's begin by considering learning problems with features that occur infrequently.
+
+Sparse Features and Learning Rates.
+
+Imagine that we are training a language model. To get good accuracy we typically want to decrease the learning rate as we keep on training, usually at a rate of <math> or slower. Now consider a model training on sparse features, i.e., features that occur only infrequently. This is common for natural language, e.g., it is a lot less likely that we will see the word preconditioning than learning. However, it is also common in other areas such as computational advertising and personalized collaborative filtering. After all, there are many things that are of interest only for a small number of people.
+
+Parameters associated with infrequent features only receive meaningful updates whenever these features occur. Given a decreasing learning rate we might end up in a situation where the parameters for common features converge rather quickly to their optimal values, whereas for infrequent features we are still short of observing them sufficiently frequently before their optimal values can be determined. In other words, the learning rate either decreases too slowly for frequent features or too quickly for infrequent ones.
+
+A possible hack to redress this issue would be to count the number of times we see a particular feature and to use this as a clock for adjusting learning rates. That is, rather than choosing a learning rate of the form <math> we could use <math>. Here <math> counts the number of nonzeros for feature <math> that we have observed up to time <math>. This is actually quite easy to implement at no meaningful overhead. However, it fails whenever we do not quite have sparsity but rather just data where the gradients are often very small and only rarely large. After all, it is unclear where one would draw the line between something that qualifies as an observed feature or not.
+
+Adagrad by addresses this by replacing the rather crude counter <math> by an aggregate of the squares of previously observed gradients. In particular, it uses <math> as a means to adjust the learning rate. This has two benefits: first, we no longer need to decide just when a gradient is large enough. Second, it scales automatically with the magnitude of the gradients. Coordinates that routinely correspond to large gradients are scaled down significantly, whereas others with small gradients receive a much more gentle treatment. In practice this leads to a very effective optimization procedure for computational advertising and related problems. But this hides some of the additional benefits inherent in Adagrad that are best understood in the context of preconditioning.
+
+Preconditioning.
+
+Convex optimization problems are good for analyzing the characteristics of algorithms. After all, for most nonconvex problems it is difficult to derive meaningful theoretical guarantees, but intuition and insight often carry over. Let's look at the problem of minimizing <math>.
+
+As we saw in section <num>, it is possible to rewrite this problem in terms of its eigendecomposition <math> to arrive at a much simplified problem where each coordinate can be solved individually:
+
+<math>.
+
+Here we used <math> and consequently <math>. The modified problem has as its minimizer <math> and minimum value <math>. This is much easier to compute since <math> is a diagonal matrix containing the eigenvalues of <math>.
+
+If we perturb <math> slightly we would hope to find only slight changes in the minimizer of <math>. Unfortunately this is not the case. While slight changes in <math> lead to equally slight changes in <math>, this is not the case for the minimizer of <math> (and of <math> respectively). Whenever the eigenvalues <math> are large we will see only small changes in <math> and in the minimum of <math>. Conversely, for small <math> changes in <math> can be dramatic. The ratio between the largest and the smallest eigenvalue is called the condition number of an optimization problem.
+
+<math>.
+
+If the condition number <math> is large, it is difficult to solve the optimization problem accurately. We need to ensure that we are careful in getting a large dynamic range of values right. Our analysis leads to an obvious, albeit somewhat naive question: couldn't we simply "fix" the problem by distorting the space such that all eigenvalues are <math>. In theory this is quite easy: we only need the eigenvalues and eigenvectors of <math> to rescale the problem from <math> to one in <math>. In the new coordinate system <math> could be simplified to <math>. Alas, this is a rather impractical suggestion. Computing eigenvalues and eigenvectors is in general much more expensive than solving the actual problem.
+
+While computing eigenvalues exactly might be expensive, guessing them and computing them even somewhat approximately may already be a lot better than not doing anything at all. In particular, we could use the diagonal entries of <math> and rescale it accordingly. This is much cheaper than computing eigenvalues.
+
+<math>.
+
+In this case we have <math> and specifically <math> for all <math>. In most cases this simplifies the condition number considerably. For instance, the cases we discussed previously, this would entirely eliminate the problem at hand since the problem is axis aligned.
+
+Unfortunately we face yet another problem: in deep learning we typically do not even have access to the second derivative of the objective function: for <math> the second derivative even on a minibatch may require <math> space and work to compute, thus making it practically infeasible. The ingenious idea of Adagrad is to use a proxy for that elusive diagonal of the Hessian that is both relatively cheap to compute and effective---the magnitude of the gradient itself.
+
+In order to see why this works, let's look at <math>. We have that.
+
+<math>.
+
+where <math> is the minimizer of <math>. Hence the magnitude of the gradient depends both on <math> and the distance from optimality. If <math> did not change, this would be all that is needed. After all, in this case the magnitude of the gradient <math> suffices. Since AdaGrad is a stochastic gradient descent algorithm, we will see gradients with nonzero variance even at optimality. As a result we can safely use the variance of the gradients as a cheap proxy for the scale of the Hessian. A thorough analysis is beyond the scope of this section (it would be several pages). We refer the reader to for details.
+
+The Algorithm.
+
+Let's formalize the discussion from above. We use the variable <math> to accumulate past gradient variance as follows.
+
+<math>.
+
+Here the operation are applied coordinate wise. That is, <math> has entries <math>. Likewise <math> has entries <math> and <math> has entries <math>. As before <math> is the learning rate and <math> is an additive constant that ensures that we do not divide by <math>. Last, we initialize <math>.
+
+Just like in the case of momentum we need to keep track of an auxiliary variable, in this case to allow for an individual learning rate per coordinate. This does not increase the cost of Adagrad significantly relative to SGD, simply since the main cost is typically to compute <math> and its derivative.
+
+Note that accumulating squared gradients in <math> means that <math> grows essentially at linear rate (somewhat slower than linearly in practice, since the gradients initially diminish). This leads to an <math> learning rate, albeit adjusted on a per coordinate basis. For convex problems this is perfectly adequate. In deep learning, though, we might want to decrease the learning rate rather more slowly. This led to a number of Adagrad variants that we will discuss in the subsequent chapters. For now let's see how it behaves in a quadratic convex problem. We use the same problem as before:
+
+<math>.
+
+We are going to implement Adagrad using the same learning rate previously, i.e., <math>. As we can see, the iterative trajectory of the independent variable is smoother. However, due to the cumulative effect of <math>, the learning rate continuously decays, so the independent variable does not move as much during later stages of iteration.
+
+As we increase the learning rate to <math> we see much better behavior. This already indicates that the decrease in learning rate might be rather aggressive, even in the noise-free case and we need to ensure that parameters converge appropriately.
+
+Implementation from Scratch.
+
+Just like the momentum method, Adagrad needs to maintain a state variable of the same shape as the parameters.
+
+Compared to the experiment in section <num> we use a larger learning rate to train the model.
+
+Concise Implementation.
+
+Using the <code> instance of the algorithm <code>, we can invoke the Adagrad algorithm in Gluon.
+
+Summary.
+
+Adagrad decreases the learning rate dynamically on a per-coordinate basis.
+
+It uses the magnitude of the gradient as a means of adjusting how quickly progress is achieved - coordinates with large gradients are compensated with a smaller learning rate.
+
+Computing the exact second derivative is typically infeasible in deep learning problems due to memory and computational constraints. The gradient can be a useful proxy.
+
+If the optimization problem has a rather uneven structure Adagrad can help mitigate the distortion.
+
+Adagrad is particularly effective for sparse features where the learning rate needs to decrease more slowly for infrequently occurring terms.
+
+On deep learning problems Adagrad can sometimes be too aggressive in reducing learning rates. We will discuss strategies for mitigating this in the context of section <num>.
+
+Exercises.
+
+Prove that for an orthogonal matrix <math> and a vector <math> the following holds: <math>. Why does this mean that the magnitude of perturbations does not change after an orthogonal change of variables?
+
+Try out Adagrad for <math> and also for the objective function was rotated by 45 degrees, i.e., <math>. Does it behave differently?
+
+Prove Gerschgorin's circle theorem which states that eigenvalues <math> of a matrix <math> satisfy <math> for at least one choice of <math>.
+
+What does Gerschgorin's theorem tell us about the eigenvalues of the diagonally preconditioned matrix <math>?
+
+Try out Adagrad for a proper deep network, such as section <num> when applied to Fashion-MNIST.
+
+How would you need to modify Adagrad to achieve a less aggressive decay in learning rate?
+
+Discussions.
+
+Discussions.
+
+Discussions.

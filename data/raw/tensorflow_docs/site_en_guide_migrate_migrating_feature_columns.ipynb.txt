@@ -1,0 +1,157 @@
+Migrate <code>s to Keras preprocessing layers.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Training a model usually comes with some amount of feature preprocessing, particularly when dealing with structured data. When training a <code> in TensorFlow 1, you usually perform feature preprocessing with the <code> API. In TensorFlow 2, you can do this directly with Keras preprocessing layers.
+
+This migration guide demonstrates common feature transformations using both feature columns and preprocessing layers, followed by training a complete model with both APIs.
+
+First, start with a couple of necessary imports:
+
+Now, add a utility function for calling a feature column for demonstration:
+
+Input handling.
+
+To use feature columns with an estimator, model inputs are always expected to be a dictionary of tensors:
+
+Each feature column needs to be created with a key to index into the source data. The output of all feature columns is concatenated and used by the estimator model.
+
+In Keras, model input is much more flexible. A <code> can handle a single tensor input, a list of tensor features, or a dictionary of tensor features. You can handle dictionary input by passing a dictionary of <code> on model creation. Inputs will not be concatenated automatically, which allows them to be used in much more flexible ways. They can be concatenated with <code>.
+
+One-hot encoding integer IDs.
+
+A common feature transformation is one-hot encoding integer inputs of a known range. Here is an example using feature columns:
+
+Using Keras preprocessing layers, these columns can be replaced by a single <code> layer with <code> set to <code>:
+
+Note: For large one-hot encodings, it is much more efficient to use a sparse representation of the output. If you pass <code> to the <code> layer, the output of the layer will be a <code>, which can be efficiently handled as input to a <code> layer.
+
+Normalizing numeric features.
+
+When handling continuous, floating-point features with feature columns, you need to use a <code>. In the case where the input is already normalized, converting this to Keras is trivial. You can simply use a <code> directly into your model, as shown above.
+
+A <code> can also be used to normalize input:
+
+In contrast, with Keras, this normalization can be done with <code>.
+
+Bucketizing and one-hot encoding numeric features.
+
+Another common transformation of continuous, floating point inputs is to bucketize then to integers of a fixed range.
+
+In feature columns, this can be achieved with a <code>:
+
+In Keras, this can be replaced by <code>:
+
+One-hot encoding string data with a vocabulary.
+
+Handling string features often requires a vocabulary lookup to translate strings into indices. Here is an example using feature columns to lookup strings and then one-hot encode the indices:
+
+Using Keras preprocessing layers, use the <code> layer with <code> set to <code>:
+
+Note: For large one-hot encodings, it is much more efficient to use a sparse representation of the output. If you pass <code> to the <code> layer, the output of the layer will be a <code>, which can be efficiently handled as input to a <code> layer.
+
+Embedding string data with a vocabulary.
+
+For larger vocabularies, an embedding is often needed for good performance. Here is an example embedding a string feature using feature columns:
+
+Using Keras preprocessing layers, this can be achieved by combining a <code> layer and an <code> layer. The default output for the <code> will be integer indices which can be fed directly into an embedding.
+
+Note: The <code> layer contains trainable parameters. While the <code> layer can be applied to data inside or outside of a model, the <code> must always be part of a trainable Keras model to train correctly.
+
+Summing weighted categorical data.
+
+In some cases, you need to deal with categorical data where each occurance of a category comes with an associated weight. In feature columns, this is handled with <code>. When paired with an <code>, this has the effect of summing weights per category.
+
+In Keras, this can be done by passing a <code> input to <code> with <code>.
+
+Embedding weighted categorical data.
+
+You might alternately want to embed weighted categorical inputs. In feature columns, the <code> contains a <code> argument. If any sample contains multiple entries for a category, they will be combined according to the argument setting (by default <code>).
+
+In Keras, there is no <code> option to <code>, but you can achieve the same effect with <code>. The <code> above is simply linearly combining embedding vectors according to category weight. Though not obvious at first, it is exactly equivalent to representing your categorical inputs as a sparse weight vector of size <code>, and multiplying them by a <code> kernel of shape <code>.
+
+Complete training example.
+
+To show a complete training workflow, first prepare some data with three features of different types:
+
+Define some common constants for both TensorFlow 1 and TensorFlow 2 workflows:
+
+With feature columns.
+
+Feature columns must be passed as a list to the estimator on creation, and will be called implicitly during training.
+
+The feature columns will also be used to transform input data when running inference on the model.
+
+With Keras preprocessing layers.
+
+Keras preprocessing layers are more flexible in where they can be called. A layer can be applied directly to tensors, used inside a <code> input pipeline, or built directly into a trainable Keras model.
+
+In this example, you will apply preprocessing layers inside a <code> input pipeline. To do this, you can define a separate <code> to preprocess your input features. This model is not trainable, but is a convenient way to group preprocessing layers.
+
+Note: As an alternative to supplying a vocabulary and normalization statistics on layer creation, many preprocessing layers provide an <code> method for learning layer state directly from the input data. See the preprocessing guide for more details.
+
+You can now apply this model inside a call to <code>. Please note that the function passed to <code> will automatically be converted into a <code>, and usual caveats for writing <code> code apply (no side effects).
+
+Next, you can define a separate <code> containing the trainable layers. Note how the inputs to this model now reflect the preprocessed feature types and shapes.
+
+You can now train the <code> with <code>.
+
+Finally, at inference time, it can be useful to combine these separate stages into a single model that handles raw feature inputs.
+
+This composed model can be saved as a <code> file for later use.
+
+Note: Preprocessing layers are not trainable, which allows you to apply them asynchronously using <code>. This has performance benefits, as you can both prefetch preprocessed batches, and free up any accelerators to focus on the differentiable parts of a model (learn more in the Prefetching section of the Better performance with the <code> API guide). As this guide shows, separating preprocessing during training and composing it during inference is a flexible way to leverage these performance gains. However, if your model is small or preprocessing time is negligible, it may be simpler to build preprocessing into a complete model from the start. To do this you can build a single model starting with <code>, followed by preprocessing layers, followed by trainable layers.
+
+Feature column equivalence table.
+
+For reference, here is an approximate correspondence between feature columns and Keras preprocessing layers:
+
+Feature column Keras layer.
+
+<code> <code>.
+
+<code> <code>.
+
+<code> <code>.
+
+<code> <code> or <code>.
+
+<code> <code> or <code>.
+
+<code> <code>.
+
+<code> <code>.
+
+<code> <code> or <code>.
+
+<code> <code>.
+
+<code> <code>.
+
+<code> <code>.
+
+<code> <code>, <code>, or <code>†.
+
+<code> <code>, <code>, or <code>†.
+
+<code> <code>.
+
+<code> <code>.
+
+\ The <code> can be passed to <code>, <code>, <code>, and <code>.
+
+† <code> can handle freeform text input directly (for example, entire sentences or paragraphs). This is not one-to-one replacement for categorical sequence handling in TensorFlow 1, but may offer a convenient replacement for ad-hoc text preprocessing.
+
+Note: Linear estimators, such as <code>, can handle direct categorical input (integer indices) without an <code> or <code>. However, integer indices cannot be passed directly to <code> or <code>. These inputs should be first encoded with <code> with <code> (and <code> if the category sizes are large) before calling into <code> or <code>.
+
+Next steps.
+
+For more information on Keras preprocessing layers, go to the Working with preprocessing layers guide.
+
+For a more in-depth example of applying preprocessing layers to structured data, refer to the Classify structured data using Keras preprocessing layers tutorial.

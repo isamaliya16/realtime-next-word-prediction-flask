@@ -1,0 +1,189 @@
+Debug a TensorFlow 2 migrated training pipeline.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This notebook demonstrates how to debug a training pipeline when migrating to TensorFlow 2 (TF2). It consists of following components:
+
+Suggested steps and code samples for debugging training pipeline.
+
+Tools for debugging.
+
+Other related resources.
+
+One assumption is you have the TensorFlow 1 (TF1.x) code and trained models for comparison, and you want to build a TF2 model that achieves similar validation accuracy.
+
+This notebook does NOT cover debugging performance issues for training/inference speed or memory usage.
+
+Debugging workflow.
+
+Below is a general workflow for debugging your TF2 training pipelines. Note that you do not need to follow these steps in order. You can also use a binary search approach where you test the model in an intermediate step and narrow down the debugging scope.
+
+Fix compile and runtime errors.
+
+Single forward pass validation (in a separate guide).
+
+a. On single CPU device.
+
+Verify variables are created only once.
+
+Check variable counts, names, and shapes match.
+
+Reset all variables, check numerical equivalence with all randomness disabled.
+
+Align random number generation, check numerical equivalence in inference.
+
+(Optional) Check checkpoints are loaded properly and TF1.x/TF2 models generate identical output.
+
+b. On single GPU/TPU device.
+
+c. With multi-device strategies.
+
+Model training numerical equivalence validation for a few steps (code samples available below).
+
+a. Single training step validation using small and fixed data on single CPU device. Specifically, check numerical equivalence for the following components.
+
+losses computation.
+
+metrics.
+
+learning rate.
+
+gradient computation and update.
+
+b. Check statistics after training 3 or more steps to verify optimizer behaviors like the momentum, still with fixed data on single CPU device.
+
+c. On single GPU/TPU device.
+
+d. With multi-device strategies (check the intro for MultiProcessRunner at the bottom).
+
+End-to-end convergence testing on real dataset.
+
+a. Check training behaviors with TensorBoard.
+
+use simple optimizers e.g., SGD and simple distribution strategies e.g. <code> first.
+
+training metrics.
+
+evaluation metrics.
+
+figure out what the reasonable tolerance for inherent randomness is.
+
+b. Check equivalence with advanced optimizer/learning rate scheduler/distribution strategies.
+
+c. Check equivalence when using mixed precision.
+
+Additional product benchmarks.
+
+Setup.
+
+Single forward pass validation.
+
+Single forward pass validation, including checkpoint loading, is covered in a different colab.
+
+Model training numerical equivalence validation for a few steps.
+
+Set up model configuration and prepare a fake dataset.
+
+Define the TF1.x model.
+
+The following <code> class provides a context manager <code> that can make stateful random operations use the same seed across both TF1 graphs/sessions and eager execution.
+
+The tool provides two testing modes:
+
+<code> which uses the same seed for every single operation no matter how many times it has been called and.
+
+<code> which uses the number of previously-observed stateful random operations as the operation seed.
+
+This applies both to the stateful random operations used for creating and initializing variables, and to the stateful random operations used in computation (such as for dropout layers).
+
+Run the TF1.x model in graph mode. Collect statistics for first 3 training steps for numerical equivalence comparison.
+
+Define the TF2 model.
+
+Run the TF2 model in eager mode. Collect statistics for first 3 training steps for numerical equivalence comparison.
+
+Compare numerical equivalence for first few training steps.
+
+You can also check the Validating correctness & numerical equivalence notebook for additional advice for numerical equivalence.
+
+Unit tests.
+
+There are a few types of unit testing that can help debug your migration code.
+
+Single forward pass validation.
+
+Model training numerical equivalence validation for a few steps.
+
+Benchmark inference performance.
+
+The trained model makes correct predictions on fixed and simple data points.
+
+You can use <code> to test models with different configurations. Details with code sample.
+
+Note that it's possible to run session APIs and eager execution in the same test case. The code snippets below show how.
+
+Debugging tools.
+
+tf.print.
+
+tf.print vs print/logging.info.
+
+With configurable arguments, <code> can recursively display the first and last few elements of each dimension for printed tensors. Check the API docs for details.
+
+For eager execution, both <code> and <code> print the value of the tensor. But <code> may involve device-to-host copy, which can potentially slow down your code.
+
+For graph mode including usage inside <code>, you need to use <code> to print the actual tensor value. <code> is compiled into an op in the graph, whereas <code> and <code> only log at tracing time, which is often not what you want.
+
+<code> also supports printing composite tensors like <code> and <code>.
+
+You can also use a callback to monitor metrics and variables. Please check how to use custom callbacks with logs dict and self.model attribute.
+
+tf.print vs print inside tf.function.
+
+tf.distribute.Strategy.
+
+If the <code> containing <code> is executed on the workers, for example when using <code> or <code>, you need to check worker/parameter server logs to find the printed values.
+
+For <code> or <code>, logs will be printed on the coordinator when using <code>, and logs will be printed on the STDOUT on worker0 when using TPUs.
+
+tf.keras.Model.
+
+When using Sequential and Functional API models, if you want to print values, e.g., model inputs or intermediate features after some layers, you have following options.
+
+Write a custom layer that <code> the inputs.
+
+Include the intermediate outputs you want to inspect in the model outputs.
+
+<code> layers have (de)serialization limitations. To avoid checkpoint loading issues, write a custom subclassed layer instead. Check the API docs for more details.
+
+You can't <code> intermediate outputs in a <code> if you don't have access to the actual values, but instead only to the symbolic Keras tensor objects.
+
+Option 1: write a custom layer.
+
+Option 2: include the intermediate outputs you want to inspect in the model outputs.
+
+Note that in such case, you may need some customizations to use <code>.
+
+pdb.
+
+You can use pdb both in terminal and Colab to inspect intermediate values for debugging.
+
+Visualize graph with TensorBoard.
+
+You can examine the TensorFlow graph with TensorBoard. TensorBoard is also supported on colab. TensorBoard is a great tool to visualize summaries. You can use it to compare learning rate, model weights, gradient scale, training/validation metrics, or even model intermediate outputs between TF1.x model and migrated TF2 model through the training process and seeing if the values look as expected.
+
+TensorFlow Profiler.
+
+TensorFlow Profiler can help you visualize the execution timeline on GPUs/TPUs. You can check out this Colab Demo for its basic usage.
+
+MultiProcessRunner.
+
+MultiProcessRunner is a useful tool when debugging with MultiWorkerMirroredStrategy and ParameterServerStrategy. You can take a look at this concrete example for its usage.
+
+Specifically for the cases of these two strategies, you are recommended to 1) not only have unit tests to cover their flow, 2) but also to attempt to reproduce failures using it in unit test to avoid launch real distributed job every time when they attempt a fix.

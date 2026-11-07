@@ -1,0 +1,213 @@
+Custom training: walkthrough.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial shows you how to train a machine learning model with a custom training loop to categorize penguins by species. In this notebook, you use TensorFlow to accomplish the following:
+
+Import a dataset.
+
+Build a simple linear model.
+
+Train the model.
+
+Evaluate the model's effectiveness.
+
+Use the trained model to make predictions.
+
+TensorFlow programming.
+
+This tutorial demonstrates the following TensorFlow programming tasks:
+
+Importing data with the TensorFlow Datasets API.
+
+Building models and layers with the Keras API.
+
+Penguin classification problem.
+
+Imagine you are an ornithologist seeking an automated way to categorize each penguin you find. Machine learning provides many algorithms to classify penguins statistically. For instance, a sophisticated machine learning program could classify penguins based on photographs. The model you build in this tutorial is a little simpler. It classifies penguins based on their body weight, flipper length, and beaks, specifically the length and width measurements of their culmen.
+
+There are 18 species of penguins, but in this tutorial you will only attempt to classify the following three:
+
+Chinstrap penguins.
+
+Gentoo penguins.
+
+Adélie penguins.
+
+Figure 1. Chinstratp , Gentoo , and Adélie penguins (Artwork by @allison_horst, CC BY-SA 2.0).
+
+Fortunately, a research team has already created and shared a dataset of 334 penguins with body weight, flipper length, beak measurements, and other data. This dataset is also conveniently available as the penguins TensorFlow Dataset.
+
+Setup.
+
+Install the <code> package for the penguins dataset. The <code> package is the nightly released version of the TensorFlow Datasets (TFDS). For more information on TFDS, see TensorFlow Datasets overview.
+
+Then select Runtime > Restart Runtime from the Colab menu to restart the Colab runtime.
+
+Do not proceed with the rest of this tutorial without first restarting the runtime.
+
+Import TensorFlow and the other required Python modules.
+
+Import the dataset.
+
+The default penguins/processed TensorFlow Dataset is already cleaned, normalized, and ready for building a model. Before you download the processed data, preview a simplified version to get familiar with the original penguin survey data.
+
+Preview the data.
+
+Download the simplified version of the penguins dataset (<code>) using the TensorFlow Datasets <code> method. There are 344 data records in this dataset. Extract the first five records into a <code> object to inspect a sample of the values in this dataset:
+
+The numbered rows are data records, one example per line, where:
+
+The first six fields are features: these are the characteristics of an example. Here, the fields hold numbers representing penguin measurements.
+
+The last column is the label: this is the value you want to predict. For this dataset, it's an integer value of 0, 1, or 2 that corresponds to a penguin species name.
+
+In the dataset, the label for the penguin species is represented as a number to make it easier to work with in the model you are building. These numbers correspond to the following penguin species:
+
+<code>: Adélie penguin.
+
+<code>: Chinstrap penguin.
+
+<code>: Gentoo penguin.
+
+Create a list containing the penguin species names in this order. You will use this list to interpret the output of the classification model:
+
+For more information about features and labels, refer to the ML Terminology section of the Machine Learning Crash Course.
+
+Download the preprocessed dataset.
+
+Now, download the preprocessed penguins dataset (<code>) with the <code> method, which returns a list of <code> objects. Note that the <code> dataset doesn't come with its own test set, so use an 80:20 split to slice the full dataset into the training and test sets. You will use the test dataset later to verify your model.
+
+Notice that this version of the dataset has been processed by reducing the data down to four normalized features and a species label. In this format, the data can be quickly used to train a model without further processing.
+
+You can visualize some clusters by plotting a few features from the batch:
+
+Build a simple linear model.
+
+Why model?
+
+A model is a relationship between features and the label. For the penguin classification problem, the model defines the relationship between the body mass, flipper and culmen measurements and the predicted penguin species. Some simple models can be described with a few lines of algebra, but complex machine learning models have a large number of parameters that are difficult to summarize.
+
+Could you determine the relationship between the four features and the penguin species without using machine learning? That is, could you use traditional programming techniques (for example, a lot of conditional statements) to create a model? Perhaps—if you analyzed the dataset long enough to determine the relationships between body mass and culmen measurements to a particular species. And this becomes difficult—maybe impossible—on more complicated datasets. A good machine learning approach determines the model for you. If you feed enough representative examples into the right machine learning model type, the program figures out the relationships for you.
+
+Select the model.
+
+Next you need to select the kind of model to train. There are many types of models and picking a good one takes experience. This tutorial uses a neural network to solve the penguin classification problem. Neural networks can find complex relationships between features and the label. It is a highly-structured graph, organized into one or more hidden layers. Each hidden layer consists of one or more neurons. There are several categories of neural networks and this program uses a dense, or fully-connected neural network: the neurons in one layer receive input connections from every neuron in the previous layer. For example, Figure 2 illustrates a dense neural network consisting of an input layer, two hidden layers, and an output layer:
+
+Figure 2. A neural network with features, hidden layers, and predictions.
+
+When you train the model from Figure 2 and feed it an unlabeled example, it yields three predictions: the likelihood that this penguin is the given penguin species. This prediction is called inference. For this example, the sum of the output predictions is 1.0. In Figure 2, this prediction breaks down as: <code> for Adelie, <code> for Chinstrap, and <code> for Gentoo species. This means that the model predicts—with 95% probability—that an unlabeled example penguin is a Chinstrap penguin.
+
+Create a model using Keras.
+
+The TensorFlow <code> API is the preferred way to create models and layers. This makes it easy to build models and experiment while Keras handles the complexity of connecting everything together.
+
+The <code> model is a linear stack of layers. Its constructor takes a list of layer instances, in this case, two <code> layers with 10 nodes each, and an output layer with 3 nodes representing your label predictions. The first layer's <code> parameter corresponds to the number of features from the dataset, and is required:
+
+The activation function determines the output shape of each node in the layer. These non-linearities are important—without them the model would be equivalent to a single layer. There are many <code>, but ReLU is common for hidden layers.
+
+The ideal number of hidden layers and neurons depends on the problem and the dataset. Like many aspects of machine learning, picking the best shape of the neural network requires a mixture of knowledge and experimentation. As a rule of thumb, increasing the number of hidden layers and neurons typically creates a more powerful model, which requires more data to train effectively.
+
+Use the model.
+
+Let's have a quick look at what this model does to a batch of features:
+
+Here, each example returns a logit for each class.
+
+To convert these logits to a probability for each class, use the softmax function:
+
+Taking the <code> across classes gives us the predicted class index. But, the model hasn't been trained yet, so these aren't good predictions:
+
+Train the model.
+
+Training is the stage of machine learning when the model is gradually optimized, or the model learns the dataset. The goal is to learn enough about the structure of the training dataset to make predictions about unseen data. If you learn too much about the training dataset, then the predictions only work for the data it has seen and will not be generalizable. This problem is called overfitting—it's like memorizing the answers instead of understanding how to solve a problem.
+
+The penguin classification problem is an example of supervised machine learning: the model is trained from examples that contain labels. In unsupervised machine learning, the examples don't contain labels. Instead, the model typically finds patterns among the features.
+
+Define the loss and gradients function.
+
+Both training and evaluation stages need to calculate the model's loss. This measures how off a model's predictions are from the desired label, in other words, how bad the model is performing. You want to minimize, or optimize, this value.
+
+Your model will calculate its loss using the <code> function which takes the model's class probability predictions and the desired label, and returns the average loss across the examples.
+
+Use the <code> context to calculate the gradients used to optimize your model:
+
+Create an optimizer.
+
+An optimizer applies the computed gradients to the model's parameters to minimize the <code> function. You can think of the loss function as a curved surface (refer to Figure 3) and you want to find its lowest point by walking around. The gradients point in the direction of steepest ascent—so you'll travel the opposite way and move down the hill. By iteratively calculating the loss and gradient for each batch, you'll adjust the model during training. Gradually, the model will find the best combination of weights and bias to minimize the loss. And the lower the loss, the better the model's predictions.
+
+Figure 3. Optimization algorithms visualized over time in 3D space. (Source: Stanford class CS231n , MIT License, Image credit: Alec Radford ).
+
+TensorFlow has many optimization algorithms available for training. In this tutorial, you will use the <code> that implements the stochastic gradient descent (SGD) algorithm. The <code> parameter sets the step size to take for each iteration down the hill. This rate is a hyperparameter that you'll commonly adjust to achieve better results.
+
+Instantiate the optimizer with a learning rate of <code>, a scalar value that is multiplied by the gradient at each iteration of the training:
+
+Then use this object to calculate a single optimization step:
+
+Training loop.
+
+With all the pieces in place, the model is ready for training! A training loop feeds the dataset examples into the model to help it make better predictions. The following code block sets up these training steps:
+
+Iterate each epoch. An epoch is one pass through the dataset.
+
+Within an epoch, iterate over each example in the training <code> grabbing its features (<code>) and label (<code>).
+
+Using the example's features, make a prediction and compare it with the label. Measure the inaccuracy of the prediction and use that to calculate the model's loss and gradients.
+
+Use an <code> to update the model's parameters.
+
+Keep track of some stats for visualization.
+
+Repeat for each epoch.
+
+The <code> variable is the number of times to loop over the dataset collection. In the code below, <code> is set to 201 which means this training loop will run 201 times. Counter-intuitively, training a model longer does not guarantee a better model. <code> is a hyperparameter that you can tune. Choosing the right number usually requires both experience and experimentation:
+
+Alternatively, you could use the built-in Keras <code> method to train your model.
+
+Visualize the loss function over time.
+
+While it's helpful to print out the model's training progress, you can visualize the progress with TensorBoard - a visualization and metrics tool that is packaged with TensorFlow. For this simple example, you will create basic charts using the <code> module.
+
+Interpreting these charts takes some experience, but in general you want to see the loss decrease and the accuracy increase:
+
+Evaluate the model's effectiveness.
+
+Now that the model is trained, you can get some statistics on its performance.
+
+Evaluating means determining how effectively the model makes predictions. To determine the model's effectiveness at penguin classification, pass some measurements to the model and ask the model to predict what penguin species they represent. Then compare the model's predictions against the actual label. For example, a model that picked the correct species on half the input examples has an accuracy of <code>. Figure 4 shows a slightly more effective model, getting 4 out of 5 predictions correct at 80% accuracy:
+
+Example features Label Model prediction.
+
+Figure 4. A penguin classifier that is 80% accurate.
+
+Set up the test set.
+
+Evaluating the model is similar to training the model. The biggest difference is the examples come from a separate test set rather than the training set. To fairly assess a model's effectiveness, the examples used to evaluate a model must be different from the examples used to train the model.
+
+The penguin dataset doesn't have a separate test dataset so in the previous Download the dataset section, you split the original dataset into test and train datasets. Use the <code> dataset for the evaluation.
+
+Evaluate the model on the test dataset.
+
+Unlike the training stage, the model only evaluates a single epoch of the test data. The following code iterates over each example in the test set and compare the model's prediction against the actual label. This comparison is used to measure the model's accuracy across the entire test set:
+
+You can also use the <code> keras function to get accuracy information on your test dataset.
+
+By inspecting the last batch, for example, you can observe that the model predictions are usually correct.
+
+Use the trained model to make predictions.
+
+You've trained a model and "proven" that it's good—but not perfect—at classifying penguin species. Now let's use the trained model to make some predictions on unlabeled examples; that is, on examples that contain features but not labels.
+
+In real-life, the unlabeled examples could come from lots of different sources including apps, CSV files, and data feeds. For this tutorial, manually provide three unlabeled examples to predict their labels. Recall, the label numbers are mapped to a named representation as:
+
+<code>: Adélie penguin.
+
+<code>: Chinstrap penguin.
+
+<code>: Gentoo penguin.

@@ -1,0 +1,23 @@
+Integrations with the Hugging Face Hub.
+
+To make your life even easier, Gradio integrates directly with Hugging Face Hub and Hugging Face Spaces. You can load demos from the Hub and Spaces with only one line of code.
+
+Loading models from the Hugging Face Hub.
+
+To start with, choose one of the thousands of models Hugging Face offers through the Hub, as described in Chapter 4.
+
+Using the special <code> method, you pass <code> (or, equivalently, <code>) followed by the model name. For example, here is the code to build a demo for GPT-J, a large language model, add a couple of example inputs:
+
+The code above will produce the interface below:
+
+Loading a model in this way uses Hugging Face's Inference API, instead of loading the model in memory. This is ideal for huge models like GPT-J or T0pp which require lots of RAM.
+
+Loading from Hugging Face Spaces.
+
+To load any Space from the Hugging Face Hub and recreate it locally, you can pass <code> to the <code>, followed by the name of the Space.
+
+Remember the demo from section 1 that removes the background of an image? Let's load it from Hugging Face Spaces:
+
+One of the cool things about loading demos from the Hub or Spaces is that you customize them by overriding any of the parameters. Here, we add a title and get it to work with a webcam instead:
+
+Now that we've explored a few ways to integrate Gradio with the Hugging Face Hub, let's take a look at some advanced features of the <code> class. That's the topic of the next section!

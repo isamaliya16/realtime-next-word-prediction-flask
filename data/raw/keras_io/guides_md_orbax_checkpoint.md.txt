@@ -1,0 +1,99 @@
+Orbax Checkpointing in Keras.
+
+Introduction.
+
+Orbax is the recommended checkpointing library for the JAX ecosystem. It provides high-level functionality for checkpoint management, composable serialization, and multi-host coordination.
+
+Starting with Keras 3.14, the built-in <code> callback makes it easy to:
+
+Save and restore model checkpoints (weights, optimizer state, metrics) during training.
+
+Resume training seamlessly from the latest checkpoint.
+
+Use <code> monitoring (just like <code>).
+
+Run in multi-host distributed environments with automatic coordination.
+
+Reshard checkpoints when loading under a different distribution layout than the one used at save time.
+
+Setup.
+
+Install the Orbax checkpointing library:
+
+Set the Keras backend to JAX, configure virtual devices for the distributed demo, and import the required libraries.
+
+Basic Usage.
+
+<code> works like <code> — pass it as a callback to <code>. No boilerplate classes or wrappers are needed.
+
+Define a model and dataset.
+
+Save a checkpoint every epoch.
+
+The checkpoint directory now contains a step-directory for each saved epoch.
+
+Loading a model from an Orbax checkpoint.
+
+Use <code> to reload a full model (config + weights + optimizer state) from an Orbax checkpoint directory.
+
+Model: "functional".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( None , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense1 ( Dense ) │ ( None , 64 ) │ 2,112 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense_2 ( Dense ) │ ( None , 1 ) │ 65 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 6,533 (25.52 KB).
+
+Trainable params: 2,177 (8.50 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Optimizer params: 4,356 (17.02 KB).
+
+Loading weights only.
+
+If you already have a model instance and just want to load the weights, use <code>:
+
+Resuming training.
+
+When you pass <code> to a new <code> call, training resumes from the correct step number. Pass <code> to continue the epoch count from where you left off.
+
+Save best only.
+
+Monitor a metric and keep only the best checkpoint:
+
+Batch-level checkpointing.
+
+Save every N batches instead of every epoch by setting <code> to an integer:
+
+Distributed training with model parallelism.
+
+<code> works seamlessly with the Keras Distribution API. When you set a distribution, model variables are automatically sharded according to your <code> and checkpoints capture the distributed state. Note: The example below uses virtual devices to simulate a multi-device environment. In production, use your actual accelerators (GPUs/TPUs).
+
+Define a layout map and distribution.
+
+Train with distributed checkpointing.
+
+Verify sharding.
+
+After training, you can inspect the sharding of saved variables:
+
+Cross-layout resharding.
+
+One of the most powerful features of Orbax checkpointing in Keras is the ability to load a checkpoint saved with one sharding layout and restore it under a different layout. Keras automatically provides the target shardings to Orbax so arrays are resharded on load.
+
+For example, a checkpoint saved with <code> sharded on the <code> axis can be loaded with that same kernel sharded on the <code> axis instead:
+
+The <code> variable was originally sharded as <code> but is now sharded as <code>. Orbax handles the data movement automatically during loading.
+
+Callback parameters reference.
+
+Summary.
+
+<code> is the built-in callback for Orbax checkpointing — no wrapper classes needed.
+
+Use <code> or <code> to restore from an Orbax checkpoint directory.
+
+Works with distributed training (Keras Distribution API) and supports cross-layout resharding when loading under a different <code>.
+
+Supports multi-host JAX environments with automatic coordination.
+
+Mirrors the <code> API: <code>, <code>, <code>, <code>, <code>.

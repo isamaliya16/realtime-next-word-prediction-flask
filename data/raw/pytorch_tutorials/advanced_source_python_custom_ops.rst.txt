@@ -1,0 +1,83 @@
+Custom Python Operators.
+
+PyTorch offers a large library of operators that work on Tensors, such as <code> and <code>. However, you might wish to use a new custom operator with PyTorch, perhaps written by a third-party library. This guide shows how to wrap Python functions so that they behave like PyTorch native operators.
+
+Reasons why you may wish to create a custom operator in PyTorch include:
+
+treating an arbitrary Python function as an opaque callable with respect to <code> and/or <code>.
+
+adding training support to an arbitrary Python function.
+
+Please note that if your operation can be expressed as a composition of existing PyTorch operators, then there is usually no need to use the custom operator API. <code>, training support, and other PyTorch subsystems should usually work.
+
+Every custom operator needs:
+
+a stable schema and mutation/aliasing contract;
+
+validation with <code>;
+
+a fake kernel if it returns tensors and must work with <code> or <code>.
+
+Choose one path:
+
+Functional custom operators: the operator returns fresh tensors and mutates no inputs.
+
+Mutable custom operators: the operator mutates an input or writes into an output buffer. Starting in PyTorch 2.13, this includes PyTorch-style in-place and <code> custom operators.
+
+Optional registrations: add autograd, <code>, Tensor subclass behavior, or other subsystem support after the base operator passes <code>.
+
+For Python-less environments or AOTInductor, define the operator and backend kernels in C++ instead. See the C++ custom operator tutorial.
+
+Before you start.
+
+A kernel is the implementation. An operator is the PyTorch-facing contract: name, inputs, outputs, mutation behavior, and subsystem registrations.
+
+A custom operator gives PyTorch an explicit boundary. Use it when tracing into the implementation is impossible or undesirable.
+
+Required: schema and mutation/aliasing contract.
+
+Decide the schema and mutation/aliasing contract before writing registrations. PyTorch uses the schema and registrations to reason about mutation/aliasing; it does not infer the contract from the Python function body.
+
+Two Tensors alias when they share the same underlying storage. For example, <code> creates a view <code> that aliases <code>, so writing to <code> can change <code>.
+
+The schema must be stable: the mutation and aliasing behavior must be correct and consistent. This means that an operator must not return an output that sometimes aliases its input. Also, the operator may not mutate an input that is not marked as being mutated.
+
+A functional custom operator must return fresh tensors. Do not return an input tensor, a view of an input, or two outputs that alias each other.
+
+A mutable custom operator must list every mutated argument in <code>.
+
+A fake kernel must return tensors with the same metadata as the real kernel: shape, dtype, device, layout, strides, and storage offset when relevant. <code> is only correct when the real output has the same metadata as <code>. The functional custom operator page shows an executable example of this metadata mismatch.
+
+Fake kernels may inspect metadata, but must not read tensor data.
+
+Avoid "maybe-out" operators. An operator that sometimes allocates a new tensor and sometimes writes into an output buffer has different aliasing contracts for different calls.
+
+Split maybe-out behavior into two operators: one functional operator that allocates and one mutable operator that writes into an output buffer.
+
+Required: validate with opcheck.
+
+<code> validates the registration contract: schema, fake kernel, autograd registration, and behavior under compilation APIs.
+
+Run <code> on representative inputs:
+
+each supported device;
+
+important dtypes;
+
+edge shapes such as empty tensors;
+
+important memory formats or non-contiguous strides;
+
+inputs with <code> if the operator supports training.
+
+<code> is not a numerical correctness test. Use <code> or ordinary unit tests for forward correctness, and <code> for gradient formulas.
+
+Next steps.
+
+Read one base-contract page first, then add registrations only if needed:
+
+Functional custom operators.
+
+Mutable custom operators.
+
+Adding training and other registrations.

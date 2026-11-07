@@ -1,0 +1,287 @@
+Review Classification using Active Learning.
+
+Introduction.
+
+With the growth of data-centric Machine Learning, Active Learning has grown in popularity amongst businesses and researchers. Active Learning seeks to progressively train ML models so that the resultant model requires lesser amount of training data to achieve competitive scores.
+
+The structure of an Active Learning pipeline involves a classifier and an oracle. The oracle is an annotator that cleans, selects, labels the data, and feeds it to the model when required. The oracle is a trained individual or a group of individuals that ensure consistency in labeling of new data.
+
+The process starts with annotating a small subset of the full dataset and training an initial model. The best model checkpoint is saved and then tested on a balanced test set. The test set must be carefully sampled because the full training process will be dependent on it. Once we have the initial evaluation scores, the oracle is tasked with labeling more samples; the number of data points to be sampled is usually determined by the business requirements. After that, the newly sampled data is added to the training set, and the training procedure repeats. This cycle continues until either an acceptable score is reached or some other business metric is met.
+
+This tutorial provides a basic demonstration of how Active Learning works by demonstrating a ratio-based (least confidence) sampling strategy that results in lower overall false positive and negative rates when compared to a model trained on the entire dataset. This sampling falls under the domain of uncertainty sampling, in which new datasets are sampled based on the uncertainty that the model outputs for the corresponding label. In our example, we compare our model's false positive and false negative rates and annotate the new data based on their ratio.
+
+Some other sampling techniques include:
+
+Committee sampling: Using multiple models to vote for the best data points to be sampled.
+
+Entropy reduction: Sampling according to an entropy threshold, selecting more of the samples that produce the highest entropy score.
+
+Minimum margin based sampling: Selects data points closest to the decision boundary.
+
+Importing required libraries.
+
+Loading and preprocessing the data.
+
+We will be using the IMDB reviews dataset for our experiments. This dataset has 50,000 reviews in total, including training and testing splits. We will merge these splits and sample our own, balanced training, validation and testing sets.
+
+Active learning starts with labeling a subset of data. For the ratio sampling technique that we will be using, we will need well-balanced training, validation and testing splits.
+
+Fitting the <code> layer.
+
+Since we are working with text data, we will need to encode the text strings as vectors which would then be passed through an <code> layer. To make this tokenization process faster, we use the <code> function with its parallelization functionality.
+
+Creating Helper Functions.
+
+Creating the Model.
+
+We create a small bidirectional LSTM model. When using Active Learning, you should make sure that the model architecture is capable of overfitting to the initial data. Overfitting gives a strong hint that the model will have enough capacity for future, unseen data.
+
+Training on the entire dataset.
+
+To show the effectiveness of Active Learning, we will first train the model on the entire dataset containing 40,000 labeled samples. This model will be used for comparison later.
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ embedding ( Embedding ) │ ( None , 150 , 128 ) │ 384,000 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ bidirectional ( Bidirectional ) │ ( None , 150 , 64 ) │ 41,216 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalmaxpooling1d │ ( None , 64 ) │ 0 │ │ ( GlobalMaxPooling1D ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense ( Dense ) │ ( None , 20 ) │ 1,300 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout ( Dropout ) │ ( None , 20 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense_1 ( Dense ) │ ( None , 1 ) │ 21 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 426,537 (1.63 MB).
+
+Trainable params: 426,537 (1.63 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+156/157 ━━━━━━━━━━━━━━━━━━━37m━ 0s 73ms/step - binaryaccuracy: 0.6412 - falsenegatives: 2084.3333 - false_positives: 5252.1924 - loss: 0.6507.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 15s 79ms/step - binaryaccuracy: 0.6411 - falsenegatives: 2135.1772 - falsepositives: 5292.4053 - loss: 0.6506 - valbinaryaccuracy: 0.7356 - valfalsenegatives: 898.0000 - valfalsepositives: 424.0000 - valloss: 0.5720.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.7448 - falsenegatives: 1756.2756 - false_positives: 3249.1411 - loss: 0.5416.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.7450 - falsenegatives: 1783.8925 - falsepositives: 3279.8101 - loss: 0.5412 - valbinaryaccuracy: 0.8156 - valfalsenegatives: 531.0000 - valfalsepositives: 391.0000 - valloss: 0.4176.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8162 - falsenegatives: 1539.7693 - false_positives: 2197.1475 - loss: 0.4254.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.8161 - falsenegatives: 1562.6962 - falsepositives: 2221.5886 - loss: 0.4254 - valbinaryaccuracy: 0.8340 - valfalsenegatives: 496.0000 - valfalsepositives: 334.0000 - valloss: 0.3823.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8413 - falsenegatives: 1400.6538 - false_positives: 1818.7372 - loss: 0.3837.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.8412 - falsenegatives: 1421.5063 - falsepositives: 1839.3102 - loss: 0.3838 - valbinaryaccuracy: 0.8396 - valfalsenegatives: 548.0000 - valfalsepositives: 254.0000 - valloss: 0.3623.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8611 - falsenegatives: 1264.5256 - false_positives: 1573.5962 - loss: 0.3468.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 75ms/step - binaryaccuracy: 0.8611 - falsenegatives: 1283.0632 - falsepositives: 1592.3228 - loss: 0.3468 - valbinaryaccuracy: 0.8222 - valfalsenegatives: 734.0000 - valfalsepositives: 155.0000 - valloss: 0.4081.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8706 - falsenegatives: 1186.9166 - false_positives: 1427.9487 - loss: 0.3301.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.8705 - falsenegatives: 1204.8038 - falsepositives: 1444.9368 - loss: 0.3302 - valbinaryaccuracy: 0.8412 - valfalsenegatives: 569.0000 - valfalsepositives: 225.0000 - valloss: 0.3504.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8768 - falsenegatives: 1162.4423 - false_positives: 1342.4807 - loss: 0.3084.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.8768 - falsenegatives: 1179.5253 - falsepositives: 1358.4114 - loss: 0.3085 - valbinaryaccuracy: 0.8590 - valfalsenegatives: 364.0000 - valfalsepositives: 341.0000 - valloss: 0.3268.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 73ms/step - binaryaccuracy: 0.8865 - falsenegatives: 1079.3206 - false_positives: 1250.2693 - loss: 0.2924.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.8864 - falsenegatives: 1094.9873 - falsepositives: 1265.0632 - loss: 0.2926 - valbinaryaccuracy: 0.8460 - valfalsenegatives: 548.0000 - valfalsepositives: 222.0000 - valloss: 0.3432.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 73ms/step - binaryaccuracy: 0.8912 - falsenegatives: 1019.1987 - false_positives: 1189.4551 - loss: 0.2807.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 77ms/step - binaryaccuracy: 0.8912 - falsenegatives: 1033.9684 - falsepositives: 1203.5632 - loss: 0.2808 - valbinaryaccuracy: 0.8588 - valfalsenegatives: 330.0000 - valfalsepositives: 376.0000 - valloss: 0.3302.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8997 - falsenegatives: 968.6346 - false_positives: 1109.9103 - loss: 0.2669.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.8996 - falsenegatives: 983.1202 - falsepositives: 1123.3418 - loss: 0.2671 - valbinaryaccuracy: 0.8558 - valfalsenegatives: 445.0000 - valfalsepositives: 276.0000 - valloss: 0.3413.
+
+156/157 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.9055 - falsenegatives: 937.0320 - false_positives: 1000.8589 - loss: 0.2520.
+
+157/157 ━━━━━━━━━━━━━━━━━━━━ 12s 76ms/step - binaryaccuracy: 0.9055 - falsenegatives: 950.3608 - falsepositives: 1013.6456 - loss: 0.2521 - valbinaryaccuracy: 0.8602 - valfalsenegatives: 402.0000 - valfalsepositives: 297.0000 - valloss: 0.3281.
+
+Training via Active Learning.
+
+The general process we follow when performing Active Learning is demonstrated below:
+
+The pipeline can be summarized in five parts:
+
+Sample and annotate a small, balanced training dataset.
+
+Train the model on this small subset.
+
+Evaluate the model on a balanced testing set.
+
+If the model satisfies the business criteria, deploy it in a real time setting.
+
+If it doesn't pass the criteria, sample a few more samples according to the ratio of false positives and negatives, add them to the training set and repeat from step 2 till the model passes the tests or till all available data is exhausted.
+
+For the code below, we will perform sampling using the following formula:
+
+Active Learning techniques use callbacks extensively for progress tracking. We will be using model checkpointing and early stopping for this example. The <code> parameter for Early Stopping can help minimize overfitting and the time required. We have set it <code> for now but since the model is robust, we can increase the patience level if desired.
+
+Note: We are not loading the checkpoint after the first training iteration. In my experience working on Active Learning techniques, this helps the model probe the newly formed loss landscape. Even if the model fails to improve in the second iteration, we will still gain insight about the possible future false positive and negative rates. This will help us sample a better set in the next iteration where the model will have a greater chance to improve.
+
+Model: "sequential_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ embedding1 ( Embedding ) │ ( None , 150 , 128 ) │ 384,000 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ bidirectional1 ( Bidirectional ) │ ( None , 150 , 64 ) │ 41,216 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalmaxpooling1d1 │ ( None , 64 ) │ 0 │ │ ( GlobalMaxPooling1D ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense2 ( Dense ) │ ( None , 20 ) │ 1,300 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout1 ( Dropout ) │ ( None , 20 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense3 ( Dense ) │ ( None , 1 ) │ 21 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 426,537 (1.63 MB).
+
+Trainable params: 426,537 (1.63 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.5197 - falsenegatives1: 1686.7457 - falsepositives_1: 1938.3051 - loss: 0.6918.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 8s 89ms/step - binaryaccuracy: 0.5202 - falsenegatives1: 1716.9833 - falsepositives1: 1961.4667 - loss: 0.6917 - valbinaryaccuracy: 0.6464 - valfalsenegatives1: 279.0000 - valfalsepositives1: 1489.0000 - valloss: 0.6743.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.6505 - falsenegatives1: 1216.0170 - falsepositives_1: 1434.2373 - loss: 0.6561.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.6507 - falsenegatives1: 1234.9833 - falsepositives1: 1455.7667 - loss: 0.6558 - valbinaryaccuracy: 0.7032 - valfalsenegatives1: 235.0000 - valfalsepositives1: 1249.0000 - valloss: 0.5913.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.7103 - falsenegatives1: 939.5255 - falsepositives_1: 1235.8983 - loss: 0.5829.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.7106 - falsenegatives1: 953.0500 - falsepositives1: 1255.3167 - loss: 0.5827 - valbinaryaccuracy: 0.7686 - valfalsenegatives1: 812.0000 - valfalsepositives1: 345.0000 - valloss: 0.5160.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.7545 - falsenegatives1: 787.4237 - falsepositives_1: 1070.0339 - loss: 0.5214.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.7547 - falsenegatives1: 799.2667 - falsepositives1: 1085.8833 - loss: 0.5212 - valbinaryaccuracy: 0.8028 - valfalsenegatives1: 342.0000 - valfalsepositives1: 644.0000 - valloss: 0.4395.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.7919 - falsenegatives1: 676.7458 - falsepositives_1: 907.4915 - loss: 0.4657.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.7920 - falsenegatives1: 687.3834 - falsepositives1: 921.1667 - loss: 0.4655 - valbinaryaccuracy: 0.8158 - valfalsenegatives1: 598.0000 - valfalsepositives1: 323.0000 - valloss: 0.4168.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.7994 - falsenegatives1: 661.3560 - falsepositives_1: 828.0847 - loss: 0.4498.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.7997 - falsenegatives1: 671.3666 - falsepositives1: 840.2500 - loss: 0.4495 - valbinaryaccuracy: 0.8260 - valfalsenegatives1: 382.0000 - valfalsepositives1: 488.0000 - valloss: 0.3968.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8311 - falsenegatives1: 589.1187 - falsepositives_1: 707.0170 - loss: 0.4017.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8312 - falsenegatives1: 598.3500 - falsepositives1: 717.8167 - loss: 0.4016 - valbinaryaccuracy: 0.7706 - valfalsenegatives1: 1004.0000 - valfalsepositives1: 143.0000 - valloss: 0.4884.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8365 - falsenegatives1: 566.7288 - falsepositives_1: 649.9322 - loss: 0.3896.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8366 - falsenegatives1: 575.2833 - falsepositives1: 660.2167 - loss: 0.3895 - valbinaryaccuracy: 0.8216 - valfalsenegatives1: 623.0000 - valfalsepositives1: 269.0000 - valloss: 0.4043.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8531 - falsenegatives1: 519.0170 - falsepositives_1: 591.6440 - loss: 0.3631.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8531 - falsenegatives1: 527.2667 - falsepositives1: 601.2500 - loss: 0.3631 - valbinaryaccuracy: 0.8348 - valfalsenegatives1: 296.0000 - valfalsepositives1: 530.0000 - valloss: 0.3773.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8686 - falsenegatives1: 475.7966 - falsepositives_1: 569.0508 - loss: 0.3387.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8685 - falsenegatives1: 483.5000 - falsepositives1: 577.9667 - loss: 0.3387 - valbinaryaccuracy: 0.8400 - valfalsenegatives1: 327.0000 - valfalsepositives1: 473.0000 - valloss: 0.3735.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8716 - falsenegatives1: 452.1356 - falsepositives_1: 522.1187 - loss: 0.3303.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8716 - falsenegatives1: 459.3833 - falsepositives1: 530.6667 - loss: 0.3303 - valbinaryaccuracy: 0.8390 - valfalsenegatives1: 362.0000 - valfalsepositives1: 443.0000 - valloss: 0.3707.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8833 - falsenegatives1: 433.0678 - falsepositives_1: 481.1864 - loss: 0.3065.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8833 - falsenegatives1: 439.8333 - falsepositives1: 488.9667 - loss: 0.3066 - valbinaryaccuracy: 0.8236 - valfalsenegatives1: 208.0000 - valfalsepositives1: 674.0000 - valloss: 0.4046.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8876 - falsenegatives1: 384.8305 - falsepositives_1: 476.5254 - loss: 0.2978.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 82ms/step - binaryaccuracy: 0.8876 - falsenegatives1: 391.2667 - falsepositives1: 484.2500 - loss: 0.2978 - valbinaryaccuracy: 0.8380 - valfalsenegatives1: 364.0000 - valfalsepositives1: 446.0000 - valloss: 0.3783.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8976 - falsenegatives1: 378.0169 - falsepositives_1: 433.9831 - loss: 0.2754.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.8975 - falsenegatives1: 384.2333 - falsepositives1: 441.3833 - loss: 0.2757 - valbinaryaccuracy: 0.8310 - valfalsenegatives1: 525.0000 - valfalsepositives1: 320.0000 - valloss: 0.3957.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.9013 - falsenegatives1: 354.9322 - falsepositives_1: 403.1695 - loss: 0.2709.
+
+59/59 ━━━━━━━━━━━━━━━━━━━━ 5s 83ms/step - binaryaccuracy: 0.9013 - falsenegatives1: 360.4000 - falsepositives1: 409.5833 - loss: 0.2709 - valbinaryaccuracy: 0.8298 - valfalsenegatives1: 302.0000 - valfalsepositives1: 549.0000 - valloss: 0.4015.
+
+20/20 ━━━━━━━━━━━━━━━━━━━━ 1s 39ms/step.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8735 - falsenegatives2: 547.2436 - falsepositives_2: 650.2436 - loss: 0.3527.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 9s 84ms/step - binaryaccuracy: 0.8738 - falsenegatives2: 559.2125 - falsepositives2: 665.3375 - loss: 0.3518 - valbinaryaccuracy: 0.7932 - valfalsenegatives2: 119.0000 - valfalsepositives2: 915.0000 - valloss: 0.4949.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.8961 - falsenegatives2: 470.2436 - falsepositives_2: 576.1539 - loss: 0.2824.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 6s 80ms/step - binaryaccuracy: 0.8962 - falsenegatives2: 481.4125 - falsepositives2: 589.6750 - loss: 0.2823 - valbinaryaccuracy: 0.8014 - valfalsenegatives2: 809.0000 - valfalsepositives2: 184.0000 - valloss: 0.4580.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.9059 - falsenegatives2: 442.2051 - falsepositives_2: 500.5385 - loss: 0.2628.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 6s 80ms/step - binaryaccuracy: 0.9059 - falsenegatives2: 452.6750 - falsepositives2: 513.5250 - loss: 0.2629 - valbinaryaccuracy: 0.8294 - valfalsenegatives2: 302.0000 - valfalsepositives2: 551.0000 - valloss: 0.3868.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.9188 - falsenegatives2: 394.5513 - falsepositives_2: 462.4359 - loss: 0.2391.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 6s 80ms/step - binaryaccuracy: 0.9187 - falsenegatives2: 405.0625 - falsepositives2: 474.1250 - loss: 0.2393 - valbinaryaccuracy: 0.8268 - valfalsenegatives2: 225.0000 - valfalsepositives2: 641.0000 - valloss: 0.4197.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.9255 - falsenegatives2: 349.8718 - falsepositives_2: 413.0898 - loss: 0.2270.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 6s 79ms/step - binaryaccuracy: 0.9254 - falsenegatives2: 358.6500 - falsepositives2: 423.5625 - loss: 0.2270 - valbinaryaccuracy: 0.8228 - valfalsenegatives2: 611.0000 - valfalsepositives2: 275.0000 - valloss: 0.4233.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 73ms/step - binaryaccuracy: 0.9265 - falsenegatives2: 349.8590 - falsepositives_2: 389.9359 - loss: 0.2147.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 6s 80ms/step - binaryaccuracy: 0.9265 - falsenegatives2: 358.8375 - falsepositives2: 399.9875 - loss: 0.2148 - valbinaryaccuracy: 0.8272 - valfalsenegatives2: 581.0000 - valfalsepositives2: 283.0000 - valloss: 0.4415.
+
+78/79 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 72ms/step - binaryaccuracy: 0.9409 - falsenegatives2: 286.7820 - falsepositives_2: 322.7949 - loss: 0.1877.
+
+79/79 ━━━━━━━━━━━━━━━━━━━━ 6s 79ms/step - binaryaccuracy: 0.9408 - falsenegatives2: 294.4375 - falsepositives2: 331.4000 - loss: 0.1880 - valbinaryaccuracy: 0.8266 - valfalsenegatives2: 528.0000 - valfalsepositives2: 339.0000 - valloss: 0.4419.
+
+20/20 ━━━━━━━━━━━━━━━━━━━━ 1s 39ms/step.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 0s 73ms/step - binaryaccuracy: 0.8509 - falsenegatives3: 809.9184 - falsepositives_3: 1018.9286 - loss: 0.3732.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 11s 83ms/step - binaryaccuracy: 0.8509 - falsenegatives3: 817.5757 - falsepositives3: 1028.7980 - loss: 0.3731 - valbinaryaccuracy: 0.8424 - valfalsenegatives3: 368.0000 - valfalsepositives3: 420.0000 - valloss: 0.3620.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8744 - falsenegatives3: 734.7449 - falsepositives_3: 884.7755 - loss: 0.3185.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 8s 79ms/step - binaryaccuracy: 0.8744 - falsenegatives3: 741.9697 - falsepositives3: 893.7172 - loss: 0.3186 - valbinaryaccuracy: 0.8316 - valfalsenegatives3: 202.0000 - valfalsepositives3: 640.0000 - valloss: 0.3792.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8830 - falsenegatives3: 684.1326 - falsepositives_3: 807.8878 - loss: 0.3090.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 8s 79ms/step - binaryaccuracy: 0.8830 - falsenegatives3: 691.0707 - falsepositives3: 816.2222 - loss: 0.3090 - valbinaryaccuracy: 0.8118 - valfalsenegatives3: 738.0000 - valfalsepositives3: 203.0000 - valloss: 0.4112.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8892 - falsenegatives3: 651.9898 - falsepositives_3: 776.4388 - loss: 0.2928.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 8s 79ms/step - binaryaccuracy: 0.8892 - falsenegatives3: 658.4041 - falsepositives3: 784.3839 - loss: 0.2928 - valbinaryaccuracy: 0.8344 - valfalsenegatives3: 557.0000 - valfalsepositives3: 271.0000 - valloss: 0.3734.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 0s 72ms/step - binaryaccuracy: 0.8975 - falsenegatives3: 612.0714 - falsepositives_3: 688.9184 - loss: 0.2806.
+
+98/98 ━━━━━━━━━━━━━━━━━━━━ 8s 79ms/step - binaryaccuracy: 0.8974 - falsenegatives3: 618.4343 - falsepositives3: 696.1313 - loss: 0.2807 - valbinaryaccuracy: 0.8456 - valfalsenegatives3: 446.0000 - valfalsepositives3: 326.0000 - valloss: 0.3658.
+
+20/20 ━━━━━━━━━━━━━━━━━━━━ 1s 40ms/step.
+
+117/118 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 76ms/step - binaryaccuracy: 0.8621 - falsenegatives4: 916.2393 - falsepositives_4: 1130.9744 - loss: 0.3527.
+
+118/118 ━━━━━━━━━━━━━━━━━━━━ 13s 85ms/step - binaryaccuracy: 0.8621 - falsenegatives4: 931.0924 - falsepositives4: 1149.7479 - loss: 0.3525 - valbinaryaccuracy: 0.8266 - valfalsenegatives4: 627.0000 - valfalsepositives4: 240.0000 - valloss: 0.3802.
+
+117/118 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 76ms/step - binaryaccuracy: 0.8761 - falsenegatives4: 876.4872 - falsepositives_4: 1005.5726 - loss: 0.3195.
+
+118/118 ━━━━━━━━━━━━━━━━━━━━ 10s 82ms/step - binaryaccuracy: 0.8760 - falsenegatives4: 891.0504 - falsepositives4: 1022.9412 - loss: 0.3196 - valbinaryaccuracy: 0.8404 - valfalsenegatives4: 479.0000 - valfalsepositives4: 319.0000 - valloss: 0.3571.
+
+117/118 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 74ms/step - binaryaccuracy: 0.8874 - falsenegatives4: 801.1710 - falsepositives_4: 941.4786 - loss: 0.2965.
+
+118/118 ━━━━━━━━━━━━━━━━━━━━ 9s 79ms/step - binaryaccuracy: 0.8873 - falsenegatives4: 814.8319 - falsepositives4: 957.8571 - loss: 0.2966 - valbinaryaccuracy: 0.8226 - valfalsenegatives4: 677.0000 - valfalsepositives4: 210.0000 - valloss: 0.3948.
+
+117/118 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 76ms/step - binaryaccuracy: 0.8977 - falsenegatives4: 740.5385 - falsepositives_4: 837.1710 - loss: 0.2768.
+
+118/118 ━━━━━━━━━━━━━━━━━━━━ 10s 81ms/step - binaryaccuracy: 0.8976 - falsenegatives4: 753.5378 - falsepositives4: 852.2437 - loss: 0.2770 - valbinaryaccuracy: 0.8406 - valfalsenegatives4: 530.0000 - valfalsepositives4: 267.0000 - valloss: 0.3630.
+
+117/118 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 76ms/step - binaryaccuracy: 0.9020 - falsenegatives4: 722.5214 - falsepositives_4: 808.2308 - loss: 0.2674.
+
+118/118 ━━━━━━━━━━━━━━━━━━━━ 10s 82ms/step - binaryaccuracy: 0.9019 - falsenegatives4: 734.8655 - falsepositives4: 822.4117 - loss: 0.2676 - valbinaryaccuracy: 0.8330 - valfalsenegatives4: 592.0000 - valfalsepositives4: 243.0000 - valloss: 0.3805.
+
+117/118 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 76ms/step - binaryaccuracy: 0.9059 - falsenegatives4: 682.1453 - falsepositives_4: 737.0513 - loss: 0.2525.
+
+118/118 ━━━━━━━━━━━━━━━━━━━━ 10s 82ms/step - binaryaccuracy: 0.9059 - falsenegatives4: 693.6387 - falsepositives4: 749.9412 - loss: 0.2526 - valbinaryaccuracy: 0.8454 - valfalsenegatives4: 391.0000 - valfalsepositives4: 382.0000 - valloss: 0.3620.
+
+Conclusion.
+
+Active Learning is a growing area of research. This example demonstrates the cost-efficiency benefits of using Active Learning, as it eliminates the need to annotate large amounts of data, saving resources.
+
+The following are some noteworthy observations from this example:
+
+We only require 30,000 samples to reach the same (if not better) scores as the model trained on the full dataset. This means that in a real life setting, we save the effort required for annotating 10,000 images!
+
+The number of false negatives and false positives are well balanced at the end of the training as compared to the skewed ratio obtained from the full training. This makes the model slightly more useful in real life scenarios where both the labels hold equal importance.
+
+For further reading about the types of sampling ratios, training techniques or available open source libraries/implementations, you can refer to the resources below:
+
+[Active Learning Literature Survey (Burr Settles, 2010).
+
+modAL: A Modular Active Learning framework.
+
+Google's unofficial Active Learning playground.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

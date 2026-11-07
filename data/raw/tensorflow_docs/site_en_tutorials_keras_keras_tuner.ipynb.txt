@@ -1,0 +1,77 @@
+Introduction to the Keras Tuner.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+The Keras Tuner is a library that helps you pick the optimal set of hyperparameters for your TensorFlow program. The process of selecting the right set of hyperparameters for your machine learning (ML) application is called hyperparameter tuning or hypertuning.
+
+Hyperparameters are the variables that govern the training process and the topology of an ML model. These variables remain constant over the training process and directly impact the performance of your ML program. Hyperparameters are of two types:
+
+Model hyperparameters which influence model selection such as the number and width of hidden layers.
+
+Algorithm hyperparameters which influence the speed and quality of the learning algorithm such as the learning rate for Stochastic Gradient Descent (SGD) and the number of nearest neighbors for a k Nearest Neighbors (KNN) classifier.
+
+In this tutorial, you will use the Keras Tuner to perform hypertuning for an image classification application.
+
+Setup.
+
+Install and import the Keras Tuner.
+
+Download and prepare the dataset.
+
+In this tutorial, you will use the Keras Tuner to find the best hyperparameters for a machine learning model that classifies images of clothing from the Fashion MNIST dataset.
+
+Load the data.
+
+Define the model.
+
+When you build a model for hypertuning, you also define the hyperparameter search space in addition to the model architecture. The model you set up for hypertuning is called a hypermodel.
+
+You can define a hypermodel through two approaches:
+
+By using a model builder function.
+
+By subclassing the <code> class of the Keras Tuner API.
+
+You can also use two pre-defined HyperModel classes - HyperXception and HyperResNet for computer vision applications.
+
+In this tutorial, you use a model builder function to define the image classification model. The model builder function returns a compiled model and uses hyperparameters you define inline to hypertune the model.
+
+Instantiate the tuner and perform hypertuning.
+
+Instantiate the tuner to perform the hypertuning. The Keras Tuner has four tuners available - <code>, <code>, <code>, and <code>. In this tutorial, you use the Hyperband tuner.
+
+To instantiate the Hyperband tuner, you must specify the hypermodel, the <code> to optimize and the maximum number of epochs to train (<code>).
+
+The Hyperband tuning algorithm uses adaptive resource allocation and early-stopping to quickly converge on a high-performing model. This is done using a sports championship style bracket. The algorithm trains a large number of models for a few epochs and carries forward only the top-performing half of models to the next round. Hyperband determines the number of models to train in a bracket by computing 1 + log <code> (<code>) and rounding it up to the nearest integer.
+
+Create a callback to stop training early after reaching a certain value for the validation loss.
+
+Run the hyperparameter search. The arguments for the search method are the same as those used for <code> in addition to the callback above.
+
+Train the model.
+
+Find the optimal number of epochs to train the model with the hyperparameters obtained from the search.
+
+Re-instantiate the hypermodel and train it with the optimal number of epochs from above.
+
+To finish this tutorial, evaluate the hypermodel on the test data.
+
+The <code> directory contains detailed logs and checkpoints for every trial (model configuration) run during the hyperparameter search. If you re-run the hyperparameter search, the Keras Tuner uses the existing state from these logs to resume the search. To disable this behavior, pass an additional <code> argument while instantiating the tuner.
+
+Summary.
+
+In this tutorial, you learned how to use the Keras Tuner to tune hyperparameters for a model. To learn more about the Keras Tuner, check out these additional resources:
+
+Keras Tuner on the TensorFlow blog.
+
+Keras Tuner website.
+
+Also check out the HParams Dashboard in TensorBoard to interactively tune your model hyperparameters.

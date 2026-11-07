@@ -1,0 +1,93 @@
+Optimizing CPU Performance on Intel® Xeon® with run_cpu Script.
+
+There are several configuration options that can impact the performance of PyTorch inference when executed on Intel® Xeon® Scalable Processors. To get peak performance, the <code> script is provided that optimizes the configuration of thread and memory management. For thread management, the script configures thread affinity and the preload of Intel® OMP library. For memory management, it configures NUMA binding and preloads optimized memory allocation libraries, such as TCMalloc and JeMalloc. In addition, the script provides tunable parameters for compute resource allocation in both single instance and multiple instance scenarios, helping the users try out an optimal coordination of resource utilization for the specific workloads.
+
+What You Will Learn.
+
+How to utilize tools like <code>, <code>, Intel® OpenMP Runtime Library and optimized memory allocators such as <code> and <code> for enhanced performance.
+
+How to configure CPU resources and memory management to maximize PyTorch inference performance on Intel® Xeon® processors.
+
+Introduction of the Optimizations.
+
+Applying NUMA Access Control.
+
+It is beneficial that an increasing number of CPU cores are being provided to users within a single socket, as this offers greater computational resources. However, this also leads to competition for memory access, which can cause programs to stall due to busy memory. To address this problem, Non-Uniform Memory Access (NUMA) was introduced. Unlike Uniform Memory Access (UMA), where all memories are equally accessible to all cores, NUMA organizes memory into multiple groups. Certain number of memories are directly attached to one socket's integrated memory controller to become local memory of this socket. Local memory access is much faster than remote memory access.
+
+Users can get CPU information with <code> command on Linux to learn how many cores and sockets are there on the machine. Additionally, this command provides NUMA information, such as the distribution of CPU cores. Below is an example of executing <code> on a machine equipped with an Intel® Xeon® CPU Max 9480:
+
+Two sockets were detected, each containing 56 physical cores. With Hyper-Threading enabled, each core can handle 2 threads, resulting in 56 logical cores per socket. Therefore, the machine has a total of 224 CPU cores in service.
+
+Typically, physical cores are indexed before logical cores. In this scenario, cores 0-55 are the physical cores on the first NUMA node, and cores 56-111 are the physical cores on the second NUMA node.
+
+Logical cores are indexed subsequently: cores 112-167 correspond to the logical cores on the first NUMA node, and cores 168-223 to those on the second NUMA node.
+
+Typically, running PyTorch programs with compute intense workloads should avoid using logical cores to get good performance.
+
+Linux provides a tool called <code> that allows user control of NUMA policy for processes or shared memory. It runs processes with a specific NUMA scheduling or memory placement policy. As described above, cores share high-speed cache in one socket, thus it is a good idea to avoid cross socket computations. From a memory access perspective, bounding memory access locally is much faster than accessing remote memories. <code> command should have been installed in recent Linux distributions. In case it is missing, you can install it manually with the installation command, like on Ubuntu:
+
+on CentOS you can run the following command:
+
+The <code> command in Linux is another powerful utility that allows you to set or retrieve the CPU affinity of a running process. <code> are pre-installed in most Linux distributions and in case it's not, on Ubuntu you can install it with the command:
+
+on CentOS you can run the following command:
+
+Using Intel® OpenMP Runtime Library.
+
+OpenMP is an implementation of multithreading, a method of parallelizing where a primary thread (a series of instructions executed consecutively) forks a specified number of sub-threads and the system divides a task among them. The threads then run concurrently, with the runtime environment allocating threads to different processors. Users can control OpenMP behaviors with some environment variable settings to fit for their workloads, the settings are read and executed by OMP libraries. By default, PyTorch uses GNU OpenMP Library (GNU libgomp) for parallel computation. On Intel® platforms, Intel® OpenMP Runtime Library (libiomp) provides OpenMP API specification support. It usually brings more performance benefits compared to libgomp.
+
+The Intel® OpenMP Runtime Library can be installed using one of these commands:
+
+or.
+
+Choosing an Optimized Memory Allocator.
+
+Memory allocator plays an important role from performance perspective as well. A more efficient memory usage reduces overhead on unnecessary memory allocations or destructions, and thus results in a faster execution. From practical experiences, for deep learning workloads, <code> or <code> can get better performance by reusing memory as much as possible than default malloc operations.
+
+You can install <code> by running the following command on Ubuntu:
+
+On CentOS, you can install it by running:
+
+In a conda environment, it can also be installed by running:
+
+On Ubuntu <code> can be installed by this command:
+
+On CentOS it can be installed by running:
+
+In a conda environment, it can also be installed by running:
+
+Quick Start Example Commands.
+
+To run single-instance inference with 1 thread on 1 CPU core (only Core #0 would be used):
+
+To run single-instance inference on a single CPU node (NUMA socket):
+
+To run multi-instance inference, 8 instances with 14 cores per instance on a 112-core CPU:
+
+To run inference in throughput mode, in which all the cores in each CPU node set up an instance:
+
+Using <code>.
+
+The argument list and usage guidance can be shown with the following command:
+
+The command above has the following positional arguments:
+
+Explanation of the options.
+
+The generic option settings (knobs) include the following:
+
+Knobs for applying or disabling optimizations are:
+
+Knobs for controlling instance number and compute resource allocation are:
+
+Conclusion.
+
+In this tutorial, we explored a variety of advanced configurations and tools designed to optimize PyTorch inference performance on Intel® Xeon® Scalable Processors. By leveraging the <code> script, we demonstrated how to fine-tune thread and memory management to achieve peak performance. We covered essential concepts such as NUMA access control, optimized memory allocators like <code> and <code>, and the use of Intel® OpenMP for efficient multithreading.
+
+Additionally, we provided practical command-line examples to guide you through setting up single and multiple instance scenarios, ensuring optimal resource utilization tailored to specific workloads. By understanding and applying these techniques, users can significantly enhance the efficiency and speed of their PyTorch applications on Intel® Xeon® platforms.
+
+See also:
+
+PyTorch Performance Tuning Guide.
+
+PyTorch Multiprocessing Best Practices.

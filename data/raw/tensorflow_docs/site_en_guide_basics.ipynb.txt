@@ -1,0 +1,133 @@
+TensorFlow basics.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide provides a quick overview of TensorFlow basics. Each section of this doc is an overview of a larger topic—you can find links to full guides at the end of each section.
+
+TensorFlow is an end-to-end platform for machine learning. It supports the following:
+
+Multidimensional-array based numeric computation (similar to NumPy .).
+
+GPU and distributed processing.
+
+Automatic differentiation.
+
+Model construction, training, and export.
+
+And more.
+
+Tensors.
+
+TensorFlow operates on multidimensional arrays or tensors represented as <code> objects. Here is a two-dimensional tensor:
+
+The most important attributes of a <code> are its <code> and <code>:
+
+<code>: tells you the size of the tensor along each of its axes.
+
+<code>: tells you the type of all the elements in the tensor.
+
+TensorFlow implements standard mathematical operations on tensors, as well as many operations specialized for machine learning.
+
+For example:
+
+Note: Typically, anywhere a TensorFlow function expects a <code> as input, the function will also accept anything that can be converted to a <code> using <code>. See below for an example.
+
+Running large calculations on CPU can be slow. When properly configured, TensorFlow can use accelerator hardware like GPUs to execute operations very quickly.
+
+Refer to the Tensor guide for details.
+
+Variables.
+
+Normal <code> objects are immutable. To store model weights (or other mutable state) in TensorFlow use a <code>.
+
+Refer to the Variables guide for details.
+
+Automatic differentiation.
+
+Gradient descent and related algorithms are a cornerstone of modern machine learning.
+
+To enable this, TensorFlow implements automatic differentiation (autodiff), which uses calculus to compute gradients. Typically you'll use this to calculate the gradient of a model's error or loss with respect to its weights.
+
+At <code>, <code>.
+
+The derivative of <code> is <code>. TensorFlow can calculate this automatically:
+
+This simplified example only takes the derivative with respect to a single scalar (<code>), but TensorFlow can compute the gradient with respect to any number of non-scalar tensors simultaneously.
+
+Refer to the Autodiff guide for details.
+
+Graphs and tf.function.
+
+While you can use TensorFlow interactively like any Python library, TensorFlow also provides tools for:
+
+Performance optimization: to speed up training and inference.
+
+Export: so you can save your model when it's done training.
+
+These require that you use <code> to separate your pure-TensorFlow code from Python.
+
+The first time you run the <code>, although it executes in Python, it captures a complete, optimized graph representing the TensorFlow computations done within the function.
+
+On subsequent calls TensorFlow only executes the optimized graph, skipping any non-TensorFlow steps. Below, note that <code> doesn't print tracing since <code> is a Python function, not a TensorFlow function.
+
+A graph may not be reusable for inputs with a different signature (<code> and <code>), so a new graph is generated instead:
+
+These captured graphs provide two benefits:
+
+In many cases they provide a significant speedup in execution (though not this trivial example).
+
+You can export these graphs, using <code>, to run on other systems like a server or a mobile device, no Python installation required.
+
+Refer to Intro to graphs for more details.
+
+Modules, layers, and models.
+
+<code> is a class for managing your <code> objects, and the <code> objects that operate on them. The <code> class is necessary to support two significant features:
+
+You can save and restore the values of your variables using <code>. This is useful during training as it is quick to save and restore a model's state.
+
+You can import and export the <code> values and the <code> graphs using <code>. This allows you to run your model independently of the Python program that created it.
+
+Here is a complete example exporting a simple <code> object:
+
+Save the <code>:
+
+The resulting SavedModel is independent of the code that created it. You can load a SavedModel from Python, other language bindings, or TensorFlow Serving. You can also convert it to run with TensorFlow Lite or TensorFlow JS.
+
+The <code> and <code> classes build on <code> providing additional functionality and convenience methods for building, training, and saving models. Some of these are demonstrated in the next section.
+
+Refer to Intro to modules for details.
+
+Training loops.
+
+Now put this all together to build a basic model and train it from scratch.
+
+First, create some example data. This generates a cloud of points that loosely follows a quadratic curve:
+
+Create a quadratic model with randomly initialized weights and a bias:
+
+First, observe your model's performance before training:
+
+Now, define a loss for your model:
+
+Given that this model is intended to predict continuous values, the mean squared error (MSE) is a good choice for the loss function. Given a vector of predictions, <math>, and a vector of true targets, <math>, the MSE is defined as the mean of the squared differences between the predicted values and the ground truth.
+
+<math>.
+
+Write a basic training loop for the model. The loop will make use of the MSE loss function and its gradients with respect to the input in order to iteratively update the model's parameters. Using mini-batches for training provides both memory efficiency and faster convergence. The <code> API has useful functions for batching and shuffling.
+
+Now, observe your model's performance after training:
+
+That's working, but remember that implementations of common training utilities are available in the <code> module. So, consider using those before writing your own. To start with, the <code> and <code> methods implement a training loop for you:
+
+Begin by creating a Sequential Model in Keras using <code>. One of the simplest Keras layers is the dense layer, which can be instantiated with <code>. The dense layer is able to learn multidimensional linear relationships of the form <math>. In order to learn a nonlinear equation of the form, <math>, the dense layer's input should be a data matrix with <math> and <math> as features. The lambda layer, <code>, can be used to perform this stacking transformation.
+
+Observe your Keras model's performance after training:
+
+Refer to Basic training loops and the Keras guide for more details.

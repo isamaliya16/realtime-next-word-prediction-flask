@@ -1,0 +1,91 @@
+Word Embedding with Global Vectors (GloVe).
+
+Word-word co-occurrences within context windows may carry rich semantic information. For example, in a large corpus word "solid" is more likely to co-occur with "ice" than "steam", but word "gas" probably co-occurs with "steam" more frequently than "ice". Besides, global corpus statistics of such co-occurrences can be precomputed: this can lead to more efficient training. To leverage statistical information in the entire corpus for word embedding, let's first revisit the skip-gram model in section <num>, but interpreting it using global corpus statistics such as co-occurrence counts.
+
+Skip-Gram with Global Corpus Statistics.
+
+Denoting by <math> the conditional probability <math> of word <math> given word <math> in the skip-gram model, we have.
+
+<math>.
+
+where for any index <math> vectors <math> and <math> represent word <math> as the center word and context word, respectively, and <math> is the index set of the vocabulary.
+
+Consider word <math> that may occur multiple times in the corpus. In the entire corpus, all the context words wherever <math> is taken as their center word form a multiset <math> of word indices that allows for multiple instances of the same element. For any element, its number of instances is called its multiplicity. To illustrate with an example, suppose that word <math> occurs twice in the corpus and indices of the context words that take <math> as their center word in the two context windows are <math> and <math>. Thus, multiset <math>, where multiplicities of elements <math> are 2, 4, 1, 1, respectively.
+
+Now let's denote the multiplicity of element <math> in multiset <math> as <math>. This is the global co-occurrence count of word <math> (as the context word) and word <math> (as the center word) in the same context window in the entire corpus. Using such global corpus statistics, the loss function of the skip-gram model is equivalent to.
+
+<math>.
+
+We further denote by <math> the number of all the context words in the context windows where <math> occurs as their center word, which is equivalent to <math>. Letting <math> be the conditional probability <math> for generating context word <math> given center word <math>, <num> can be rewritten as.
+
+<math>.
+
+In <num>, <math> calculates the cross-entropy of the conditional distribution <math> of global corpus statistics and the conditional distribution <math> of model predictions. This loss is also weighted by <math> as explained above. Minimizing the loss function in <num> will allow the predicted conditional distribution to get close to the conditional distribution from the global corpus statistics.
+
+Though being commonly used for measuring the distance between probability distributions, the cross-entropy loss function may not be a good choice here. On the one hand, as we mentioned in section <num>, the cost of properly normalizing <math> results in the sum over the entire vocabulary, which can be computationally expensive. On the other hand, a large number of rare events from a large corpus are often modeled by the cross-entropy loss to be assigned with too much weight.
+
+The GloVe Model.
+
+In view of this, the GloVe model makes three changes to the skip-gram model based on squared loss :
+
+Use variables <math> and <math> that are not probability distributions and take the logarithm of both, so the squared loss term is <math>.
+
+Add two scalar model parameters for each word <math>: the center word bias <math> and the context word bias <math>.
+
+Replace the weight of each loss term with the weight function <math>, where <math> is increasing in the interval of <math>.
+
+Putting all things together, training GloVe is to minimize the following loss function:
+
+<math>.
+
+For the weight function, a suggested choice is: <math> (e.g <math>) if <math> (e.g., <math>); otherwise <math>. In this case, because <math>, the squared loss term for any <math> can be omitted for computational efficiency. For example, when using minibatch stochastic gradient descent for training, at each iteration we randomly sample a minibatch of non-zero <math> to calculate gradients and update the model parameters. Note that these non-zero <math> are precomputed global corpus statistics; thus, the model is called GloVe for Global Vectors.
+
+It should be emphasized that if word <math> appears in the context window of word <math>, then vice versa. Therefore, <math>. Unlike word2vec that fits the asymmetric conditional probability <math>, GloVe fits the symmetric <math>. Therefore, the center word vector and the context word vector of any word are mathematically equivalent in the GloVe model. However in practice, owing to different initialization values, the same word may still get different values in these two vectors after training: GloVe sums them up as the output vector.
+
+Interpreting GloVe from the Ratio of Co-occurrence Probabilities.
+
+We can also interpret the GloVe model from another perspective. Using the same notation in section <num>, let <math> be the conditional probability of generating the context word <math> given <math> as the center word in the corpus. section <num> lists several co-occurrence probabilities given words "ice" and "steam" and their ratios based on statistics from a large corpus.
+
+:Word-word co-occurrence probabilities and their ratios from a large corpus (adapted from Table 1 in ).
+
+We can observe the following from section <num>:
+
+For a word <math> that is related to "ice" but unrelated to "steam", such as <math>, we expect a larger ratio of co-occurence probabilities, such as 8.9.
+
+For a word <math> that is related to "steam" but unrelated to "ice", such as <math>, we expect a smaller ratio of co-occurence probabilities, such as 0.085.
+
+For a word <math> that is related to both "ice" and "steam", such as <math>, we expect a ratio of co-occurence probabilities that is close to 1, such as 1.36.
+
+For a word <math> that is unrelated to both "ice" and "steam", such as <math>, we expect a ratio of co-occurence probabilities that is close to 1, such as 0.96.
+
+It can be seen that the ratio of co-occurrence probabilities can intuitively express the relationship between words. Thus, we can design a function of three word vectors to fit this ratio. For the ratio of co-occurrence probabilities <math> with <math> being the center word and <math> and <math> being the context words, we want to fit this ratio using some function <math>:
+
+<math>.
+
+Among many possible designs for <math>, we only pick a reasonable choice in the following. Since the ratio of co-occurrence probabilities is a scalar, we require that <math> be a scalar function, such as <math>. Switching word indices <math> and <math> in <num>, it must hold that <math>, so one possibility is <math>, i.e.
+
+<math>.
+
+Now let's pick <math>, where <math> is a constant. Since <math>, after taking the logarithm on both sides we get <math>. We may use additional bias terms to fit <math>, such as the center word bias <math> and the context word bias <math>:
+
+<math>.
+
+Measuring the squared error of <num> with weights, the GloVe loss function in <num> is obtained.
+
+Summary.
+
+The skip-gram model can be interpreted using global corpus statistics such as word-word co-occurrence counts.
+
+The cross-entropy loss may not be a good choice for measuring the difference of two probability distributions, especially for a large corpus. GloVe uses squared loss to fit precomputed global corpus statistics.
+
+The center word vector and the context word vector are mathematically equivalent for any word in GloVe.
+
+GloVe can be interpreted from the ratio of word-word co-occurrence probabilities.
+
+Exercises.
+
+If words <math> and <math> co-occur in the same context window, how can we use their distance in the text sequence to redesign the method for calculating the conditional probability <math>? Hint: see Section 4.2 of the GloVe paper .
+
+For any word, are its center word bias and context word bias mathematically equivalent in GloVe? Why?
+
+Discussions.

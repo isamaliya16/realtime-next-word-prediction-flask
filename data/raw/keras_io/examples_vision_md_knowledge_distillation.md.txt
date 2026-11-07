@@ -1,0 +1,53 @@
+Knowledge Distillation.
+
+Introduction to Knowledge Distillation.
+
+Knowledge Distillation is a procedure for model compression, in which a small (student) model is trained to match a large pre-trained (teacher) model. Knowledge is transferred from the teacher model to the student by minimizing a loss function, aimed at matching softened teacher logits as well as ground-truth labels.
+
+The logits are softened by applying a "temperature" scaling function in the softmax, effectively smoothing out the probability distribution and revealing inter-class relationships learned by the teacher.
+
+Reference:
+
+Hinton et al. (2015).
+
+Setup.
+
+Construct <code> class.
+
+The custom <code> class, overrides the <code> methods <code>, <code>, and <code>. In order to use the distiller, we need:
+
+A trained teacher model.
+
+A student model to train.
+
+A student loss function on the difference between student predictions and ground-truth.
+
+A distillation loss function, along with a <code>, on the difference between the soft student predictions and the soft teacher labels.
+
+An <code> factor to weight the student and distillation loss.
+
+An optimizer for the student and (optional) metrics to evaluate performance.
+
+In the <code> method, we perform a forward pass of both the teacher and student, calculate the loss with weighting of the <code> and <code> by <code> and <code>, respectively. Note: only the student weights are updated.
+
+Create student and teacher models.
+
+Initialy, we create a teacher model and a smaller student model. Both models are convolutional neural networks and created using <code>, but could be any Keras model.
+
+Prepare the dataset.
+
+The dataset used for training the teacher and distilling the teacher is MNIST, and the procedure would be equivalent for any other dataset, e.g. CIFAR-10, with a suitable choice of models. Both the student and teacher are trained on the training set and evaluated on the test set.
+
+Train the teacher.
+
+In knowledge distillation we assume that the teacher is trained and fixed. Thus, we start by training the teacher model on the training set in the usual way.
+
+Distill teacher to student.
+
+We have already trained the teacher model, and we only need to initialize a <code> instance, <code> it with the desired losses, hyperparameters and optimizer, and distill the teacher to the student.
+
+Train student from scratch for comparison.
+
+We can also train an equivalent student model from scratch without the teacher, in order to evaluate the performance gain obtained by knowledge distillation.
+
+If the teacher is trained for 5 full epochs and the student is distilled on this teacher for 3 full epochs, you should in this example experience a performance boost compared to training the same student model from scratch, and even compared to the teacher itself. You should expect the teacher to have accuracy around 97.6%, the student trained from scratch should be around 97.6%, and the distilled student should be around 98.1%. Remove or try out different seeds to use different weight initializations.

@@ -1,0 +1,23 @@
+(beta) Running the compiled optimizer with an LR Scheduler.
+
+The optimizer is a key algorithm for training any deep learning model. In this example, we will show how to pair the optimizer, which has been compiled using <code>, with the LR schedulers to accelerate training convergence.
+
+Model Setup For this example, we'll use a simple sequence of linear layers.
+
+Setting up and running the compiled optimizer with LR Scheduler.
+
+In this section, we'll use the Adam optimizer with LinearLR Scheduler and create a helper function to wrap the <code> call for each of them in <code>.
+
+Extension: What happens with a non-tensor LR? For the curious, we will show how to peek into what happens with <code> when we don't wrap the LR in a tensor.
+
+With this example, we can see that we recompile the optimizer a few times due to the guard failure on the <code> in <code>.
+
+Conclusion.
+
+In this tutorial we showed how to pair the optimizer compiled with <code> with an LR Scheduler to accelerate training convergence. We used a model consisting of a simple sequence of linear layers with the Adam optimizer paired with a LinearLR scheduler to demonstrate the LR changing across iterations.
+
+See also:
+
+Compiled optimizer tutorial - an intro into the compiled optimizer.
+
+Compiling the optimizer with PT2 - deeper technical details on the compiled optimizer.

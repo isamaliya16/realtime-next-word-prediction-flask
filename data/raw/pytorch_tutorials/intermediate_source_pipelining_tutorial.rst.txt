@@ -1,0 +1,45 @@
+Introduction to Distributed Pipeline Parallelism Authors: Howard Huang.
+
+This tutorial uses a gpt-style transformer model to demonstrate implementing distributed pipeline parallelism with torch.distributed.pipelining APIs.
+
+Setup.
+
+With <code> we will be partitioning the execution of a model and scheduling computation on micro-batches. We will be using a simplified version of a transformer decoder model. The model architecture is for educational purposes and has multiple transformer decoder layers as we want to demonstrate how to split the model into different chunks. First, let us define the model:
+
+Then, we need to import the necessary libraries in our script and initialize the distributed training process. In this case, we are defining some global variables to use later in the script:
+
+The <code>, <code>, and <code> code should seem familiar to you as those are commonly used in all distributed programs. The globals specific to pipeline parallelism include <code> which is the process group that will be used for send/recv communications, <code> which, in this example, is a single rank per stage so the index is equivalent to the rank, and <code> which is equivalent to world_size.
+
+The <code> is used to set the number of stages that will be used in the pipeline parallelism schedule. For example, for <code>, a microbatch will need to go through 4 forwards and 4 backwards before it is completed. The <code> is necessary for the framework to know how to communicate between stages. For example, for the first stage (<code>), it will use data from the dataloader and does not need to receive data from any previous peers to perform its computation.
+
+Step 1: Partition the Transformer Model.
+
+There are two different ways of partitioning the model:
+
+First is the manual mode in which we can manually create two instances of the model by deleting portions of attributes of the model. In this example for two stages (2 ranks), the model is cut in half.
+
+As we can see the first stage does not have the layer norm or the output layer, and it only includes the first four transformer blocks. The second stage does not have the input embedding layers, but includes the output layers and the final four transformer blocks. The function then returns the <code> for the current rank.
+
+The second method is the tracer-based mode which automatically splits the model based on a <code> argument. Using the pipeline specification, we can instruct <code> where to split the model. In the following code block, we are splitting before the before 4th transformer decoder layer, mirroring the manual split described above. Similarly, we can retrieve a <code> by calling <code> after this splitting is done.
+
+Step 2: Define The Main Execution.
+
+In the main function we will create a particular pipeline schedule that the stages should follow. <code> supports multiple schedules including supports multiple schedules, including single-stage-per-rank schedules <code> and <code>, as well as multiple-stage-per-rank schedules such as <code> and <code>.
+
+In the example above, we are using the manual method to split the model, but the code can be uncommented to also try the tracer-based model splitting function. In our schedule, we need to pass in the number of microbatches and the loss function used to evaluate the targets.
+
+The <code> function processes the entire minibatch and automatically splits it into microbatches based on the <code> passed previously. The microbatches are then operated on according to the schedule class. In the example above, we are using GPipe, which follows a simple all-forwards and then all-backwards schedule. The output returned from rank 1 will be the same as if the model was on a single GPU and run with the entire batch. Similarly, we can pass in a <code> container to store the corresponding losses for each microbatch.
+
+Step 3: Launch the Distributed Processes.
+
+Finally, we are ready to run the script. We will use <code> to create a single host, 2-process job. Our script is already written in a way rank 0 that performs the required logic for pipeline stage 0, and rank 1 performs the logic for pipeline stage 1.
+
+<code>.
+
+Conclusion.
+
+In this tutorial, we have learned how to implement distributed pipeline parallelism using PyTorch's <code> APIs. We explored setting up the environment, defining a transformer model, and partitioning it for distributed training. We discussed two methods of model partitioning, manual and tracer-based, and demonstrated how to schedule computations on micro-batches across different stages. Finally, we covered the execution of the pipeline schedule and the launch of distributed processes using <code>.
+
+Additional Resources.
+
+We have successfully integrated <code> into the torchtitan repository. TorchTitan is a clean, minimal code base for large-scale LLM training using native PyTorch. For a production ready usage of pipeline parallelism as well as composition with other distributed techniques, see TorchTitan end to end example of 3D parallelism.

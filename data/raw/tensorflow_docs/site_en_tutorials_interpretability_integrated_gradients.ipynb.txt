@@ -1,0 +1,177 @@
+Integrated gradients.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+See TF Hub model.
+
+This tutorial demonstrates how to implement Integrated Gradients (IG), an Explainable AI technique introduced in the paper Axiomatic Attribution for Deep Networks. IG aims to explain the relationship between a model's predictions in terms of its features. It has many use cases including understanding feature importances, identifying data skew, and debugging model performance.
+
+IG has become a popular interpretability technique due to its broad applicability to any differentiable model (e.g. images, text, structured data), ease of implementation, theoretical justifications, and computational efficiency relative to alternative approaches that allow it to scale to large networks and feature spaces such as images.
+
+In this tutorial, you will walk through an implementation of IG step-by-step to understand the pixel feature importances of an image classifier. As an example, consider this image of a fireboat spraying jets of water. You would classify this image as a fireboat and might highlight the pixels making up the boat and water cannons as being important to your decision. Your model will also classify this image as a fireboat later on in this tutorial; however, does it highlight the same pixels as important when explaining its decision?
+
+In the images below titled "IG Attribution Mask" and "Original + IG Mask Overlay" you can see that your model instead highlights (in purple) the pixels comprising the boat's water cannons and jets of water as being more important than the boat itself to its decision. How will your model generalize to new fireboats? What about fireboats without water jets? Read on to learn more about how IG works and how to apply IG to your models to better understand the relationship between their predictions and underlying features.
+
+Setup.
+
+Download a pretrained image classifier from TF-Hub.
+
+IG can be applied to any differentiable model. In the spirit of the original paper, you will use a pre-trained version of the same model, Inception V1, which you will download from TensorFlow Hub.
+
+From the module page, you need to keep in mind the following about Inception V1:
+
+Inputs: The expected input shape for the model is <code>. This is a dense 4D tensor of dtype float32 and shape <code> whose elements are RGB color values of pixels normalized to the range [0, 1]. The first element is <code> to indicate that the model can take any integer batch size.
+
+Outputs: A <code> of logits in the shape of <code>. Each row represents the model's predicted score for 1,001 classes from ImageNet. For the model's top predicted class index you can use <code>. Furthermore, you can also convert the model's logit output to predicted probabilities across all classes using <code> to quantify the model's uncertainty and explore similar predicted classes for debugging.
+
+Load and preprocess images with <code>.
+
+You will illustrate IG using two images from Wikimedia Commons: a Fireboat, and a Giant Panda.
+
+Classify images.
+
+Start by classifying these images and displaying the top 3 most confident predictions. The following is a utility function to retrieve the top k predicted labels and probabilities.
+
+Calculate Integrated Gradients.
+
+Your model, Inception V1, is a learned function that describes a mapping between your input feature space, image pixel values, and an output space defined by ImageNet class probability values between 0 and 1. Early interpretability methods for neural networks assigned feature importance scores using gradients, which tell you which pixels have the steepest local relative to your model's prediction at a given point along your model's prediction function. However, gradients only describe local changes in your model's prediction function with respect to pixel values and do not fully describe your entire model prediction function. As your model fully "learns" the relationship between the range of an individual pixel and the correct ImageNet class, the gradient for this pixel will saturate, meaning become increasingly small and even go to zero. Consider the simple model function below:
+
+left: Your model's gradients for pixel <code> are positive between 0.0 and 0.8 but go to 0.0 between 0.8 and 1.0. Pixel <code> clearly has a significant impact on pushing your model toward 80% predicted probability on the true class. Does it make sense that pixel <code>'s importance is small or discontinuous?
+
+right: The intuition behind IG is to accumulate pixel <code>'s local gradients and attribute its importance as a score for how much it adds or subtracts to your model's overall output class probability. You can break down and compute IG in 3 parts:
+
+interpolate small steps along a straight line in the feature space between 0 (a baseline or starting point) and 1 (input pixel's value).
+
+compute gradients at each step between your model's predictions with respect to each step.
+
+approximate the integral between your baseline and input by accumulating (cumulative average) these local gradients.
+
+To reinforce this intuition, you will walk through these 3 parts by applying IG to the example "Fireboat" image below.
+
+Establish a baseline.
+
+A baseline is an input image used as a starting point for calculating feature importance. Intuitively, you can think of the baseline's explanatory role as representing the impact of the absence of each pixel on the "Fireboat" prediction to contrast with its impact of each pixel on the "Fireboat" prediction when present in the input image. As a result, the choice of the baseline plays a central role in interpreting and visualizing pixel feature importances. For additional discussion of baseline selection, see the resources in the "Next steps" section at the bottom of this tutorial. Here, you will use a black image whose pixel values are all zero.
+
+Other choices you could experiment with include an all white image, or a random image, which you can create with <code>.
+
+Unpack formulas into code.
+
+The formula for Integrated Gradients is as follows:
+
+<math>.
+
+where:
+
+<math> = feature <math> = input <math> = baseline <math> = interpolation constant to perturb features by.
+
+In practice, computing a definite integral is not always numerically possible and can be computationally costly, so you compute the following numerical approximation:
+
+<math>.
+
+where:
+
+<math> = feature (individual pixel) <math> = input (image tensor) <math> = baseline (image tensor) <math> = scaled feature perturbation constant <math> = number of steps in the Riemann sum approximation of the integral <math> = a term for the difference from the baseline. This is necessary to scale the integrated gradients and keep them in terms of the original image. The path from the baseline image to the input is in pixel space. Since with IG you are integrating in a straight line (linear transformation) this ends up being roughly equivalent to the integral term of the derivative of the interpolated image function with respect to <math> with enough steps. The integral sums each pixel's gradient times the change in the pixel along the path. It's simpler to implement this integration as uniform steps from one image to the other, substituting <math>. So the change of variables gives <math>. The <math> term is constant and is factored out of the integral.
+
+Interpolate images.
+
+<math>.
+
+First, you will generate a linear interpolation between the baseline and the original image. You can think of interpolated images as small steps in the feature space between your baseline and input, represented by <math> in the original equation.
+
+Use the above function to generate interpolated images along a linear path at alpha intervals between a black baseline image and the example "Fireboat" image.
+
+Visualize the interpolated images. Note: another way of thinking about the <math> constant is that it is consistently increasing each interpolated image's intensity.
+
+Compute gradients.
+
+This section explains how to calculate the gradients to measure the relationship between changes to a feature and changes in the model's predictions. In the case of images, the gradient tells us which pixels have the strongest effect on the model's predicted class probabilities.
+
+<math>.
+
+where: <math> = your model's prediction function <math> = gradient (vector of partial derivatives <math>) of your model F's prediction function relative to each feature <math>.
+
+TensorFlow makes computing gradients easy for you with a <code>.
+
+Compute the gradients for each image along the interpolation path with respect to the correct output. Recall that your model returns a <code> shaped <code> with logits that you convert to predicted probabilities for each class. You need to pass the correct ImageNet target class index to the <code> function for your image.
+
+Note the output shape of <code>, which gives us the gradient for every pixel of every image along the interpolation path. You can think of these gradients as measuring the change in your model's predictions for each small step in the feature space.
+
+Visualizing gradient saturation.
+
+Recall that the gradients you just calculated above describe local changes to your model's predicted probability of "Fireboat" and can saturate.
+
+These concepts are visualized using the gradients you calculated above in the 2 plots below.
+
+left: This plot shows how your model's confidence in the "Fireboat" class varies across alphas. Notice how the gradients, or slope of the line, largely flattens or saturates between 0.6 and 1.0 before settling at the final "Fireboat" predicted probability of about 40%.
+
+right: The right plot shows the average gradients magnitudes over alpha more directly. Note how the values sharply approach and even briefly dip below zero. In fact, your model "learns" the most from gradients at lower values of alpha before saturating. Intuitively, you can think of this as your model has learned the pixels e.g. water cannons to make the correct prediction, sending these pixel gradients to zero, but is still quite uncertain and focused on spurious bridge or water jet pixels as the alpha values approach the original input image.
+
+To make sure these important water cannon pixels are reflected as important to the "Fireboat" prediction, you will continue on below to learn how to accumulate these gradients to accurately approximate how each pixel impacts your "Fireboat" predicted probability.
+
+Accumulate gradients (integral approximation).
+
+There are many different ways you can go about computing the numerical approximation of an integral for IG with different tradeoffs in accuracy and convergence across varying functions. A popular class of methods is called Riemann sums. Here, you will use the Trapezoidal rule (you can find additional code to explore different approximation methods at the end of this tutorial).
+
+<math>.
+
+From the equation, you can see you are summing over <code> gradients and dividing by <code> steps. You can implement the two operations together for part 3 as an average of the local gradients of <code> interpolated predictions and input images.
+
+The <code> function takes the gradients of the predicted probability of the target class with respect to the interpolated images between the baseline and the original image.
+
+You can confirm averaging across the gradients of <code> interpolated images returns an integrated gradients tensor with the same shape as the original "Giant Panda" image.
+
+Putting it all together.
+
+Now you will combine the 3 previous general parts together into an <code> function and utilize a @tf.function decorator to compile it into a high performance callable TensorFlow graph. This is implemented as 5 smaller steps below:
+
+<math>.
+
+Generate alphas <math>.
+
+Generate interpolated images = <math>.
+
+Compute gradients between model <math> output predictions with respect to input features = <math>.
+
+Integral approximation through averaging gradients = <math>.
+
+Scale integrated gradients with respect to original image = <math>. The reason this step is necessary is to make sure that the attribution values accumulated across multiple interpolated images are in the same units and faithfully represent the pixel importances on the original image.
+
+Again, you can check that the IG feature attributions have the same shape as the input "Fireboat" image.
+
+The paper suggests the number of steps to range between 20 to 300 depending upon the example (although in practice this can be higher in the 1,000s to accurately approximate the integral). You can find additional code to check for the appropriate number of steps in the "Next steps" resources at the end of this tutorial.
+
+Visualize attributions.
+
+You are ready to visualize attributions, and overlay them on the original image. The code below sums the absolute values of the integrated gradients across the color channels to produce an attribution mask. This plotting method captures the relative impact of pixels on the model's predictions.
+
+Looking at the attributions on the "Fireboat" image, you can see the model identifies the water cannons and spouts as contributing to its correct prediction.
+
+On the "Giant Panda" image, the attributions highlight the texture, nose, and the fur of the Panda's face.
+
+Uses and limitations.
+
+Use cases.
+
+Employing techniques like Integrated Gradients before deploying your model can help you develop intuition for how and why it works. Do the features highlighted by this technique match your intuition? If not, that may be indicative of a bug in your model or dataset, or overfitting.
+
+Limitations.
+
+The Integrated Gradients technique provides feature importances on individual examples. However, it does not provide global feature importances across an entire dataset.
+
+The Integrated Gradients technique provides individual feature importances, but it does not explain feature interactions and combinations.
+
+Next steps.
+
+This tutorial presented a basic implementation of Integrated Gradients. As a next step, you can use this notebook to try this technique with different models and images yourself.
+
+For interested readers, there is a lengthier version of this tutorial (which includes code for different baselines, to compute integral approximations, and to determine a sufficient number of steps) which you can find here.
+
+To deepen your understanding, check out the paper Axiomatic Attribution for Deep Networks and Github repository, which contains an implementation in a previous version of TensorFlow. You can also explore feature attribution, and the impact of different baselines, on distill.pub.
+
+Interested in incorporating IG into your production machine learning workflows for feature importances, model error analysis, and data skew monitoring? Check out Google Cloud's Explainable AI product that supports IG attributions. The Google AI PAIR research group also open-sourced the What-if tool which can be used for model debugging, including visualizing IG feature attributions.

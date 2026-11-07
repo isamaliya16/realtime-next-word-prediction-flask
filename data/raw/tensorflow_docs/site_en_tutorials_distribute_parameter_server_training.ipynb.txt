@@ -1,0 +1,385 @@
+Parameter server training with ParameterServerStrategy.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+Parameter server training is a common data-parallel method to scale up model training on multiple machines.
+
+A parameter server training cluster consists of workers and parameter servers. Variables are created on parameter servers and they are read and updated by workers in each step. By default, workers read and update these variables independently without synchronizing with each other. This is why sometimes parameter server-style training is called asynchronous training.
+
+In TensorFlow 2, parameter server training is powered by the <code> class, which distributes the training steps to a cluster that scales up to thousands of workers (accompanied by parameter servers).
+
+Supported training methods.
+
+There are two main supported training methods:
+
+The Keras <code> API: if you prefer a high-level abstraction and handling of training. This is generally recommended if you are training a <code>.
+
+A custom training loop: if you prefer to define the details of your training loop (you can refer to guides on Custom training, Writing a training loop from scratch and Custom training loop with Keras and MultiWorkerMirroredStrategy for more details).
+
+A cluster with jobs and tasks.
+
+Regardless of the API of choice (<code> or a custom training loop), distributed training in TensorFlow 2 involves a <code> with several <code>, and each of the jobs may have one or more <code>.
+
+When using parameter server training, it is recommended to have:
+
+One coordinator job (which has the job name <code>).
+
+Multiple worker jobs (job name <code>).
+
+Multiple parameter server jobs (job name <code>).
+
+The coordinator creates resources, dispatches training tasks, writes checkpoints, and deals with task failures. The workers and parameter servers run <code> instances that listen for requests from the coordinator.
+
+Parameter server training with the <code> API.
+
+Parameter server training with the <code> API requires the coordinator to use a <code> object. Similar to <code> usage with no strategy, or with other strategies, the workflow involves creating and compiling the model, preparing the callbacks, and calling <code>.
+
+Parameter server training with a custom training loop.
+
+With custom training loops, the <code> class is the key component used for the coordinator.
+
+The <code> class needs to work in conjunction with a <code> object.
+
+This <code> object is needed to provide the information of the cluster and is used to define a training step, as demonstrated in Custom training with tf.distribute.Strategy.
+
+The <code> object then dispatches the execution of these training steps to remote workers.
+
+The most important API provided by the <code> object is <code>:
+
+The <code> API enqueues a <code> and returns a future-like <code> immediately.
+
+The queued functions will be dispatched to remote workers in background threads and their <code>s will be filled asynchronously.
+
+Since <code> doesn’t require worker assignment, the <code> passed in can be executed on any available worker.
+
+If the worker it is executed on becomes unavailable before its completion, the function will be retried on another available worker.
+
+Because of this fact and the fact that function execution is not atomic, a single function call may be executed more than once.
+
+In addition to dispatching remote functions, the <code> also helps to create datasets on all the workers and rebuild these datasets when a worker recovers from failure.
+
+Tutorial setup.
+
+The tutorial will branch into <code> and custom training loop paths, and you can choose the one that fits your needs. Sections other than "Training with X" are applicable to both paths.
+
+Cluster setup.
+
+As mentioned above, a parameter server training cluster requires a coordinator task that runs your training program, one or several workers and parameter server tasks that run TensorFlow servers—<code>—and possibly an additional evaluation task that runs sidecar evaluation (refer to the sidecar evaluation section below). The requirements to set them up are:
+
+The coordinator task needs to know the addresses and ports of all other TensorFlow servers, except the evaluator.
+
+The workers and parameter servers need to know which port they need to listen to. For the sake of simplicity, you can usually pass in the complete cluster information when creating TensorFlow servers on these tasks.
+
+The evaluator task doesn’t have to know the setup of the training cluster. If it does, it should not attempt to connect to the training cluster.
+
+Workers and parameter servers should have task types as <code> and <code>, respectively. The coordinator should use <code> as the task type for legacy reasons.
+
+In this tutorial, you will create an in-process cluster so that the whole parameter server training can be run in Colab. You will learn how to set up real clusters in a later section.
+
+In-process cluster.
+
+You will start by creating several TensorFlow servers in advance and you will connect to them later. Note that this is only for the purpose of this tutorial's demonstration, and in real training the servers will be started on <code> and <code> machines.
+
+The in-process cluster setup is frequently used in unit testing, such as here.
+
+Another option for local testing is to launch processes on the local machine—check out Multi-worker training with Keras for an example of this approach.
+
+Instantiate a ParameterServerStrategy.
+
+Before you dive into the training code, let's instantiate a <code> object. Note that this is needed regardless of whether you are proceeding with <code> or a custom training loop. The <code> argument will be explained in the Variable sharding section.
+
+In order to use GPUs for training, allocate GPUs visible to each worker. <code> will use all the available GPUs on each worker, with the restriction that all workers should have the same number of GPUs available.
+
+Variable sharding.
+
+Variable sharding refers to splitting a variable into multiple smaller variables, which are called shards. Variable sharding may be useful to distribute the network load when accessing these shards. It is also useful to distribute computation and storage of a normal variable across multiple parameter servers, for example, when using very large embeddings that may not fit in a single machine's memory.
+
+To enable variable sharding, you can pass in a <code> when constructing a <code> object. The <code> will be invoked every time when a variable is created and it is expected to return the number of shards along each dimension of the variable. Some out-of-box <code>s are provided such as <code>. It is recommended to use size-based partitioners like <code> to avoid partitioning small variables, which could have a negative impact on model training speed.
+
+When a <code> is passed in, and you create a variable directly under <code>, the variable will become a container type with a <code> property, which provides access to the list of shards. In most cases, this container will be automatically converted to a Tensor by concatenating all the shards. As a result, it can be used as a normal variable. On the other hand, some TensorFlow methods such as <code> provide efficient implementation for this container type and in these methods automatic concatenation will be avoided.
+
+Refer to the API docs of <code> for more details.
+
+Training with <code>.
+
+Keras provides an easy-to-use training API via <code> that handles the training loop under the hood, with the flexibility of an overridable <code>, and callbacks which provide functionalities such as checkpoint saving or summary saving for TensorBoard. With <code>, the same training code can be used with other strategies with a simple swap of the strategy object.
+
+Input data.
+
+Keras <code> with <code> can take input data in the form of a <code>, <code>, or a <code>, with <code> being the recommended option for ease of use. If you encounter memory issues using <code>, however, you may need to use <code> with a callable <code> argument (refer to the <code> API documentation for details).
+
+If you transform your dataset into a <code>, you should use <code> and <code>, as demonstrated in the code example below.
+
+Keras <code> with parameter server training assumes that each worker receives the same dataset, except when it is shuffled differently. Therefore, by calling <code>, you ensure more even iterations over the data.
+
+Because workers do not synchronize, they may finish processing their datasets at different times. Therefore, the easiest way to define epochs with parameter server training is to use <code>—which repeats a dataset indefinitely when called without an argument—and specify the <code> argument in the <code> call.
+
+Refer to the "Training workflows" section of the tf.data guide for more details on <code> and <code>.
+
+If you instead create your dataset with <code>, the code in <code> will be invoked on the input device, which is usually the CPU, on each of the worker machines.
+
+Model construction and compiling.
+
+Now, you will create a <code>—a trivial <code> model for demonstration purposes—followed by a <code> call to incorporate components, such as an optimizer, metrics, and other parameters such as <code>:
+
+Callbacks and training.
+
+Before you call Keras <code> for the actual training, prepare any needed callbacks for common tasks, such as:
+
+<code>: saves the model at a certain frequency, such as after every epoch.
+
+<code>: provides fault tolerance by backing up the model and current epoch number, if the cluster experiences unavailability (such as abort or preemption). You can then restore the training state upon a restart from a job failure, and continue training from the beginning of the interrupted epoch.
+
+<code>: periodically writes model logs in summary files that can be visualized in the TensorBoard tool.
+
+Note: Due to performance considerations, custom callbacks cannot have batch level callbacks overridden when used with <code>. Please modify your custom callbacks to make them epoch level calls, and adjust <code> to a suitable value. In addition, <code> is a required argument for <code> when used with <code>.
+
+Direct usage with <code> (optional).
+
+Even if you choose the <code> training path, you can optionally instantiate a <code> object to schedule other functions you would like to be executed on the workers. Refer to the Training with a custom training loop section for more details and examples.
+
+Training with a custom training loop.
+
+Using custom training loops with <code> provides great flexibility to define training loops. With the <code> defined above (as <code>), you will use a <code> to dispatch the execution of training steps to remote workers.
+
+Then, you will create a model, define a dataset, and define a step function, as you have done in the training loop with other <code>s. You can find more details in the Custom training with tf.distribute.Strategy tutorial.
+
+To ensure efficient dataset prefetching, use the recommended distributed dataset creation APIs mentioned in the Dispatch training steps to remote workers section below. Also, make sure to call <code> inside <code> to take full advantage of GPUs allocated to workers. The rest of the steps are the same for training with or without GPUs.
+
+Let’s create these components in the following steps:
+
+Set up the data.
+
+First, write a function that creates a dataset.
+
+If you would like to preprocess the data with Keras preprocessing layers or Tensorflow Transform layers, create these layers outside the <code> and under <code>, like you would do for any other Keras layers. This is because the <code> will be wrapped into a <code> and then executed on each worker to generate the data pipeline.
+
+If you don't follow the above procedure, creating the layers might create Tensorflow states which will be lifted out of the <code> to the coordinator. Thus, accessing them on workers would incur repetitive RPC calls between coordinator and workers, and cause significant slowdown.
+
+Placing the layers under <code> will instead create them on all workers. Then, you will apply the transformation inside the <code> via <code>. Refer to Data preprocessing in the Distributed input tutorial for more information on data preprocessing with distributed input.
+
+Generate toy examples in a dataset:
+
+Then, create the training dataset wrapped in a <code>:
+
+Build the model.
+
+Next, create the model and other objects. Make sure to create all variables under <code>.
+
+Let's confirm that the use of <code> split all variables into two shards and that each shard was assigned to a different parameter server:
+
+Define the training step.
+
+Third, create the training step wrapped into a <code>:
+
+In the above training step function, calling <code> and <code> in the <code> can support multiple GPUs per worker. If the workers have GPUs allocated, <code> will distribute the datasets on multiple replicas (GPUs). Their parallel calls to <code> compute the average of the loss across the replicas (GPUs) of one worker, independent of the total number of workers.
+
+Dispatch training steps to remote workers.
+
+After all the computations are defined by <code>, you will use the <code> class to create resources and distribute the training steps to remote workers.
+
+Let’s first create a <code> object and pass in the strategy object:
+
+Then, create a per-worker dataset and an iterator using the <code> API, which replicates the dataset to all workers. In the <code> below, wrapping the <code> into <code> is recommended to allow efficient prefetching to GPUs seamlessly.
+
+The final step is to distribute the computation to remote workers using <code>:
+
+The <code> method enqueues a <code> and returns a future-like <code> immediately. The queued functions will be dispatched to remote workers in background threads and the <code> will be filled asynchronously.
+
+The <code> method (<code>) can be used to wait until all scheduled functions are executed.
+
+Here is how you can fetch the result of a <code>:
+
+Alternatively, you can launch all steps and do something while waiting for completion:
+
+For the complete training and serving workflow for this particular example, please check out this test.
+
+More about dataset creation.
+
+The dataset in the above code is created using the <code> API. It creates one dataset per worker and returns a container object. You can call the <code> method on it to create a per-worker iterator. The per-worker iterator contains one iterator per worker and the corresponding slice of a worker will be substituted in the input argument of the function passed to the <code> method before the function is executed on a particular worker.
+
+The <code> method assumes workers are equivalent and thus assumes the datasets on different workers are the same (except that they may be shuffled differently). Because of this, it is also recommended to repeat datasets, and schedule a finite number of steps instead of relying on receiving an <code> from a dataset.
+
+Another important note is that <code> datasets don’t support implicit serialization and deserialization across task boundaries. So it is important to create the whole dataset inside the function passed to <code>. The <code> API can also directly take a <code> or <code> as input.
+
+Evaluation.
+
+The two main approaches to performing evaluation with <code> training are inline evaluation and sidecar evaluation. Each has its own pros and cons as described below. The inline evaluation method is recommended if you don't have a preference. For users using <code>, <code> uses inline (distributed) evaluation under the hood.
+
+Inline evaluation.
+
+In this method, the coordinator alternates between training and evaluation, and thus it is called inline evaluation.
+
+There are several benefits of inline evaluation. For example:
+
+It can support large evaluation models and evaluation datasets that a single task cannot hold.
+
+The evaluation results can be used to make decisions for training the next epoch, for example, whether to stop training early.
+
+There are two ways to implement inline evaluation: direct evaluation and distributed evaluation.
+
+Direct evaluation: For small models and evaluation datasets, the coordinator can run evaluation directly on the distributed model with the evaluation dataset on the coordinator:
+
+Distributed evaluation: For large models or datasets that are infeasible to run directly on the coordinator, the coordinator task can distribute evaluation tasks to the workers via the <code>/<code> methods:
+
+Enabling exactly-once evaluation.
+
+The <code> and <code> methods of <code> don’t support visitation guarantees or exactly-once semantics by default. In other words, in the above example there is no guarantee that all evaluation examples in a dataset will be evaluated exactly once; some may not be visited and some may be evaluated multiple times.
+
+Exactly-once evaluation may be preferred to reduce the variance of evaluation across epochs, and improve model selection done via early stopping, hyperparameter tuning, or other methods. There are different ways to enable exactly-once evaluation:
+
+With a <code> workflow, it can be enabled by adding an argument to <code>. Refer to docs for the <code> argument.
+
+The <code> service API can be used to provide exactly-once visitation for evaluation when using <code> (refer to the Dynamic Sharding section of the <code> API documentation).
+
+Sidecar evaluation provides exactly-once evaluation by default, since the evaluation happens on a single machine. However this can be much slower than performing evaluation distributed across many workers.
+
+The first option, using <code>, is the suggested solution for most users.
+
+Exactly-once evaluation has some limitations:
+
+It is not supported to write a custom distributed evaluation loop with an exactly-once visitation guarantee. File a GitHub issue if you need support for this.
+
+It cannot automatically handle computation of metrics that use the <code> API. These should be excluded from evaluation, or reworked into <code> objects.
+
+Sidecar evaluation.
+
+Another method for defining and running an evaluation loop in <code> training is called sidecar evaluation, in which you create a dedicated evaluator task that repeatedly reads checkpoints and runs evaluation on the latest checkpoint (refer to this guide for more details on checkpointing). The coordinator and worker tasks do not spend any time on evaluation, so for a fixed number of iterations the overall training time should be shorter than using other evaluation methods. However, it requires an additional evaluator task and periodic checkpointing to trigger evaluation.
+
+To write an evaluation loop for sidecar evaluation, you have two options:
+
+Use the <code> API.
+
+Create a custom evaluation loop.
+
+Refer to the <code> API documentation for more details on option 1.
+
+Sidecar evaluation is supported only with a single task. This means:
+
+It is guaranteed that each example is evaluated once. In the event the evaluator is preempted or restarted, it simply restarts the evaluation loop from the latest checkpoint, and the partial evaluation progress made before the restart is discarded.
+
+However, running evaluation on a single task implies that a full evaluation can possibly take a long time.
+
+If the size of the model is too large to fit into an evaluator's memory, single sidecar evaluation is not applicable.
+
+Another caveat is that the <code> implementation, and the custom evaluation loop below, may skip some checkpoints because it always picks up the latest checkpoint available, and during an evaluation epoch, multiple checkpoints can be produced from the training cluster. You can write a custom evaluation loop that evaluates every checkpoint, but it is not covered in this tutorial. On the other hand, it may sit idle if checkpoints are produced less frequently than how long it takes to run evaluation.
+
+A custom evaluation loop provides more control over the details, such as choosing which checkpoint to evaluate, or providing any additional logic to run along with evaluation. The following is a possible custom sidecar evaluation loop:
+
+Clusters in the real world.
+
+Note: this section is not necessary for running the tutorial code in this page.
+
+In a real production environment, you will run all tasks in different processes on different machines. The simplest way to configure cluster information on each task is to set <code> environment variables and use a <code> to parse <code>.
+
+For a general description of <code> environment variables, refer to "Setting up the <code> environment variable" in the Distributed training guide.
+
+If you start your training tasks using Kubernetes or other configuration templates, likely, these templates have already set <code> for you.
+
+Set the <code> environment variable.
+
+Suppose you have 3 workers and 2 parameter servers. Then the <code> of worker 1 can be:
+
+The <code> of the evaluator can be:
+
+The <code> part in the above <code> string for the evaluator is optional.
+
+If you use the same binary for all tasks.
+
+If you prefer to run all these tasks using a single binary, you will need to let your program branch into different roles at the very beginning:
+
+The following code starts a TensorFlow server and waits, useful for the <code> and <code> roles:
+
+Handling task failure.
+
+Worker failure.
+
+Both the <code> custom training loop and <code> approaches provide built-in fault tolerance for worker failure. Upon worker recovery, the <code> invokes dataset re-creation on the workers.
+
+Parameter server or coordinator failure.
+
+However, when the coordinator sees a parameter server error, it will raise an <code> or <code> immediately. You can restart the coordinator in this case. The coordinator itself can also become unavailable. Therefore, certain tooling is recommended in order to not lose the training progress:
+
+For <code>, you should use a <code> callback, which handles the progress saving and restoration automatically. See Callbacks and training section above for an example.
+
+For a custom training loop, you should checkpoint the model variables periodically and load model variables from a checkpoint, if any, before training starts. The training progress can be inferred approximately from <code> if an optimizer is checkpointed:
+
+Fetching a <code>.
+
+Fetching a <code> is guaranteed to succeed if a function is executed successfully. This is because currently the return value is immediately copied to the coordinator after a function is executed. If there is any worker failure during the copy, the function will be retried on another available worker. Therefore, if you want to optimize for performance, you can schedule functions without a return value.
+
+Error reporting.
+
+Once the coordinator sees an error such as <code> from parameter servers or other application errors such as an <code> from <code>, it will cancel all pending and queued functions before raising the error. Fetching their corresponding <code>s will raise a <code>.
+
+After an error is raised, the coordinator will not raise the same error or any error from cancelled functions.
+
+Performance improvement.
+
+There are several possible reasons you may experience performance issues when you train with <code> and <code>.
+
+One common reason is that the parameter servers have unbalanced load and some heavily-loaded parameter servers have reached capacity. There can also be multiple root causes. Some simple methods to mitigate this issue are to:
+
+Shard your large model variables via specifying a <code> when constructing a <code>.
+
+Avoid creating a hotspot variable that is required by all parameter servers in a single step, by both:
+
+Using a constant learning rate or subclass <code> in optimizers. This is because the default behavior is that the learning rate will become a variable placed on a particular parameter server, and requested by all other parameter servers in each step); and.
+
+Using a <code> (the standard <code>s could still lead to hotspot variables).
+
+Shuffle your large vocabularies before passing them to Keras preprocessing layers.
+
+Another possible reason for performance issues is the coordinator. The implementation of <code>/<code> is Python-based and thus may have threading overhead. Also, the latency between the coordinator and the workers can be large. If this is the case:
+
+For <code>, you can set the <code> argument provided at <code> to a value larger than 1.
+
+For a custom training loop, you can pack multiple steps into a single <code>:
+
+As the library is optimized further, hopefully most users won't have to manually pack steps in the future.
+
+In addition, a small trick for performance improvement is to schedule functions without a return value as explained in the handling task failure section above.
+
+Known limitations.
+
+Most of the known limitations are already covered in the above sections. This section provides a summary.
+
+<code> general.
+
+<code> is needed on every task including the coordinator, to make fault tolerance work properly.
+
+Synchronous parameter server training is not supported.
+
+It is usually necessary to pack multiple steps into a single function to achieve optimal performance.
+
+It is not supported to load a savedmodel via <code> containing sharded variables. Note loading such a savedmodel using TensorFlow Serving is expected to work (refer to the serving tutorial for details).
+
+It is not supported to recover from parameter server failure without restarting the coordinator task.
+
+Creation of <code>, commonly employed by some Keras preprocessing layers, such as <code>, <code>, and <code>, should be placed under <code>. Otherwise, resources will be placed on the coordinator, and lookup RPCs from workers to the coordinator incur performance implications.
+
+<code> specifics.
+
+<code> argument is required in <code>. You can select a value that provides appropriate intervals in an epoch.
+
+<code> does not have support for custom callbacks that have batch-level calls for performance reasons. You should convert those calls into epoch-level calls with suitably picked <code>, so that they are called every <code> number of steps. Built-in callbacks are not affected: their batch-level calls have been modified to be performant. Supporting batch-level calls for <code> is being planned.
+
+For the same reason, unlike other strategies, progress bars and metrics are logged only at epoch boundaries.
+
+<code> is not supported.
+
+Custom training loop specifics.
+
+<code> doesn't support visitation guarantees for a dataset in general, although a visitation guarantee for evaluation is possible through <code>. See Enabling exactly-once evaluation.
+
+When <code> is used with a callable as input, the whole dataset must be created inside the function passed to it.
+
+<code> is ignored in a dataset created by <code>.

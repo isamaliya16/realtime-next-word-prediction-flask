@@ -1,0 +1,137 @@
+Maximum Likelihood.
+
+One of the most commonly encountered way of thinking in machine learning is the maximum likelihood point of view. This is the concept that when working with a probabilistic model with unknown parameters, the parameters which make the data have the highest probability are the most likely ones.
+
+The Maximum Likelihood Principle.
+
+This has a Bayesian interpretation which can be helpful to think about. Suppose that we have a model with parameters <math> and a collection of data examples <math>. For concreteness, we can imagine that <math> is a single value representing the probability that a coin comes up heads when flipped, and <math> is a sequence of independent coin flips. We will look at this example in depth later.
+
+If we want to find the most likely value for the parameters of our model, that means we want to find.
+
+<math>.
+
+By Bayes' rule, this is the same thing as.
+
+<math>.
+
+The expression <math>, a parameter agnostic probability of generating the data, does not depend on <math> at all, and so can be dropped without changing the best choice of <math>. Similarly, we may now posit that we have no prior assumption on which set of parameters are better than any others, so we may declare that <math> does not depend on theta either! This, for instance, makes sense in our coin flipping example where the probability it comes up heads could be any value in <math> without any prior belief it is fair or not (often referred to as an uninformative prior). Thus we see that our application of Bayes' rule shows that our best choice of <math> is the maximum likelihood estimate for <math>:
+
+<math>.
+
+As a matter of common terminology, the probability of the data given the parameters (<math>) is referred to as the likelihood.
+
+A Concrete Example.
+
+Let's see how this works in a concrete example. Suppose that we have a single parameter <math> representing the probability that a coin flip is heads. Then the probability of getting a tails is <math>, and so if our observed data <math> is a sequence with <math> heads and <math> tails, we can use the fact that independent probabilities multiply to see that.
+
+<math>.
+
+If we flip <math> coins and get the sequence "HHHTHTTHHHHHT", which has <math> and <math>, we see that this is.
+
+<math>.
+
+One nice thing about this example will be that we know the answer going in. Indeed, if we said verbally, "I flipped 13 coins, and 9 came up heads, what is our best guess for the probability that the coin comes us heads?, " everyone would correctly guess <math>. What this maximum likelihood method will give us is a way to get that number from first principals in a way that will generalize to vastly more complex situations.
+
+For our example, the plot of <math> is as follows:
+
+This has its maximum value somewhere near our expected <math>. To see if it is exactly there, we can turn to calculus. Notice that at the maximum, the gradient of the function is flat. Thus, we could find the maximum likelihood estimate <num> by finding the values of <math> where the derivative is zero, and finding the one that gives the highest probability. We compute:
+
+<math>.
+
+This has three solutions: <math>, <math> and <math>. The first two are clearly minima, not maxima as they assign probability <math> to our sequence. The final value does not assign zero probability to our sequence, and thus must be the maximum likelihood estimate <math>.
+
+Numerical Optimization and the Negative Log-Likelihood.
+
+The previous example is nice, but what if we have billions of parameters and data examples?
+
+First, notice that if we make the assumption that all the data examples are independent, we can no longer practically consider the likelihood itself as it is a product of many probabilities. Indeed, each probability is in <math>, say typically of value about <math>, and the product of <math> is far below machine precision. We cannot work with that directly.
+
+However, recall that the logarithm turns products to sums, in which case.
+
+<math>.
+
+This number fits perfectly within even a single precision <math>-bit float. Thus, we should consider the log-likelihood, which is.
+
+<math>.
+
+Since the function <math> is increasing, maximizing the likelihood is the same thing as maximizing the log-likelihood. Indeed in section <num> we will see this reasoning applied when working with the specific example of the naive Bayes classifier.
+
+We often work with loss functions, where we wish to minimize the loss. We may turn maximum likelihood into the minimization of a loss by taking <math>, which is the negative log-likelihood.
+
+To illustrate this, consider the coin flipping problem from before, and pretend that we do not know the closed form solution. We may compute that.
+
+<math>.
+
+This can be written into code, and freely optimized even for billions of coin flips.
+
+Numerical convenience is not the only reason why people like to use negative log-likelihoods. There are several other reasons why it is preferable.
+
+The second reason we consider the log-likelihood is the simplified application of calculus rules. As discussed above, due to independence assumptions, most probabilities we encounter in machine learning are products of individual probabilities.
+
+<math>.
+
+This means that if we directly apply the product rule to compute a derivative we get.
+
+<math>.
+
+This requires <math> multiplications, along with <math> additions, so it is proportional to quadratic time in the inputs! Sufficient cleverness in grouping terms will reduce this to linear time, but it requires some thought. For the negative log-likelihood we have instead.
+
+<math>.
+
+which then gives.
+
+<math>.
+
+This requires only <math> divides and <math> sums, and thus is linear time in the inputs.
+
+The third and final reason to consider the negative log-likelihood is the relationship to information theory, which we will discuss in detail in section <num>. This is a rigorous mathematical theory which gives a way to measure the degree of information or randomness in a random variable. The key object of study in that field is the entropy which is.
+
+<math>.
+
+which measures the randomness of a source. Notice that this is nothing more than the average <math> probability, and thus if we take our negative log-likelihood and divide by the number of data examples, we get a relative of entropy known as cross-entropy. This theoretical interpretation alone would be sufficiently compelling to motivate reporting the average negative log-likelihood over the dataset as a way of measuring model performance.
+
+Maximum Likelihood for Continuous Variables.
+
+Everything that we have done so far assumes we are working with discrete random variables, but what if we want to work with continuous ones?
+
+The short summary is that nothing at all changes, except we replace all the instances of the probability with the probability density. Recalling that we write densities with lower case <math>, this means that for example we now say.
+
+<math>.
+
+The question becomes, "Why is this OK?" After all, the reason we introduced densities was because probabilities of getting specific outcomes themselves was zero, and thus is not the probability of generating our data for any set of parameters zero?
+
+Indeed, this is the case, and understanding why we can shift to densities is an exercise in tracing what happens to the epsilons.
+
+Let's first re-define our goal. Suppose that for continuous random variables we no longer want to compute the probability of getting exactly the right value, but instead matching to within some range <math>. For simplicity, we assume our data is repeated observations <math> of identically distributed random variables <math>. As we have seen previously, this can be written as.
+
+<math>.
+
+Thus, if we take negative logarithms of this we obtain.
+
+<math>.
+
+If we examine this expression, the only place that the <math> occurs is in the additive constant <math>. This does not depend on the parameters <math> at all, so the optimal choice of <math> does not depend on our choice of <math>! If we demand four digits or four-hundred, the best choice of <math> remains the same, thus we may freely drop the epsilon to see that what we want to optimize is.
+
+<math>.
+
+Thus, we see that the maximum likelihood point of view can operate with continuous random variables as easily as with discrete ones by replacing the probabilities with probability densities.
+
+Summary.
+
+The maximum likelihood principle tells us that the best fit model for a given dataset is the one that generates the data with the highest probability.
+
+Often people work with the negative log-likelihood instead for a variety of reasons: numerical stability, conversion of products to sums (and the resulting simplification of gradient computations), and theoretical ties to information theory.
+
+While simplest to motivate in the discrete setting, it may be freely generalized to the continuous setting as well by maximizing the probability density assigned to the datapoints.
+
+Exercises.
+
+Suppose that you know that a non-negative random variable has density <math> for some value <math>. You obtain a single observation from the random variable which is the number <math>. What is the maximum likelihood estimate for <math>?
+
+Suppose that you have a dataset of samples <math> drawn from a Gaussian with unknown mean, but variance <math>. What is the maximum likelihood estimate for the mean?
+
+Discussions.
+
+Discussions.
+
+Discussions.

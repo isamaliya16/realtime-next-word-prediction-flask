@@ -1,0 +1,197 @@
+Introduction to modules, layers, and models.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+To do machine learning in TensorFlow, you are likely to need to define, save, and restore a model.
+
+A model is, abstractly:
+
+A function that computes something on tensors (a forward pass).
+
+Some variables that can be updated in response to training.
+
+In this guide, you will go below the surface of Keras to see how TensorFlow models are defined. This looks at how TensorFlow collects variables and models, as well as how they are saved and restored.
+
+Note: If you instead want to immediately get started with Keras, please see the collection of Keras guides.
+
+Setup.
+
+TensorFlow Modules.
+
+Most models are made of layers. Layers are functions with a known mathematical structure that can be reused and have trainable variables. In TensorFlow, most high-level implementations of layers and models, such as Keras or Sonnet, are built on the same foundational class: <code>.
+
+Building Modules.
+
+Here's an example of a very simple <code> that operates on a scalar tensor:
+
+Modules and, by extension, layers are deep-learning terminology for "objects": they have internal state, and methods that use that state.
+
+There is nothing special about <code> except to act like a Python callable; you can invoke your models with whatever functions you wish.
+
+You can set the trainability of variables on and off for any reason, including freezing layers and variables during fine-tuning.
+
+Note: <code> is the base class for both <code> and <code>, so everything you come across here also applies in Keras. For historical compatibility reasons Keras layers do not collect variables from modules, so your models should use only modules or only Keras layers. However, the methods shown below for inspecting variables are the same in either case.
+
+By subclassing <code>, any <code> or <code> instances assigned to this object's properties are automatically collected. This allows you to save and load variables, and also create collections of <code>s.
+
+This is an example of a two-layer linear layer model made out of modules.
+
+First a dense (linear) layer:
+
+And then the complete model, which makes two layer instances and applies them:
+
+<code> instances will automatically collect, recursively, any <code> or <code> instances assigned to it. This allows you to manage collections of <code>s with a single model instance, and save and load whole models.
+
+Waiting to create variables.
+
+You may have noticed here that you have to define both input and output sizes to the layer. This is so the <code> variable has a known shape and can be allocated.
+
+By deferring variable creation to the first time the module is called with a specific input shape, you do not need specify the input size up front.
+
+This flexibility is why TensorFlow layers often only need to specify the shape of their outputs, such as in <code>, rather than both the input and output size.
+
+Saving weights.
+
+You can save a <code> as both a checkpoint and a SavedModel.
+
+Checkpoints are just the weights (that is, the values of the set of variables inside the module and its submodules):
+
+Checkpoints consist of two kinds of files: the data itself and an index file for metadata. The index file keeps track of what is actually saved and the numbering of checkpoints, while the checkpoint data contains the variable values and their attribute lookup paths.
+
+You can look inside a checkpoint to be sure the whole collection of variables is saved, sorted by the Python object that contains them.
+
+During distributed (multi-machine) training they can be sharded, which is why they are numbered (e.g., '00000-of-00001'). In this case, though, there is only one shard.
+
+When you load models back in, you overwrite the values in your Python object.
+
+Note: As checkpoints are at the heart of long training workflows <code> is a helper class that makes checkpoint management much easier. Refer to the Training checkpoints guide for more details.
+
+Saving functions.
+
+TensorFlow can run models without the original Python objects, as demonstrated by TensorFlow Serving and TensorFlow Lite, even when you download a trained model from TensorFlow Hub.
+
+TensorFlow needs to know how to do the computations described in Python, but without the original code. To do this, you can make a graph, which is described in the Introduction to graphs and functions guide.
+
+This graph contains operations, or ops, that implement the function.
+
+You can define a graph in the model above by adding the <code> decorator to indicate that this code should run as a graph.
+
+The module you have made works exactly the same as before. Each unique signature passed into the function creates a separate graph. Check the Introduction to graphs and functions guide for details.
+
+You can visualize the graph by tracing it within a TensorBoard summary.
+
+Launch TensorBoard to view the resulting trace:
+
+Creating a <code>.
+
+The recommended way of sharing completely trained models is to use <code>. <code> contains both a collection of functions and a collection of weights.
+
+You can save the model you have just trained as follows:
+
+The <code> file is a protocol buffer describing the functional <code>.
+
+Models and layers can be loaded from this representation without actually making an instance of the class that created it. This is desired in situations where you do not have (or want) a Python interpreter, such as serving at scale or on an edge device, or in situations where the original Python code is not available or practical to use.
+
+You can load the model as new object:
+
+<code>, created from loading a saved model, is an internal TensorFlow user object without any of the class knowledge. It is not of type <code>.
+
+This new model works on the already-defined input signatures. You can't add more signatures to a model restored like this.
+
+Thus, using <code>, you are able to save TensorFlow weights and graphs using <code>, and then load them again.
+
+Keras models and layers.
+
+Note that up until this point, there is no mention of Keras. You can build your own high-level API on top of <code>, and people have.
+
+In this section, you will examine how Keras uses <code>. A complete user guide to Keras models can be found in the Keras guide.
+
+Keras layers and models have a lot more extra features including:
+
+Optional losses.
+
+Support for metrics.
+
+Built-in support for an optional <code> argument to differentiate between training and inference use.
+
+Saving and restoring python objects instead of just black-box functions.
+
+<code> and <code> methods that allow you to accurately store configurations to allow model cloning in Python.
+
+These features allow for far more complex models through subclassing, such as a custom GAN or a Variational AutoEncoder (VAE) model. Read about them in the full guide to custom layers and models.
+
+Keras models also come with extra functionality that makes them easy to train, evaluate, load, save, and even train on multiple machines.
+
+Keras layers.
+
+<code> is the base class of all Keras layers, and it inherits from <code>.
+
+You can convert a module into a Keras layer just by swapping out the parent and then changing <code> to <code>:
+
+Keras layers have their own <code> that does some bookkeeping described in the next section and then calls <code>. You should notice no change in functionality.
+
+The <code> step.
+
+As noted, it's convenient in many cases to wait to create variables until you are sure of the input shape.
+
+Keras layers come with an extra lifecycle step that allows you more flexibility in how you define your layers. This is defined in the <code> function.
+
+<code> is called exactly once, and it is called with the shape of the input. It's usually used to create variables (weights).
+
+You can rewrite <code> layer above to be flexible to the size of its inputs:
+
+At this point, the model has not been built, so there are no variables:
+
+Calling the function allocates appropriately-sized variables:
+
+Since <code> is only called once, inputs will be rejected if the input shape is not compatible with the layer's variables:
+
+Keras models.
+
+You can define your model as nested Keras layers.
+
+However, Keras also provides a full-featured model class called <code>. It inherits from <code>, so a Keras model can be used and nested in the same way as Keras layers. Keras models come with extra functionality that makes them easy to train, evaluate, load, save, and even train on multiple machines.
+
+You can define the <code> from above with nearly identical code, again converting <code> to <code> and changing the parent:
+
+All the same features are available, including tracking variables and submodules.
+
+Note: A raw <code> nested inside a Keras layer or model will not get its variables collected for training or saving. Instead, nest Keras layers inside of Keras layers.
+
+Overriding <code> is a very Pythonic approach to building TensorFlow models. If you are migrating models from other frameworks, this can be very straightforward.
+
+If you are constructing models that are simple assemblages of existing layers and inputs, you can save time and space by using the functional API, which comes with additional features around model reconstruction and architecture.
+
+Here is the same model with the functional API:
+
+The major difference here is that the input shape is specified up front as part of the functional construction process. The <code> argument in this case does not have to be completely specified; you can leave some dimensions as <code>.
+
+Note: You do not need to specify <code> or an <code> in a subclassed model; these arguments and layers will be ignored.
+
+Saving Keras models.
+
+Keras models have their own specialized zip archive saving format, marked by the <code> extension. When calling <code>, add a <code> extension to the filename. For example:
+
+Just as easily, they can be loaded back in:
+
+Keras zip archives — <code> files — also save metric, loss, and optimizer states.
+
+This reconstructed model can be used and will produce the same result when called on the same data:
+
+Checkpointing Keras models.
+
+Keras models can also be checkpointed, and that will look the same as <code>.
+
+There is more to know about saving and serialization of Keras models, including providing configuration methods for custom layers for feature support. Check out the guide to saving and serialization.
+
+What's next.
+
+If you want to know more details about Keras, you can follow the existing Keras guides here.
+
+Another example of a high-level API built on <code> is Sonnet from DeepMind, which is covered on their site.

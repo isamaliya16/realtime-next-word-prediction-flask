@@ -1,0 +1,319 @@
+Ragged tensors.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+API Documentation: <code> <code>.
+
+Setup.
+
+Overview.
+
+Your data comes in many shapes; your tensors should too. Ragged tensors are the TensorFlow equivalent of nested variable-length lists. They make it easy to store and process data with non-uniform shapes, including:
+
+Variable-length features, such as the set of actors in a movie.
+
+Batches of variable-length sequential inputs, such as sentences or video clips.
+
+Hierarchical inputs, such as text documents that are subdivided into sections, paragraphs, sentences, and words.
+
+Individual fields in structured inputs, such as protocol buffers.
+
+What you can do with a ragged tensor.
+
+Ragged tensors are supported by more than a hundred TensorFlow operations, including math operations (such as <code> and <code>), array operations (such as <code> and <code>), string manipulation ops (such as <code>), control flow operations (such as <code> and <code>), and many others:
+
+There are also a number of methods and operations that are specific to ragged tensors, including factory methods, conversion methods, and value-mapping operations. For a list of supported ops, see the <code> package documentation.
+
+Ragged tensors are supported by many TensorFlow APIs, including Keras, Datasets, tf.function, SavedModels, and tf.Example. For more information, check the section on TensorFlow APIs below.
+
+As with normal tensors, you can use Python-style indexing to access specific slices of a ragged tensor. For more information, refer to the section on Indexing below.
+
+And just like normal tensors, you can use Python arithmetic and comparison operators to perform elementwise operations. For more information, check the section on Overloaded operators below.
+
+If you need to perform an elementwise transformation to the values of a <code>, you can use <code>, which takes a function plus one or more arguments, and applies the function to transform the <code>'s values.
+
+Ragged tensors can be converted to nested Python <code>s and NumPy <code>s:
+
+Constructing a ragged tensor.
+
+The simplest way to construct a ragged tensor is using <code>, which builds the <code> corresponding to a given nested Python <code> or NumPy <code>:
+
+Ragged tensors can also be constructed by pairing flat values tensors with row-partitioning tensors indicating how those values should be divided into rows, using factory classmethods such as <code>, <code>, and <code>.
+
+<code>.
+
+If you know which row each value belongs to, then you can build a <code> using a <code> row-partitioning tensor:
+
+<code>.
+
+If you know how long each row is, then you can use a <code> row-partitioning tensor:
+
+<code>.
+
+If you know the index where each row starts and ends, then you can use a <code> row-partitioning tensor:
+
+See the <code> class documentation for a full list of factory methods.
+
+Note: By default, these factory methods add assertions that the row partition tensor is well-formed and consistent with the number of values. The <code> parameter can be used to skip these checks if you can guarantee that the inputs are well-formed and consistent.
+
+What you can store in a ragged tensor.
+
+As with normal <code>s, the values in a <code> must all have the same type; and the values must all be at the same nesting depth (the rank of the tensor):
+
+Example use case.
+
+The following example demonstrates how <code>s can be used to construct and combine unigram and bigram embeddings for a batch of variable-length queries, using special markers for the beginning and end of each sentence. For more details on the ops used in this example, check the <code> package documentation.
+
+Ragged and uniform dimensions.
+
+A ragged dimension is a dimension whose slices may have different lengths. For example, the inner (column) dimension of <code> is ragged, since the column slices (<code>, ..., <code>) have different lengths. Dimensions whose slices all have the same length are called uniform dimensions.
+
+The outermost dimension of a ragged tensor is always uniform, since it consists of a single slice (and, therefore, there is no possibility for differing slice lengths). The remaining dimensions may be either ragged or uniform. For example, you may store the word embeddings for each word in a batch of sentences using a ragged tensor with shape <code>, where the parentheses around <code> indicate that the dimension is ragged.
+
+Ragged tensors may have multiple ragged dimensions. For example, you could store a batch of structured text documents using a tensor with shape <code> (where again parentheses are used to indicate ragged dimensions).
+
+As with <code>, the rank of a ragged tensor is its total number of dimensions (including both ragged and uniform dimensions). A potentially ragged tensor is a value that might be either a <code> or a <code>.
+
+When describing the shape of a RaggedTensor, ragged dimensions are conventionally indicated by enclosing them in parentheses. For example, as you saw above, the shape of a 3D RaggedTensor that stores word embeddings for each word in a batch of sentences can be written as <code>.
+
+The <code> attribute returns a <code> for a ragged tensor where ragged dimensions have size <code>:
+
+The method <code> can be used to find a tight bounding shape for a given <code>:
+
+Ragged vs sparse.
+
+A ragged tensor should not be thought of as a type of sparse tensor. In particular, sparse tensors are efficient encodings for <code> that model the same data in a compact format; but ragged tensor is an extension to <code> that models an expanded class of data. This difference is crucial when defining operations:
+
+Applying an op to a sparse or dense tensor should always give the same result.
+
+Applying an op to a ragged or sparse tensor may give different results.
+
+As an illustrative example, consider how array operations such as <code>, <code>, and <code> are defined for ragged vs. sparse tensors. Concatenating ragged tensors joins each row to form a single row with the combined length:
+
+However, concatenating sparse tensors is equivalent to concatenating the corresponding dense tensors, as illustrated by the following example (where Ø indicates missing values):
+
+For another example of why this distinction is important, consider the definition of “the mean value of each row” for an op such as <code>. For a ragged tensor, the mean value for a row is the sum of the row’s values divided by the row’s width. But for a sparse tensor, the mean value for a row is the sum of the row’s values divided by the sparse tensor’s overall width (which is greater than or equal to the width of the longest row).
+
+TensorFlow APIs.
+
+Keras.
+
+tf.keras is TensorFlow's high-level API for building and training deep learning models. It doesn't have ragged support. But it does support masked tensors. So the easiest way to use a ragged tensor in a Keras model is to convert the ragged tensor to a dense tensor, using <code> and then using Keras's builtin masking:
+
+tf.Example.
+
+tf.Example is a standard protobuf encoding for TensorFlow data. Data encoded with <code>s often includes variable-length features. For example, the following code defines a batch of four <code> messages with different feature lengths:
+
+You can parse this encoded data using <code>, which takes a tensor of serialized strings and a feature specification dictionary, and returns a dictionary mapping feature names to tensors. To read the variable-length features into ragged tensors, you simply use <code> in the feature specification dictionary:
+
+<code> can also be used to read features with multiple ragged dimensions. For details, refer to the API documentation.
+
+Datasets.
+
+tf.data is an API that enables you to build complex input pipelines from simple, reusable pieces. Its core data structure is <code>, which represents a sequence of elements, in which each element consists of one or more components.
+
+Building Datasets with ragged tensors.
+
+Datasets can be built from ragged tensors using the same methods that are used to build them from <code>s or NumPy <code>s, such as <code>:
+
+Note: <code> does not support ragged tensors yet, but support will be added soon.
+
+Batching and unbatching Datasets with ragged tensors.
+
+Datasets with ragged tensors can be batched (which combines n consecutive elements into a single elements) using the <code> method.
+
+Conversely, a batched dataset can be transformed into a flat dataset using <code>.
+
+Batching Datasets with variable-length non-ragged tensors.
+
+If you have a Dataset that contains non-ragged tensors, and tensor lengths vary across elements, then you can batch those non-ragged tensors into ragged tensors by applying the <code> transformation:
+
+Transforming Datasets with ragged tensors.
+
+You can also create or transform ragged tensors in Datasets using <code>:
+
+tf.function.
+
+tf.function is a decorator that precomputes TensorFlow graphs for Python functions, which can substantially improve the performance of your TensorFlow code. Ragged tensors can be used transparently with <code>-decorated functions. For example, the following function works with both ragged and non-ragged tensors:
+
+If you wish to explicitly specify the <code> for the <code>, then you can do so using <code>.
+
+Concrete functions.
+
+Concrete functions encapsulate individual traced graphs that are built by <code>. Ragged tensors can be used transparently with concrete functions.
+
+SavedModels.
+
+A SavedModel is a serialized TensorFlow program, including both weights and computation. It can be built from a Keras model or from a custom model. In either case, ragged tensors can be used transparently with the functions and methods defined by a SavedModel.
+
+Example: saving a Keras model.
+
+Example: saving a custom model.
+
+Note: SavedModel signatures are concrete functions. As discussed in the section on Concrete Functions above, ragged tensors are only handled correctly by concrete functions starting with TensorFlow 2.3. If you need to use SavedModel signatures in a previous version of TensorFlow, then it's recommended that you decompose the ragged tensor into its component tensors.
+
+Overloaded operators.
+
+The <code> class overloads the standard Python arithmetic and comparison operators, making it easy to perform basic elementwise math:
+
+Since the overloaded operators perform elementwise computations, the inputs to all binary operations must have the same shape or be broadcastable to the same shape. In the simplest broadcasting case, a single scalar is combined elementwise with each value in a ragged tensor:
+
+For a discussion of more advanced cases, check the section on Broadcasting.
+
+Ragged tensors overload the same set of operators as normal <code>s: the unary operators <code>, <code>, and <code>; and the binary operators <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, and <code>.
+
+Indexing.
+
+Ragged tensors support Python-style indexing, including multidimensional indexing and slicing. The following examples demonstrate ragged tensor indexing with a 2D and a 3D ragged tensor.
+
+Indexing examples: 2D ragged tensor.
+
+Indexing examples: 3D ragged tensor.
+
+<code>s support multidimensional indexing and slicing with one restriction: indexing into a ragged dimension is not allowed. This case is problematic because the indicated value may exist in some rows but not others. In such cases, it's not obvious whether you should (1) raise an <code>; (2) use a default value; or (3) skip that value and return a tensor with fewer rows than you started with. Following the guiding principles of Python ("In the face of ambiguity, refuse the temptation to guess"), this operation is currently disallowed.
+
+Tensor type conversion.
+
+The <code> class defines methods that can be used to convert between <code>s and <code>s or <code>:
+
+Evaluating ragged tensors.
+
+To access the values in a ragged tensor, you can:
+
+Use <code> to convert the ragged tensor to a nested Python list.
+
+Use <code> to convert the ragged tensor to a NumPy array whose values are nested NumPy arrays.
+
+Decompose the ragged tensor into its components, using the <code> and <code> properties, or row-partitioning methods such as <code> and <code>.
+
+Use Python indexing to select values from the ragged tensor.
+
+Ragged Shapes.
+
+The shape of a tensor specifies the size of each axis. For example, the shape of <code> is <code>, since there are 3 rows and 2 columns. TensorFlow has two separate but related ways to describe shapes:
+
+static shape: Information about axis sizes that is known statically (e.g., while tracing a <code>). May be partially specified.
+
+dynamic shape: Runtime information about the axis sizes.
+
+Static shape.
+
+A Tensor's static shape contains information about its axis sizes that is known at graph-construction time. For both <code> and <code>, it is available using the <code> property, and is encoded using <code>:
+
+The static shape of a ragged dimension is always <code> (i.e., unspecified). However, the inverse is not true -- if a <code> dimension is <code>, then that could indicate that the dimension is ragged, or it could indicate that the dimension is uniform but that its size is not statically known.
+
+Dynamic shape.
+
+A tensor's dynamic shape contains information about its axis sizes that is known when the graph is run. It is constructed using the <code> operation. For <code>, <code> returns the shape as a 1D integer <code>, where <code> is the size of axis <code>.
+
+However, a 1D <code> is not expressive enough to describe the shape of a <code>. Instead, the dynamic shape for ragged tensors is encoded using a dedicated type, <code>. In the following example, the <code> returned by <code> indicates that the ragged tensor has 4 rows, with lengths 1, 3, 0, and 2:
+
+Dynamic shape: operations.
+
+<code>s can be used with most TensorFlow ops that expect shapes, including <code>, <code>, <code>. <code>, <code>, and <code>.
+
+Dynamic shape: indexing and slicing.
+
+<code> can be also be indexed to get the sizes of uniform dimensions. For example, we can find the number of rows in a raggedtensor using <code> (just as we would for a non-ragged tensor):
+
+However, it is an error to use indexing to try to retrieve the size of a ragged dimension, since it doesn't have a single size. (Since <code> keeps track of which axes are ragged, this error is only thrown during eager execution or when tracing a <code>; it will never be thrown when executing a concrete function.).
+
+<code>s can also be sliced, as long as the slice either begins with axis <code>, or contains only dense dimensions.
+
+Dynamic shape: encoding.
+
+<code> is encoded using two fields:
+
+<code>: An integer vector giving the shape of a dense <code>.
+
+<code>: A list of <code> objects, describing how the outermost dimension of that inner shape should be partitioned to add ragged axes.
+
+For more information about row partitions, see the "RaggedTensor encoding" section below, and the API docs for <code>.
+
+Dynamic shape: construction.
+
+<code> is most often constructed by applying <code> to a <code>, but it can also be constructed directly:
+
+If the lengths of all rows are known statically, <code> can also be used to construct a dynamic ragged shape. (This is mostly useful for testing and demonstration code, since it's rare for the lengths of ragged dimensions to be known statically).
+
+Broadcasting.
+
+Broadcasting is the process of making tensors with different shapes have compatible shapes for elementwise operations. For more background on broadcasting, refer to:
+
+NumPy: Broadcasting.
+
+<code>.
+
+<code>.
+
+The basic steps for broadcasting two inputs <code> and <code> to have compatible shapes are:
+
+If <code> and <code> do not have the same number of dimensions, then add outer dimensions (with size 1) until they do.
+
+For each dimension where <code> and <code> have different sizes:
+
+If <code> or <code> have size <code> in dimension <code>, then repeat its values across dimension <code> to match the other input's size.
+
+Otherwise, raise an exception (<code> and <code> are not broadcast compatible).
+
+Where the size of a tensor in a uniform dimension is a single number (the size of slices across that dimension); and the size of a tensor in a ragged dimension is a list of slice lengths (for all slices across that dimension).
+
+Broadcasting examples.
+
+Here are some examples of shapes that do not broadcast:
+
+RaggedTensor encoding.
+
+Ragged tensors are encoded using the <code> class. Internally, each <code> consists of:
+
+A <code> tensor, which concatenates the variable-length rows into a flattened list.
+
+A <code>, which indicates how those flattened values are divided into rows.
+
+The <code> can be stored using four different encodings:
+
+<code> is an integer vector specifying the split points between rows.
+
+<code> is an integer vector specifying the row index for each value.
+
+<code> is an integer vector specifying the length of each row.
+
+<code> is an integer scalar specifying a single length for all rows.
+
+An integer scalar <code> can also be included in the <code> encoding to account for empty trailing rows with <code> or empty rows with <code>.
+
+The choice of which encoding to use for row partitions is managed internally by ragged tensors to improve efficiency in some contexts. In particular, some of the advantages and disadvantages of the different row-partitioning schemes are:
+
+Efficient indexing: The <code> encoding enables constant-time indexing and slicing into ragged tensors.
+
+Efficient concatenation: The <code> encoding is more efficient when concatenating ragged tensors, since row lengths do not change when two tensors are concatenated together.
+
+Small encoding size: The <code> encoding is more efficient when storing ragged tensors that have a large number of empty rows, since the size of the tensor depends only on the total number of values. On the other hand, the <code> and <code> encodings are more efficient when storing ragged tensors with longer rows, since they require only one scalar value for each row.
+
+Compatibility: The <code> scheme matches the segmentation format used by operations, such as <code>. The <code> scheme matches the format used by ops such as <code>.
+
+Uniform dimensions: As discussed below, the <code> encoding is used to encode ragged tensors with uniform dimensions.
+
+Multiple ragged dimensions.
+
+A ragged tensor with multiple ragged dimensions is encoded by using a nested <code> for the <code> tensor. Each nested <code> adds a single ragged dimension.
+
+The factory function <code> may be used to construct a RaggedTensor with multiple ragged dimensions directly by providing a list of <code> tensors:
+
+Ragged rank and flat values.
+
+A ragged tensor's ragged rank is the number of times that the underlying <code> tensor has been partitioned (i.e. the nesting depth of <code> objects). The innermost <code> tensor is known as its flat_values. In the following example, <code> has ragged_rank=3, and its <code> is a 1D <code> with 24 strings:
+
+Uniform inner dimensions.
+
+Ragged tensors with uniform inner dimensions are encoded by using a multidimensional <code> for the flat_values (i.e., the innermost <code>).
+
+Uniform non-inner dimensions.
+
+Ragged tensors with uniform non-inner dimensions are encoded by partitioning rows with <code>.

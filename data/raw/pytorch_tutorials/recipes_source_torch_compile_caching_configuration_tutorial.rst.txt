@@ -1,0 +1,47 @@
+Compile Time Caching Configuration Authors: Oguz Ulgen and Sam Larsen.
+
+Introduction.
+
+PyTorch Compiler implements several caches to reduce compilation latency. This recipe demonstrates how you can configure various parts of the caching in <code>.
+
+Prerequisites.
+
+Before starting this recipe, make sure that you have the following:
+
+Basic understanding of <code>. See:
+
+torch.compiler API documentation.
+
+Introduction to torch.compile.
+
+Compile Time Caching in torch.compile.
+
+PyTorch 2.4 or later.
+
+Inductor Cache Settings.
+
+Most of these caches are in-memory, only used within the same process, and are transparent to the user. An exception is caches that store compiled FX graphs (<code>, <code>). These caches allow Inductor to avoid recompilation across process boundaries when it encounters the same graph with the same Tensor input shapes (and the same configuration). The default implementation stores compiled artifacts in the system temp directory. An optional feature also supports sharing those artifacts within a cluster by storing them in a Redis database.
+
+There are a few settings relevant to caching and to FX graph caching in particular. The settings are accessible via environment variables listed below or can be hard-coded in the Inductor’s config file.
+
+TORCHINDUCTORFXGRAPH_CACHE This setting enables the local FX graph cache feature, which stores artifacts in the host’s temp directory. Setting it to <code> enables the feature while any other value disables it. By default, the disk location is per username, but users can enable sharing across usernames by specifying <code> (below).
+
+TORCHINDUCTORAUTOGRADCACHE This setting extends <code> to store cached results at the <code> level, rather than at the Inductor level. Setting it to <code> enables this feature, while any other value disables it. By default, the disk location is per username, but users can enable sharing across usernames by specifying <code> (below). <code> requires <code> to work. The same cache dir stores cache entries for <code> (under <code>) and <code> (under <code>).
+
+TORCHINDUCTORCACHEDIR This setting specifies the location of all on-disk caches. By default, the location is in the system temp directory under <code>, for example, <code>.
+
+Note that if <code> is not set in the environment, Inductor sets the <code> cache directory to this same temp location, under the Triton sub-directory.
+
+TORCHINDUCTORFXGRAPHREMOTECACHE This setting enables the remote FX graph cache feature. The current implementation uses <code>. <code> enables caching, and any other value disables it. The following environment variables configure the host and port of the Redis server:
+
+<code> (defaults to <code>) <code> (defaults to <code>).
+
+TORCHINDUCTORAUTOGRADREMOTE_CACHE Similar to <code>, this setting enables the remote <code> feature. The current implementation uses Redis. Setting it to <code> enables caching, while any other value disables it. The following environment variables are used to configure the host and port of the <code> server:
+
+<code> (defaults to <code>).
+
+<code> (defaults to <code>).
+
+<code>` to disable all Inductor caching. This setting is useful for tasks like experimenting with cold-start compile times or forcing recompilation for debugging purposes.
+
+Conclusion In this recipe, we have learned how to configure PyTorch Compiler's caching mechanisms. Additionally, we explored the various settings and environment variables that allow users to configure and optimize these caching features according to their specific needs.

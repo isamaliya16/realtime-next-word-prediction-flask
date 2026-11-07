@@ -1,0 +1,229 @@
+Migrating model checkpoints.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+Note: Checkpoints saved with <code> are often referred as TF1 or name-based checkpoints. Checkpoints saved with <code> are referred as TF2 or object-based checkpoints.
+
+Overview.
+
+This guide assumes that you have a model that saves and loads checkpoints with <code>, and want to migrate the code use the TF2 <code> API, or use pre-existing checkpoints in your TF2 model.
+
+Below are some common scenarios that you may encounter:
+
+Scenario 1.
+
+There are existing TF1 checkpoints from previous training runs that need to be loaded or converted to TF2.
+
+To load the TF1 checkpoint in TF2, see the snippet Load a TF1 checkpoint in TF2.
+
+To convert the checkpoint to TF2, see Checkpoint conversion.
+
+Scenario 2.
+
+You are adjusting your model in a way that risks changing variable names and paths (such as when incrementally migrating away from <code> to explicit <code> creation), and would like to maintain saving/loading of existing checkpoints along the way.
+
+See the section on How to maintain checkpoint compatibility during model migration.
+
+Scenario 3.
+
+You are migrating your training code and checkpoints to TF2, but your inference pipeline continues to require TF1 checkpoints for now (for production stability).
+
+Option 1.
+
+Save both TF1 and TF2 checkpoints when training.
+
+see Save a TF1 checkpoint in TF2.
+
+Option 2.
+
+Convert the TF2 checkpoint to TF1.
+
+see Checkpoint conversion.
+
+The examples below show all the combinations of saving and loading checkpoints in TF1/TF2, so you have some flexibility in determining how to migrate your model.
+
+Setup.
+
+Changes from TF1 to TF2.
+
+This section is included if you are curious about what has changed between TF1 and TF2, and what we mean by "name-based" (TF1) vs "object-based" (TF2) checkpoints.
+
+The two types of checkpoints are actually saved in the same format, which is essentially a key-value table. The difference lies in how the keys are generated.
+
+The keys in named-based checkpoints are the names of the variables. The keys in object-based checkpoints refer to the path from the root object to the variable (the examples below will help to get a better sense of what this means).
+
+First, save some checkpoints:
+
+If you look at the keys in <code>, they all refer to the object paths of each variable. For example, variable <code> is the first element in the <code> list, so its key becomes <code> (feel free to ignore the .ATTRIBUTES/VARIABLE_VALUE constant).
+
+A closer inspection of the <code> object below:
+
+Try experimenting with the below snippet and see how the checkpoint keys change with the object structure:
+
+Why does TF2 use this mechanism?
+
+Because there is no more global graph in TF2, variable names are unreliable and can be inconsistent between programs. TF2 encourages the object-oriented modelling approach where variables are owned by layers, and layers are owned by a model:
+
+How to maintain checkpoint compatibility during model migration.
+
+One important step in the migration process is ensuring that all variables are initialized to the correct values, which in turn allows you to validate that the ops/functions are doing the correct computations. To accomplish this, you must consider the checkpoint compatibility between models in the various stages of migration. Essentially, this section answers the question, how do I keep using the same checkpoint while changing the model.
+
+Below are three ways of maintaining checkpoint compatibility, in order of increasing flexibility:
+
+The model has the same variable names as before.
+
+The model has different variable names, and maintains a assignment map that maps variable names in the checkpoint to the new names.
+
+The model has different variable names, and maintains a TF2 Checkpoint object that stores all of the variables.
+
+When the variable names match.
+
+Long title: How to re-use checkpoints when the variable names match.
+
+Short answer: You can directly load the pre-existing checkpoint with either <code> or <code>.
+
+If you are using <code>, then it will ensure that your model variable names are the same as before. You can also manually ensure that variable names match.
+
+When the variable names match in the migrated models, you may directly use either <code> or <code> to load the checkpoint. Both APIs are compatible with eager and graph mode, so you can use them at any stage of the migration.
+
+Note: You can use <code> to load TF1 checkpoints, but you cannot use <code> to load TF2 checkpoints without complicated name matching.
+
+Below are examples of using the same checkpoint with different models. First, save a TF1 checkpoint with <code>:
+
+The example below uses <code> to load the checkpoint while in eager mode:
+
+The next snippet loads the checkpoint using the TF2 API <code>:
+
+Variable names in TF2.
+
+Variables still all have a <code> argument you can set.
+
+Keras models also take a <code> argument as which they set as the prefix for their variables.
+
+The <code> function can be used to set variable name prefixes. This is very different from <code>. It only affects names, and doesn't track variables and reuse.
+
+The <code> decorator is a shim that helps you maintain variable names and TF1 checkpoint compatibility, by keeping the naming and reuse semantics of <code> and <code> unchanged. See the Model mapping guide for more info.
+
+Note 1: If you are using the shim, use TF2 APIs to load your checkpoints (even when using pre-trained TF1 checkpoints).
+
+See the section Checkpoint Keras.
+
+Note 2: When migrating to <code> from <code>:
+
+If your shim-decorated layer or module consists of some variables (or Keras layers/models) that use <code> instead of <code> and get attached as properties/tracked in an object oriented way, they may have different variable naming semantics in TF1.x graphs/sessions versus during eager execution.
+
+In short, the names may not be what you expect them to be when running in TF2.
+
+Warning: Variables may have duplicate names in eager execution, which may cause problems if multiple variables in the name-based checkpoint need to be mapped to the same name. You may be able to explicitly adjust the layer and variable names using <code> and layer constructor or <code> <code> arguments to adjust variable names and ensure there are no duplicates.
+
+Maintaining assignment maps.
+
+Assignment maps are commonly used to transfer weights between TF1 models, and can also be used during your model migration if the variable names change.
+
+You can use these maps with <code>, <code>, and <code> to load weights into models in which the variable or scope names may have changed.
+
+The examples in this section will use a previously saved checkpoint:
+
+Loading with <code>.
+
+<code> must be called while in a Graph/Session, because it places the values in the variable initializers instead of creating an assign op.
+
+You can use the <code> argument to configure how the variables are loaded. From the documentation: Assignment map supports following syntax:
+
+<code> - will load all variables in current <code> from <code> with matching tensor names.
+
+<code> - will initialize <code> variable from <code>.
+
+<code> - will initialize given <code> object with tensor 'scopevariablename' from the checkpoint.
+
+<code> - will initialize list of partitioned variables with tensor 'scopevariablename' from the checkpoint.
+
+<code> - will load all variables in current <code> from checkpoint's root (e.g. no scope).
+
+Loading with <code>.
+
+Unlike <code>, <code> runs in both graph and eager mode. The <code> argument optionally accepts a dictionary, except it must map variable names to the <code> object.
+
+Loading with <code>.
+
+This option is for you if you need precise control over the variable values. Again, this works in both graph and eager modes.
+
+Maintaining a TF2 Checkpoint object.
+
+If the variable and scope names may change a lot during the migration, then use <code> and TF2 checkpoints. TF2 uses the object structure instead of variable names (more details in Changes from TF1 to TF2).
+
+In short, when creating a <code> to save or restore checkpoints, make sure it uses the same ordering (for lists) and keys (for dictionaries and keyword arguments to the <code> initializer). Some examples of checkpoint compatibility:
+
+The code samples below show how to use the "same" <code> to load variables with different names. First, save a TF2 checkpoint:
+
+You can keep using <code> even if the variable/scope names change:
+
+And in eager mode:
+
+TF2 checkpoints in Estimator.
+
+The sections above describe how to maintain checkpoint compatiblity while migrating your model. These concepts also apply for Estimator models, although the way the checkpoint is saved/loaded is slightly different. As you migrate your Estimator model to use TF2 APIs, you may want to switch from TF1 to TF2 checkpoints while the model is still using the estimator. This sections shows how to do so.
+
+<code> and <code> have a saving mechanism called the <code>, a <code> object. The <code> can contain a <code> or <code>, which enables <code> and <code> to save TF1- or TF2-style checkpoints.
+
+The final value of <code> should be <code>, after being warm-started from <code>, then trained for an additional 5 steps. The train step value doesn't carry over from the <code> checkpoint.
+
+Checkpointing Keras.
+
+Models built with Keras still use <code> and <code> to load pre-existing weights. When your model is fully migrated, switch to using <code> and <code>, especially if you are using the <code> callback when training.
+
+Some things you should know about checkpoints and Keras:
+
+Initialization vs Building.
+
+Keras models and layers must go through two steps before being fully created. First is the initialization of the Python object: <code>. Second is the build step, in which most of the weights are actually created: <code>. You can also build a model by calling it or running a single <code>, <code>, or <code> step (the first time only).
+
+If you find that <code> is raising an error, then it is likely that the model/layers have not been built.
+
+Keras uses TF2 checkpoints.
+
+<code> is equivalent to <code>. Same with <code> and <code>. Note that <code>.
+
+TF2 checkpoints work with Keras's <code> step.
+
+<code> has a mechanism called deferred restoration which allows <code> and Keras objects to store variable values if the variable has not yet been created. This allows initialized models to load weights and build after.
+
+Because of this mechanism, we highly recommend that you use TF2 checkpoint loading APIs with Keras models (even when restoring pre-existing TF1 checkpoints into the model mapping shims). See more in the checkpoint guide.
+
+Code Snippets.
+
+The snippets below show the TF1/TF2 version compatibility in the checkpoint saving APIs.
+
+Save a TF1 checkpoint in TF2.
+
+Load a TF1 checkpoint in TF2.
+
+Save a TF2 checkpoint in TF1.
+
+Load a TF2 checkpoint in TF1.
+
+Checkpoint conversion.
+
+You can convert checkpoints between TF1 and TF2 by loading and re-saving the checkpoints. An alternative is <code>, shown in the code below.
+
+Convert TF1 checkpoint to TF2.
+
+Convert the checkpoint saved in the snippet <code>:
+
+Convert TF2 checkpoint to TF1.
+
+Convert the checkpoint saved in the snippet <code>:
+
+Related Guides.
+
+Validating numerical equivalence and correctness.
+
+Model mapping guide and <code>.
+
+TF2 Checkpoint guide.

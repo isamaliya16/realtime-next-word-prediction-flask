@@ -1,0 +1,17 @@
+Using pretrained models.
+
+The Model Hub makes selecting the appropriate model simple, so that using it in any downstream library can be done in a few lines of code. Let's take a look at how to actually use one of these models, and how to contribute back to the community.
+
+Let's say we're looking for a French-based model that can perform mask filling.
+
+We select the <code> checkpoint to try it out. The identifier <code> is all we need to start using it! As you've seen in previous chapters, we can instantiate it using the <code> function:
+
+As you can see, loading a model within a pipeline is extremely simple. The only thing you need to watch out for is that the chosen checkpoint is suitable for the task it's going to be used for. For example, here we are loading the <code> checkpoint in the <code> pipeline, which is completely fine. But if we were to load this checkpoint in the <code> pipeline, the results would not make any sense because the head of <code> is not suitable for this task! We recommend using the task selector in the Hugging Face Hub interface in order to select the appropriate checkpoints:
+
+You can also instantiate the checkpoint using the model architecture directly:
+
+However, we recommend using the <code> classes instead, as these are by design architecture-agnostic. While the previous code sample limits users to checkpoints loadable in the CamemBERT architecture, using the <code> classes makes switching checkpoints simple:
+
+However, we recommend using the <code> classes instead, as these are by design architecture-agnostic. While the previous code sample limits users to checkpoints loadable in the CamemBERT architecture, using the <code> classes makes switching checkpoints simple:
+
+When using a pretrained model, make sure to check how it was trained, on which datasets, its limits, and its biases. All of this information should be indicated on its model card.

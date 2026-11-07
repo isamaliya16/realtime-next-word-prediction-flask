@@ -1,0 +1,69 @@
+Migrate checkpoint saving.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Continually saving the "best" model or model weights/parameters has many benefits. These include being able to track the training progress and load saved models from different saved states.
+
+In TensorFlow 1, to configure checkpoint saving during training/validation with the <code> APIs, you specify a schedule in <code> or use <code>. This guide demonstrates how to migrate from this workflow to TensorFlow 2 Keras APIs.
+
+In TensorFlow 2, you can configure <code> in a number of ways:
+
+Save the "best" version according to a metric monitored using the <code> parameter, where <code> can be, for example, <code>, <code>, <code>'val_accuracy'`.
+
+Save continually at a certain frequency (using the <code> argument).
+
+Save the weights/parameters only instead of the whole model by setting <code> to <code>.
+
+For more details, refer to the <code> API docs and the Save checkpoints during training section in the Save and load models tutorial. Learn more about the Checkpoint format in the TF Checkpoint format section in the Save and load Keras models guide. In addition, to add fault tolerance, you can use <code> or <code> for manual checkpointing. Learn more in the Fault tolerance migration guide.
+
+Keras callbacks are objects that are called at different points during training/evaluation/prediction in the built-in Keras <code>/<code>/<code> APIs. Learn more in the Next steps section at the end of the guide.
+
+Setup.
+
+Start with imports and a simple dataset for demonstration purposes:
+
+TensorFlow 1: Save checkpoints with tf.estimator APIs.
+
+This TensorFlow 1 example shows how to configure <code> to save checkpoints at every step during training/evaluation with the <code> APIs:
+
+TensorFlow 2: Save checkpoints with a Keras callback for Model.fit.
+
+In TensorFlow 2, when you use the built-in Keras <code> (or <code>) for training/evaluation, you can configure <code> and then pass it to the <code> parameter of <code> (or <code>). (Learn more in the API docs and the Using callbacks section in the Training and evaluation with the built-in methods guide.).
+
+In the example below, you will use a <code> callback to store checkpoints in a temporary directory:
+
+Next steps.
+
+Learn more about checkpointing in:
+
+API docs: <code>.
+
+Tutorial: Save and load models (the Save checkpoints during training section).
+
+Guide: Save and load Keras models (the TF Checkpoint format section).
+
+Learn more about callbacks in:
+
+API docs: <code>.
+
+Guide: Writing your own callbacks.
+
+Guide: Training and evaluation with the built-in methods (the Using callbacks section).
+
+You may also find the following migration-related resources useful:
+
+The Fault tolerance migration guide: <code> for <code>, or <code> and <code> APIs for a custom training loop.
+
+The Early stopping migration guide: <code> is a built-in early stopping callback.
+
+The TensorBoard migration guide: TensorBoard enables tracking and displaying metrics.
+
+The LoggingTensorHook and StopAtStepHook to Keras callbacks migration guide.
+
+The SessionRunHook to Keras callbacks guide.

@@ -1,0 +1,35 @@
+Density estimation using Real NVP.
+
+Introduction.
+
+The aim of this work is to map a simple distribution - which is easy to sample and whose density is simple to estimate - to a more complex one learned from the data. This kind of generative model is also known as "normalizing flow".
+
+In order to do this, the model is trained via the maximum likelihood principle, using the "change of variable" formula.
+
+We will use an affine coupling function. We create it such that its inverse, as well as the determinant of the Jacobian, are easy to obtain (more details in the referenced paper).
+
+Requirements:
+
+Tensorflow 2.9.1.
+
+Tensorflow probability 0.17.0.
+
+Reference:
+
+Density estimation using Real NVP.
+
+Setup.
+
+Load the data.
+
+Affine coupling layer.
+
+Real NVP.
+
+Model training.
+
+Performance evaluation.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

@@ -1,0 +1,223 @@
+Introduction to Tensors.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Tensors are multi-dimensional arrays with a uniform type (called a <code>). You can see all supported <code> at <code>.
+
+If you're familiar with NumPy, tensors are (kind of) like <code>.
+
+All tensors are immutable like Python numbers and strings: you can never update the contents of a tensor, only create a new one.
+
+Basics.
+
+First, create some basic tensors.
+
+Here is a "scalar" or "rank-0" tensor . A scalar contains a single value, and no "axes".
+
+A "vector" or "rank-1" tensor is like a list of values. A vector has one axis:
+
+A "matrix" or "rank-2" tensor has two axes:
+
+A scalar, shape: <code>[]</code> A vector, shape: <code>[3]</code> A matrix, shape: <code>[3, 2]</code>.
+
+Tensors may have more axes; here is a tensor with three axes:
+
+There are many ways you might visualize a tensor with more than two axes.
+
+A 3-axis tensor, shape: <code>[3, 2, 5]</code>.
+
+You can convert a tensor to a NumPy array either using <code> or the <code> method:
+
+Tensors often contain floats and ints, but have many other types, including:
+
+complex numbers.
+
+strings.
+
+The base <code> class requires tensors to be "rectangular"---that is, along each axis, every element is the same size. However, there are specialized types of tensors that can handle different shapes:
+
+Ragged tensors (see RaggedTensor below).
+
+Sparse tensors (see SparseTensor below).
+
+You can do basic math on tensors, including addition, element-wise multiplication, and matrix multiplication.
+
+Tensors are used in all kinds of operations (or "Ops").
+
+Note: Typically, anywhere a TensorFlow function expects a <code> as input, the function will also accept anything that can be converted to a <code> using <code>. See below for an example.
+
+About shapes.
+
+Tensors have shapes. Some vocabulary:
+
+Shape: The length (number of elements) of each of the axes of a tensor.
+
+Rank: Number of tensor axes. A scalar has rank 0, a vector has rank 1, a matrix is rank 2.
+
+Axis or Dimension: A particular dimension of a tensor.
+
+Size: The total number of items in the tensor, the product of the shape vector's elements.
+
+Note: Although you may see reference to a "tensor of two dimensions", a rank-2 tensor does not usually describe a 2D space.
+
+Tensors and <code> objects have convenient properties for accessing these:
+
+A rank-4 tensor, shape: <code>[3, 2, 4, 5]</code>.
+
+But note that the <code> and <code> attributes don't return <code> objects. If you need a <code> use the <code> or <code> function. This difference is subtle, but it can be important when building graphs (later).
+
+While axes are often referred to by their indices, you should always keep track of the meaning of each. Often axes are ordered from global to local: The batch axis first, followed by spatial dimensions, and features for each location last. This way feature vectors are contiguous regions of memory.
+
+Typical axis order.
+
+Indexing.
+
+Single-axis indexing.
+
+TensorFlow follows standard Python indexing rules, similar to indexing a list or a string in Python, and the basic rules for NumPy indexing.
+
+indexes start at <code>.
+
+negative indices count backwards from the end.
+
+colons, <code>, are used for slices: <code>.
+
+Indexing with a scalar removes the axis:
+
+Indexing with a <code> slice keeps the axis:
+
+Multi-axis indexing.
+
+Higher rank tensors are indexed by passing multiple indices.
+
+The exact same rules as in the single-axis case apply to each axis independently.
+
+Passing an integer for each index, the result is a scalar.
+
+You can index using any combination of integers and slices:
+
+Here is an example with a 3-axis tensor:
+
+Selecting the last feature across all locations in each example in the batch.
+
+Read the tensor slicing guide to learn how you can apply indexing to manipulate individual elements in your tensors.
+
+Manipulating Shapes.
+
+Reshaping a tensor is of great utility.
+
+You can reshape a tensor into a new shape. The <code> operation is fast and cheap as the underlying data does not need to be duplicated.
+
+The data maintains its layout in memory and a new tensor is created, with the requested shape, pointing to the same data. TensorFlow uses C-style "row-major" memory ordering, where incrementing the rightmost index corresponds to a single step in memory.
+
+If you flatten a tensor you can see what order it is laid out in memory.
+
+Typically the only reasonable use of <code> is to combine or split adjacent axes (or add/remove <code>s).
+
+For this 3x2x5 tensor, reshaping to (3x2)x5 or 3x(2x5) are both reasonable things to do, as the slices do not mix:
+
+Some good reshapes.
+
+Reshaping will "work" for any new shape with the same total number of elements, but it will not do anything useful if you do not respect the order of the axes.
+
+Swapping axes in <code> does not work; you need <code> for that.
+
+Some bad reshapes.
+
+You may run across not-fully-specified shapes. Either the shape contains a <code> (an axis-length is unknown) or the whole shape is <code> (the rank of the tensor is unknown).
+
+Except for tf.RaggedTensor, such shapes will only occur in the context of TensorFlow's symbolic, graph-building APIs:
+
+tf.function.
+
+The keras functional API.
+
+More on <code>.
+
+To inspect a <code>'s data type use the <code> property.
+
+When creating a <code> from a Python object you may optionally specify the datatype.
+
+If you don't, TensorFlow chooses a datatype that can represent your data. TensorFlow converts Python integers to <code> and Python floating point numbers to <code>. Otherwise TensorFlow uses the same rules NumPy uses when converting to arrays.
+
+You can cast from type to type.
+
+Broadcasting.
+
+Broadcasting is a concept borrowed from the equivalent feature in NumPy. In short, under certain conditions, smaller tensors are "stretched" automatically to fit larger tensors when running combined operations on them.
+
+The simplest and most common case is when you attempt to multiply or add a tensor to a scalar. In that case, the scalar is broadcast to be the same shape as the other argument.
+
+Likewise, axes with length 1 can be stretched out to match the other arguments. Both arguments can be stretched in the same computation.
+
+In this case a 3x1 matrix is element-wise multiplied by a 1x4 matrix to produce a 3x4 matrix. Note how the leading 1 is optional: The shape of y is <code>.
+
+A broadcasted add: a <code>[3, 1]</code> times a <code>[1, 4]</code> gives a <code>[3,4]</code>.
+
+Here is the same operation without broadcasting:
+
+Most of the time, broadcasting is both time and space efficient, as the broadcast operation never materializes the expanded tensors in memory.
+
+You see what broadcasting looks like using <code>.
+
+Unlike a mathematical op, for example, <code> does nothing special to save memory. Here, you are materializing the tensor.
+
+It can get even more complicated. This section of Jake VanderPlas's book Python Data Science Handbook shows more broadcasting tricks (again in NumPy).
+
+tf.converttotensor.
+
+Most ops, like <code> and <code> take arguments of class <code>. However, you'll notice in the above case, Python objects shaped like tensors are accepted.
+
+Most, but not all, ops call <code> on non-tensor arguments. There is a registry of conversions, and most object classes like NumPy's <code>, <code>, Python lists, and <code> will all convert automatically.
+
+See <code> for more details, and if you have your own type you'd like to automatically convert to a tensor.
+
+Ragged Tensors.
+
+A tensor with variable numbers of elements along some axis is called "ragged". Use <code> for ragged data.
+
+For example, This cannot be represented as a regular tensor:
+
+A <code>, shape: <code>[4, None]</code>.
+
+Instead create a <code> using <code>:
+
+The shape of a <code> will contain some axes with unknown lengths:
+
+String tensors.
+
+<code> is a <code>, which is to say you can represent data as strings (variable-length byte arrays) in tensors.
+
+The strings are atomic and cannot be indexed the way Python strings are. The length of the string is not one of the axes of the tensor. See <code> for functions to manipulate them.
+
+Here is a scalar string tensor:
+
+And a vector of strings:
+
+A vector of strings, shape: <code>[3,]</code>.
+
+In the above printout the <code> prefix indicates that <code> dtype is not a unicode string, but a byte-string. See the Unicode Tutorial for more about working with unicode text in TensorFlow.
+
+If you pass unicode characters they are utf-8 encoded.
+
+Some basic functions with strings can be found in <code>, including <code>.
+
+Three strings split, shape: <code>[3, None]</code>.
+
+And <code>:
+
+Although you can't use <code> to turn a string tensor into numbers, you can convert it into bytes, and then into numbers.
+
+The <code> dtype is used for all raw bytes data in TensorFlow. The <code> module contains functions for converting data to and from bytes, including decoding images and parsing csv.
+
+Sparse tensors.
+
+Sometimes, your data is sparse, like a very wide embedding space. TensorFlow supports <code> and related operations to store sparse data efficiently.
+
+A <code>, shape: <code>[3, 4]</code>.

@@ -1,0 +1,43 @@
+Sentiment Analysis: Using Recurrent Neural Networks.
+
+Like word similarity and analogy tasks, we can also apply pretrained word vectors to sentiment analysis. Since the IMDb review dataset in section <num> is not very big, using text representations that were pretrained on large-scale corpora may reduce overfitting of the model. As a specific example illustrated in section <num>, we will represent each token using the pretrained GloVe model, and feed these token representations into a multilayer bidirectional RNN to obtain the text sequence representation, which will be transformed into sentiment analysis outputs . For the same downstream application, we will consider a different architectural choice later.
+
+Representing Single Text with RNNs.
+
+In text classifications tasks, such as sentiment analysis, a varying-length text sequence will be transformed into fixed-length categories. In the following <code> class, while each token of a text sequence gets its individual pretrained GloVe representation via the embedding layer (<code>), the entire sequence is encoded by a bidirectional RNN (<code>). More concretely, the hidden states (at the last layer) of the bidirectional LSTM at both the initial and final time steps are concatenated as the representation of the text sequence. This single text representation is then transformed into output categories by a fully connected layer (<code>) with two outputs ("positive" and "negative").
+
+Let's construct a bidirectional RNN with two hidden layers to represent single text for sentiment analysis.
+
+Loading Pretrained Word Vectors.
+
+Below we load the pretrained 100-dimensional (needs to be consistent with <code>) GloVe embeddings for tokens in the vocabulary.
+
+Print the shape of the vectors for all the tokens in the vocabulary.
+
+We use these pretrained word vectors to represent tokens in the reviews and will not update these vectors during training.
+
+Training and Evaluating the Model.
+
+Now we can train the bidirectional RNN for sentiment analysis.
+
+We define the following function to predict the sentiment of a text sequence using the trained model <code>.
+
+Finally, let's use the trained model to predict the sentiment for two simple sentences.
+
+Summary.
+
+Pretrained word vectors can represent individual tokens in a text sequence.
+
+Bidirectional RNNs can represent a text sequence, such as via the concatenation of its hidden states at the initial and final time steps. This single text representation can be transformed into categories using a fully connected layer.
+
+Exercises.
+
+Increase the number of epochs. Can you improve the training and testing accuracies? How about tuning other hyperparameters?
+
+Use larger pretrained word vectors, such as 300-dimensional GloVe embeddings. Does it improve classification accuracy?
+
+Can we improve the classification accuracy by using the spaCy tokenization? You need to install spaCy (<code>) and install the English package (<code>). In the code, first, import spaCy (<code>). Then, load the spaCy English package (<code>). Finally, define the function <code> and replace the original <code> function. Note the different forms of phrase tokens in GloVe and spaCy. For example, the phrase token "new york" takes the form of "new-york" in GloVe and the form of "new york" after the spaCy tokenization.
+
+Discussions.
+
+Discussions.

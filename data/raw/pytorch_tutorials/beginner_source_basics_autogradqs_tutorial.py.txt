@@ -1,0 +1,63 @@
+Learn the Basics || Quickstart || Tensors || Datasets & DataLoaders || Transforms || Build Model || Autograd || Optimization || Save & Load Model.
+
+Automatic Differentiation with <code>.
+
+When training neural networks, the most frequently used algorithm is back propagation. In this algorithm, parameters (model weights) are adjusted according to the gradient of the loss function with respect to the given parameter.
+
+To compute those gradients, PyTorch has a built-in differentiation engine called <code>. It supports automatic computation of gradient for any computational graph.
+
+Consider the simplest one-layer neural network, with input <code>, parameters <code> and <code>, and some loss function. It can be defined in PyTorch in the following manner:
+
+Tensors, Functions and Computational graph.
+
+This code defines the following computational graph:
+
+In this network, <code> and <code> are parameters, which we need to optimize. Thus, we need to be able to compute the gradients of loss function with respect to those variables. In order to do that, we set the <code> property of those tensors.
+
+A function that we apply to tensors to construct computational graph is in fact an object of class <code>. This object knows how to compute the function in the forward direction, and also how to compute its derivative during the backward propagation step. A reference to the backward propagation function is stored in <code> property of a tensor. You can find more information of <code> in the documentation.
+
+Computing Gradients.
+
+To optimize weights of parameters in the neural network, we need to compute the derivatives of our loss function with respect to parameters, namely, we need \frac{\partial loss}{\partial w} and \frac{\partial loss}{\partial b} under some fixed values of <code> and <code>. To compute those derivatives, we call <code>, and then retrieve the values from <code> and <code>:
+
+Disabling Gradient Tracking.
+
+By default, all tensors with <code> are tracking their computational history and support gradient computation. However, there are some cases when we do not need to do that, for example, when we have trained the model and just want to apply it to some input data, i.e. we only want to do forward computations through the network. We can stop tracking computations by surrounding our computation code with <code> block:
+
+Another way to achieve the same result is to use the <code> method on the tensor:
+
+There are reasons you might want to disable gradient tracking:
+
+To mark some parameters in your neural network as frozen parameters.
+
+To speed up computations when you are only doing forward pass, because computations on tensors that do not track gradients would be more efficient.
+
+More on Computational Graphs Conceptually, autograd keeps a record of data (tensors) and all executed operations (along with the resulting new tensors) in a directed acyclic graph (DAG) consisting of Function objects. In this DAG, leaves are the input tensors, roots are the output tensors. By tracing this graph from roots to leaves, you can automatically compute the gradients using the chain rule.
+
+In a forward pass, autograd does two things simultaneously:
+
+run the requested operation to compute a resulting tensor.
+
+maintain the operation’s gradient function in the DAG.
+
+The backward pass kicks off when <code> is called on the DAG root. <code> then:
+
+computes the gradients from each <code>.
+
+accumulates them in the respective tensor’s <code> attribute.
+
+using the chain rule, propagates all the way to the leaf tensors.
+
+Optional Reading: Tensor Gradients and Jacobian Products.
+
+In many cases, we have a scalar loss function, and we need to compute the gradient with respect to some parameters. However, there are cases when the output function is an arbitrary tensor. In this case, PyTorch allows you to compute so-called Jacobian product, and not the actual gradient.
+
+For a vector function \vec{y}=f(\vec{x}), where \vec{x}=\langle x1,\dots,xn\rangle and \vec{y}=\langle y1,\dots,ym\rangle, a gradient of \vec{y} with respect to \vec{x} is given by Jacobian matrix:
+
+Instead of computing the Jacobian matrix itself, PyTorch allows you to compute Jacobian Product v^T\cdot J for a given input vector v=(v1 \dots vm). This is achieved by calling <code> with v as an argument. The size of v should be the same as the size of the original tensor, with respect to which we want to compute the product:
+
+Notice that when we call <code> for the second time with the same argument, the value of the gradient is different. This happens because when doing <code> propagation, PyTorch accumulates the gradients, i.e. the value of computed gradients is added to the <code> property of all leaf nodes of computational graph. If you want to compute the proper gradients, you need to zero out the <code> property before. In real-life training an optimizer helps us to do this.
+
+Further Reading.
+
+Autograd Mechanics.

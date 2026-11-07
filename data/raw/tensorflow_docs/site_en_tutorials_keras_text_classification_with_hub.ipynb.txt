@@ -1,0 +1,103 @@
+Text classification with TensorFlow Hub: Movie reviews.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+See TF Hub models.
+
+This notebook classifies movie reviews as positive or negative using the text of the review. This is an example of binary—or two-class—classification, an important and widely applicable kind of machine learning problem.
+
+The tutorial demonstrates the basic application of transfer learning with TensorFlow Hub and Keras.
+
+It uses the IMDB dataset that contains the text of 50,000 movie reviews from the Internet Movie Database. These are split into 25,000 reviews for training and 25,000 reviews for testing. The training and testing sets are balanced, meaning they contain an equal number of positive and negative reviews.
+
+This notebook uses <code>, a high-level API to build and train models in TensorFlow, and <code>, a library for loading trained models from TFHub in a single line of code. For a more advanced text classification tutorial using <code>, see the MLCC Text Classification Guide.
+
+Download the IMDB dataset.
+
+The IMDB dataset is available on imdb reviews or on TensorFlow datasets. The following code downloads the IMDB dataset to your machine (or the colab runtime):
+
+Explore the data.
+
+Let's take a moment to understand the format of the data. Each example is a sentence representing the movie review and a corresponding label. The sentence is not preprocessed in any way. The label is an integer value of either 0 or 1, where 0 is a negative review, and 1 is a positive review.
+
+Let's print first 10 examples.
+
+Let's also print the first 10 labels.
+
+Build the model.
+
+The neural network is created by stacking layers—this requires three main architectural decisions:
+
+How to represent the text?
+
+How many layers to use in the model?
+
+How many hidden units to use for each layer?
+
+In this example, the input data consists of sentences. The labels to predict are either 0 or 1.
+
+One way to represent the text is to convert sentences into embeddings vectors. Use a pre-trained text embedding as the first layer, which will have three advantages:
+
+You don't have to worry about text preprocessing.
+
+Benefit from transfer learning.
+
+the embedding has a fixed size, so it's simpler to process.
+
+For this example you use a pre-trained text embedding model from TensorFlow Hub called google/nnlm-en-dim50/2.
+
+There are many other pre-trained text embeddings from TFHub that can be used in this tutorial:
+
+google/nnlm-en-dim128/2 - trained with the same NNLM architecture on the same data as google/nnlm-en-dim50/2, but with a larger embedding dimension. Larger dimensional embeddings can improve on your task but it may take longer to train your model.
+
+google/nnlm-en-dim128-with-normalization/2 - the same as google/nnlm-en-dim128/2, but with additional text normalization such as removing punctuation. This can help if the text in your task contains additional characters or punctuation.
+
+google/universal-sentence-encoder/4 - a much larger model yielding 512 dimensional embeddings trained with a deep averaging network (DAN) encoder.
+
+And many more! Find more text embedding models on TFHub.
+
+Let's first create a Keras layer that uses a TensorFlow Hub model to embed the sentences, and try it out on a couple of input examples. Note that no matter the length of the input text, the output shape of the embeddings is: <code>.
+
+Let's now build the full model:
+
+The layers are stacked sequentially to build the classifier:
+
+The first layer is a TensorFlow Hub layer. This layer uses a pre-trained Saved Model to map a sentence into its embedding vector. The pre-trained text embedding model that you are using (google/nnlm-en-dim50/2) splits the sentence into tokens, embeds each token and then combines the embedding. The resulting dimensions are: <code>. For this NNLM model, the <code> is 50.
+
+This fixed-length output vector is piped through a fully-connected (<code>) layer with 16 hidden units.
+
+The last layer is densely connected with a single output node.
+
+Let's compile the model.
+
+Loss function and optimizer.
+
+A model needs a loss function and an optimizer for training. Since this is a binary classification problem and the model outputs logits (a single-unit layer with a linear activation), you'll use the <code> loss function.
+
+This isn't the only choice for a loss function, you could, for instance, choose <code>. But, generally, <code> is better for dealing with probabilities—it measures the "distance" between probability distributions, or in our case, between the ground-truth distribution and the predictions.
+
+Later, when you are exploring regression problems (say, to predict the price of a house), you'll see how to use another loss function called mean squared error.
+
+Now, configure the model to use an optimizer and a loss function:
+
+Train the model.
+
+Train the model for 10 epochs in mini-batches of 512 samples. This is 10 iterations over all samples in the <code> and <code> tensors. While training, monitor the model's loss and accuracy on the 10,000 samples from the validation set:
+
+Evaluate the model.
+
+And let's see how the model performs. Two values will be returned. Loss (a number which represents our error, lower values are better), and accuracy.
+
+This fairly naive approach achieves an accuracy of about 87%. With more advanced approaches, the model should get closer to 95%.
+
+Further reading.
+
+For a more general way to work with string inputs and for a more detailed analysis of the progress of accuracy and loss during training, see the Text classification with preprocessed text tutorial.
+
+Try out more text-related tutorials using trained models from TFHub.

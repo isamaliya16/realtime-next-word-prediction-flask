@@ -1,0 +1,43 @@
+CycleGAN.
+
+CycleGAN.
+
+CycleGAN is a model that aims to solve the image-to-image translation problem. The goal of the image-to-image translation problem is to learn the mapping between an input image and an output image using a training set of aligned image pairs. However, obtaining paired examples isn't always feasible. CycleGAN tries to learn this mapping without requiring paired input-output images, using cycle-consistent adversarial networks.
+
+Paper.
+
+Original implementation.
+
+Setup.
+
+Prepare the dataset.
+
+In this example, we will be using the horse to zebra dataset.
+
+Create <code> objects.
+
+Visualize some samples.
+
+Building blocks used in the CycleGAN generators and discriminators.
+
+Build the generators.
+
+The generator consists of downsampling blocks: nine residual blocks and upsampling blocks. The structure of the generator is the following:
+
+Build the discriminators.
+
+The discriminators implement the following architecture: <code>.
+
+Build the CycleGAN model.
+
+We will override the <code> method of the <code> class for training via <code>.
+
+Create a callback that periodically saves generated images.
+
+Train the end-to-end model.
+
+Test the performance of the model.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

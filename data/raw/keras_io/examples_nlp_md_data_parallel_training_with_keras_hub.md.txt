@@ -1,0 +1,69 @@
+Data Parallel Training with KerasHub and tf.distribute.
+
+Introduction.
+
+Distributed training is a technique used to train deep learning models on multiple devices or machines simultaneously. It helps to reduce training time and allows for training larger models with more data. KerasHub is a library that provides tools and utilities for natural language processing tasks, including distributed training.
+
+In this tutorial, we will use KerasHub to train a BERT-based masked language model (MLM) on the wikitext-2 dataset (a 2 million word dataset of wikipedia articles). The MLM task involves predicting the masked words in a sentence, which helps the model learn contextual representations of words.
+
+This guide focuses on data parallelism, in particular synchronous data parallelism, where each accelerator (a GPU or TPU) holds a complete replica of the model, and sees a different partial batch of the input data. Partial gradients are computed on each device, aggregated, and used to compute a global gradient update.
+
+Specifically, this guide teaches you how to use the <code> API to train Keras models on multiple GPUs, with minimal changes to your code, in the following two setups:
+
+On multiple GPUs (typically 2 to 8) installed on a single machine (single host, multi-device training). This is the most common setup for researchers and small-scale industry workflows.
+
+On a cluster of many machines, each hosting one or multiple GPUs (multi-worker distributed training). This is a good setup for large-scale industry workflows, e.g. training high-resolution text summarization models on billion word datasets on 20-100 GPUs.
+
+Imports.
+
+Before we start any training, let's configure our single GPU to show up as two logical devices.
+
+When you are training with two or more physical GPUs, this is totally uncessary. This is just a trick to show real distributed training on the default colab GPU runtime, which has only one GPU available.
+
+To do single-host, multi-device synchronous training with a Keras model, you would use the <code> API. Here's how it works:
+
+Instantiate a <code>, optionally configuring which specific devices you want to use (by default the strategy will use all GPUs available).
+
+Use the strategy object to open a scope, and within this scope, create all the Keras objects you need that contain variables. Typically, that means creating & compiling the model inside the distribution scope.
+
+Train the model via <code> as usual.
+
+Base batch size and learning rate.
+
+Calculate scaled batch size and learning rate.
+
+Now, we need to download and preprocess the wikitext-2 dataset. This dataset will be used for pretraining the BERT model. We will filter out short lines to ensure that the data has enough context for training.
+
+In the above code, we download the wikitext-2 dataset and extract it. Then, we define three datasets: wikitrainds, wikivalds, and wikitestds. These datasets are filtered to remove short lines and are batched for efficient training.
+
+It's a common practice to use a decayed learning rate in NLP training/tuning. We'll use <code> schedule here.
+
+Let's also make a callback to TensorBoard, this will enable visualization of different metrics while we train the model in later part of this tutorial. We put all the callbacks together as follows:
+
+With the datasets prepared, we now initialize and compile our model and optimizer within the <code>:
+
+After fitting our model under the scope, we evaluate it normally!
+
+For distributed training across multiple machines (as opposed to training that only leverages multiple devices on a single machine), there are two distribution strategies you could use: <code> and <code>:
+
+<code> implements a synchronous CPU/GPU multi-worker solution to work with Keras-style model building and training loop, using synchronous reduction of gradients across the replicas.
+
+<code> implements an asynchronous CPU/GPU multi-worker solution, where the parameters are stored on parameter servers, and workers update the gradients to parameter servers asynchronously.
+
+Further reading.
+
+TensorFlow distributed training guide.
+
+Tutorial on multi-worker training with Keras.
+
+MirroredStrategy docs.
+
+MultiWorkerMirroredStrategy docs.
+
+Distributed training in tf.keras with Weights & Biases.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.
+
+Chapter 18: Best practices for the real world.

@@ -1,0 +1,41 @@
+Video Classification with Transformers.
+
+This example is a follow-up to the Video Classification with a CNN-RNN Architecture example. This time, we will be using a Transformer-based model (Vaswani et al.) to classify videos. You can follow this book chapter in case you need an introduction to Transformers (with code). After reading this example, you will know how to develop hybrid Transformer-based models for video classification that operate on CNN feature maps.
+
+Data collection.
+
+As done in the predecessor to this example, we will be using a subsampled version of the UCF101 dataset, a well-known benchmark dataset. In case you want to operate on a larger subsample or even the entire dataset, please refer to this notebook.
+
+Setup.
+
+Define hyperparameters.
+
+Data preparation.
+
+We will mostly be following the same data preparation steps in this example, except for the following changes:
+
+We reduce the image size to 128x128 instead of 224x224 to speed up computation.
+
+Instead of using a pre-trained InceptionV3 network, we use a pre-trained DenseNet121 for feature extraction.
+
+We directly pad shorter videos to length <code>.
+
+First, let's load up the DataFrames.
+
+Calling <code> on <code> and <code> takes ~20 minutes to complete. For this reason, to save time, here we download already preprocessed NumPy arrays:
+
+Building the Transformer-based model.
+
+We will be building on top of the code shared in this book chapter of Deep Learning with Python (Second ed.) by François Chollet.
+
+First, self-attention layers that form the basic blocks of a Transformer are order-agnostic. Since videos are ordered sequences of frames, we need our Transformer model to take into account order information. We do this via positional encoding. We simply embed the positions of the frames present inside videos with an <code> layer. We then add these positional embeddings to the precomputed CNN feature maps.
+
+Now, we can create a subclassed layer for the Transformer.
+
+Utility functions for training.
+
+Model training and inference.
+
+Note: This model has ~4.23 Million parameters, which is way more than the sequence model (99918 parameters) we used in the prequel of this example. This kind of Transformer model works best with a larger dataset and a longer pre-training schedule.
+
+The performance of our model is far from optimal, because it was trained on a small dataset.

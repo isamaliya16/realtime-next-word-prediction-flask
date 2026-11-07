@@ -1,0 +1,287 @@
+Multi-worker training with Keras.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+This tutorial demonstrates how to perform multi-worker distributed training with a Keras model and the <code> API using the <code> API. With the help of this strategy, a Keras model that was designed to run on a single-worker can seamlessly work on multiple workers with minimal code changes.
+
+To learn how to use the <code> with Keras and a custom training loop, refer to Custom training loop with Keras and MultiWorkerMirroredStrategy.
+
+This tutorial contains a minimal multi-worker example with two workers for demonstration purposes.
+
+Choose the right strategy.
+
+Before you dive in, make sure that <code> is the right choice for your accelerator(s) and training. These are two common ways of distributing training with data parallelism:
+
+Synchronous training, where the steps of training are synced across the workers and replicas, such as <code>, <code>, and <code>. All workers train over different slices of input data in sync, and aggregating gradients at each step.
+
+Asynchronous training, where the training steps are not strictly synced, such as <code>. All workers are independently training over the input data and updating variables asynchronously.
+
+If you are looking for multi-worker synchronous training without TPU, then <code> is your choice. It creates copies of all variables in the model's layers on each device across all workers. It uses <code>, a TensorFlow op for collective communication, to aggregate gradients and keeps the variables in sync. For those interested, check out the <code> parameter for the collective implementation options.
+
+For an overview of <code> APIs, refer to Distributed training in TensorFlow.
+
+Setup.
+
+Start with some necessary imports:
+
+Before importing TensorFlow, make a few changes to the environment:
+
+In a real-world application, each worker would be on a different machine. For the purposes of this tutorial, all the workers will run on the this machine. Therefore, disable all GPUs to prevent errors caused by all workers trying to use the same GPU.
+
+Reset the <code> environment variable (you'll learn more about this later):
+
+Make sure that the current directory is on Python's path—this allows the notebook to import the files written by <code> later:
+
+Install <code>, as the frequency of checkpoint saving at a particular step with the <code> argument in <code> is introduced from TensorFlow 2.10:
+
+Finally, import TensorFlow:
+
+Dataset and model definition.
+
+Next, create an <code> file with a simple model and dataset setup. This Python file will be used by the worker processes in this tutorial:
+
+Model training on a single worker.
+
+Try training the model for a small number of epochs and observe the results of a single worker to make sure everything works correctly. As training progresses, the loss should drop and the accuracy should increase.
+
+Multi-worker configuration.
+
+Now let's enter the world of multi-worker training.
+
+A cluster with jobs and tasks.
+
+In TensorFlow, distributed training involves a <code> with several jobs, and each of the jobs may have one or more <code>s.
+
+You will need the <code> configuration environment variable for training on multiple machines, each of which possibly has a different role. <code> is a JSON string used to specify the cluster configuration for each worker that is part of the cluster.
+
+There are two components of a <code> variable: <code> and <code>.
+
+A <code> is the same for all workers and provides information about the training cluster, which is a dict consisting of different types of jobs, such as <code> or <code>.
+
+In multi-worker training with <code>, there is usually one <code> that takes on more responsibilities, such as saving a checkpoint and writing a summary file for TensorBoard, in addition to what a regular <code> does. Such <code> is referred to as the chief worker (with a job name <code>).
+
+It is customary for the worker with <code> <code> to be the <code>.
+
+A <code> provides information on the current task and is different for each worker. It specifies the <code> and <code> of that worker.
+
+Below is an example configuration:
+
+Note that <code> is just a local variable in Python. To use it for training configuration, serialize it as a JSON and place it in a <code> environment variable.
+
+In the example configuration above, you set the task <code> to <code> and the task <code> to <code>. Therefore, this machine is the first worker. It will be appointed as the <code> worker.
+
+Note: Other machines will need to have the <code> environment variable set as well, and it should have the same <code> dict, but different task <code>s or task <code>es, depending on the roles of those machines.
+
+In practice, you would create multiple workers on external IP addresses/ports and set a <code> variable on each worker accordingly. For illustration purposes, this tutorial shows how you may set up a <code> variable with two workers on a <code>:
+
+The first (<code>) worker's <code> as shown above.
+
+For the second worker, you will set <code>.
+
+Environment variables and subprocesses in notebooks.
+
+Subprocesses inherit environment variables from their parent. So if you set an environment variable in this Jupyter Notebook process:
+
+... then you can access the environment variable from the subprocesses:
+
+In the next section, you'll use this method to pass the <code> to the worker subprocesses. You would never really launch your jobs this way in a real-world scenario—this tutorial is just showing how to do it with a minimal multi-worker example.
+
+Train the model.
+
+To train the model, firstly create an instance of the <code>:
+
+Note: <code> is parsed and TensorFlow's GRPC servers are started at the time <code> is called, so the <code> environment variable must be set before a <code> instance is created. Since <code> is not set yet, the above strategy is effectively single-worker training.
+
+With the integration of <code> API into <code>, the only change you will make to distribute the training to multiple-workers is enclosing the model building and <code> call inside <code>. The distribution strategy's scope dictates how and where the variables are created, and in the case of <code>, the variables created are <code>s, and they are replicated on each of the workers.
+
+Note: Currently there is a limitation in <code> where TensorFlow ops need to be created after the instance of strategy is created. If you encounter <code>, try creating the instance of <code> at the beginning of the program and put the code that may create ops after the strategy is instantiated.
+
+To actually run with <code> you'll need to run worker processes and pass a <code> to them.
+
+Like the <code> file written earlier, here is the <code> that each of the workers will run:
+
+In the code snippet above note that the <code>, which gets passed to <code>, is set to <code>. This ensures that each worker processes batches of <code> examples regardless of the number of workers.
+
+The current directory now contains both Python files:
+
+Serialize the <code> to JSON and add it to the environment variables:
+
+Now, you can launch a worker process that will run the <code> and use the <code>:
+
+There are a few things to note about the above command:
+
+It uses the <code> which is a notebook "magic" to run some bash commands.
+
+It uses the <code> flag to run the <code> process in the background, because this worker will not terminate. It waits for all the workers before it starts.
+
+The backgrounded worker process won't print output to this notebook, so the <code> redirects its output to a file so that you can inspect what happened in a log file later.
+
+So, wait a few seconds for the process to start up:
+
+Now, inspect what's been output to the worker's log file so far:
+
+The last line of the log file should say: <code>. The first worker is now ready and is waiting for all the other worker(s) to be ready to proceed.
+
+So update the <code> for the second worker's process to pick up:
+
+Launch the second worker. This will start the training since all the workers are active (so there's no need to background this process):
+
+If you recheck the logs written by the first worker, you'll learn that it participated in training that model:
+
+Note: This may run slower than the test run at the beginning of this tutorial because running multiple workers on a single machine only adds overhead. The goal here is not to improve the training time but to give an example of multi-worker training.
+
+Multi-worker training in depth.
+
+So far, you have learned how to perform a basic multi-worker setup. The rest of the tutorial goes over other factors, which may be useful or important for real use cases, in detail.
+
+Dataset sharding.
+
+In multi-worker training, dataset sharding is needed to ensure convergence and performance.
+
+The example in the previous section relies on the default autosharding provided by the <code> API. You can control the sharding by setting the <code> of the <code>.
+
+To learn more about auto-sharding, refer to the Distributed input guide.
+
+Here is a quick example of how to turn the auto sharding off, so that each replica processes every example (not recommended):
+
+Evaluation.
+
+If you pass the <code> into <code> as well, it will alternate between training and evaluation for each epoch. The evaluation work is distributed across the same set of workers, and its results are aggregated and available to all workers.
+
+Similar to training, the validation dataset is automatically sharded at the file level. You need to set a global batch size in the validation dataset and set the <code>.
+
+A repeated dataset (by calling <code>) is recommended for evaluation.
+
+Alternatively, you can also create another task that periodically reads checkpoints and runs the evaluation. This is what an Estimator does. But this is not a recommended way to perform evaluation and thus its details are omitted.
+
+Performance.
+
+To tweak the performance of multi-worker training, you can try the following:
+
+<code> provides multiple collective communication implementations:
+
+<code> implements ring-based collectives using gRPC as the cross-host communication layer.
+
+<code> uses the NVIDIA Collective Communication Library to implement collectives.
+
+<code> defers the choice to the runtime.
+
+The best choice of collective implementation depends upon the number of GPUs, the type of GPUs, and the network interconnects in the cluster. To override the automatic choice, specify the <code> parameter of <code>'s constructor. For example:
+
+Cast the variables to <code> if possible:
+
+The official ResNet model includes an example of how to do this.
+
+Fault tolerance.
+
+In synchronous training, the cluster would fail if one of the workers fails and no failure-recovery mechanism exists.
+
+Using Keras with <code> comes with the advantage of fault tolerance in cases where workers die or are otherwise unstable. You can do this by preserving the training state in the distributed file system of your choice, such that upon a restart of the instance that previously failed or preempted, the training state is recovered.
+
+When a worker becomes unavailable, other workers will fail (possibly after a timeout). In such cases, the unavailable worker needs to be restarted, as well as other workers that have failed.
+
+Note: Previously, the <code> callback provided a mechanism to restore the training state upon a restart from a job failure for multi-worker training. The TensorFlow team is introducing a new <code> callback, which also adds the support to single-worker training for a consistent experience, and removed the fault tolerance functionality from existing <code> callback. From now on, applications that rely on this behavior should migrate to the new <code> callback.
+
+The <code> callback.
+
+<code> callback no longer provides fault tolerance functionality, please use <code> callback instead.
+
+The <code> callback can still be used to save checkpoints. But with this, if training was interrupted or successfully finished, in order to continue training from the checkpoint, the user is responsible to load the model manually.
+
+Optionally, users can choose to save and restore model/weights outside <code> callback.
+
+Model saving and loading.
+
+To save your model using <code> or <code>, the saving destination needs to be different for each worker.
+
+For non-chief workers, you will need to save the model to a temporary directory.
+
+For the chief, you will need to save to the provided model directory.
+
+The temporary directories on the worker need to be unique to prevent errors resulting from multiple workers trying to write to the same location.
+
+The model saved in all the directories is identical, and typically only the model saved by the chief should be referenced for restoring or serving.
+
+You should have some cleanup logic that deletes the temporary directories created by the workers once your training has completed.
+
+The reason for saving on the chief and workers at the same time is because you might be aggregating variables during checkpointing, which requires both the chief and workers to participate in the allreduce communication protocol. On the other hand, letting chief and workers save to the same model directory will result in errors due to contention.
+
+Using the <code>, the program is run on every worker, and in order to know whether the current worker is the chief, it takes advantage of the cluster resolver object that has attributes <code> and <code>:
+
+<code> tells you what the current job is (for example, <code>).
+
+<code> tells you the identifier of the worker.
+
+The worker with <code> is designated as the chief worker.
+
+In the code snippet below, the <code> function provides the file path to write, which depends on the worker's <code>:
+
+For the chief worker (with <code>), it writes to the original file path.
+
+For other workers, it creates a temporary directory—<code>—with the <code> in the directory path to write in:
+
+With that, you're now ready to save:
+
+Deprecated: For Keras objects, it's recommended to use the new high-level <code> format and <code>, as demonstrated in the guide here. The low-level SavedModel format continues to be supported for existing code.
+
+As described above, later on the model should only be loaded from the file path the chief worker saved to. Therefore, remove the temporary ones the non-chief workers have saved:
+
+Now, when it's time to load, use the convenient <code> API, and continue with further work.
+
+Here, assume only using single worker to load and continue training, in which case you do not call <code> within another <code> (note that <code>, as defined earlier):
+
+Checkpoint saving and restoring.
+
+On the other hand, checkpointing allows you to save your model's weights and restore them without having to save the whole model.
+
+Here, you'll create one <code> that tracks the model, which is managed by the <code>, so that only the latest checkpoint is preserved:
+
+Once the <code> is set up, you're now ready to save and remove the checkpoints the non-chief workers had saved:
+
+Now, when you need to restore the model, you can find the latest checkpoint saved using the convenient <code> function. After restoring the checkpoint, you can continue with training.
+
+The <code> callback.
+
+The <code> callback provides the fault tolerance functionality by backing up the model and current training state in a temporary checkpoint file under <code> argument to <code>.
+
+Note: In Tensorflow 2.9, the current model and the training state is backed up at epoch boundaries. In the <code> version and from TensorFlow 2.10, the <code> callback can back up the model and the training state at epoch or step boundaries. <code> accepts an optional <code> argument. <code> accepts either <code> or an <code> value. If <code> is set to <code> the model is backed up after every epoch. If <code> is set to an integer value greater than <code>, the model is backed up after every <code> number of batches.
+
+Once the jobs get interrupted and restarted, the <code> callback restores the last checkpoint, and you can continue training from the beginning of the epoch and step at which the training state was last saved.
+
+To use it, provide an instance of <code> at the <code> call.
+
+With <code>, if a worker gets interrupted, the whole cluster will pause until the interrupted worker is restarted. Other workers will also restart, and the interrupted worker will rejoin the cluster. Then, every worker will read the checkpoint file that was previously saved and pick up its former state, thereby allowing the cluster to get back in sync. Then, the training will continue. The distributed dataset iterator state will be re-initialized and not restored.
+
+The <code> callback uses the <code> to save and restore the training state, which generates a file called checkpoint that tracks existing checkpoints together with the latest one. For this reason, <code> should not be re-used to store other checkpoints in order to avoid name collision.
+
+Currently, the <code> callback supports single-worker training with no strategy—<code>—and multi-worker training with <code>.
+
+Below are two examples for both multi-worker training and single-worker training:
+
+If the <code> argument in the <code> callback is set to <code>, the model is backed up after every epoch.
+
+Note: The next code block uses features that are only available in <code> until Tensorflow 2.10 is released.
+
+If the <code> argument in the <code> callback is set to an integer value greater than <code>, the model is backed up after every <code> number of batches.
+
+If you inspect the directory of <code> you specified in <code>, you may notice some temporarily generated checkpoint files. Those files are needed for recovering the previously lost instances, and they will be removed by the library at the end of <code> upon successful exiting of your training.
+
+Note: Currently the <code> callback only supports eager mode. In graph mode, consider using <code>/<code> and <code> for saving and restoring models, respectively, as described in the Model saving and loading section above, and by providing <code> in <code> during training.
+
+Additional resources.
+
+The Distributed training in TensorFlow guide provides an overview of the available distribution strategies.
+
+The Custom training loop with Keras and MultiWorkerMirroredStrategy tutorial shows how to use the <code> with Keras and a custom training loop.
+
+Check out the official models, many of which can be configured to run multiple distribution strategies.
+
+The Better performance with tf.function guide provides information about other strategies and tools, such as the TensorFlow Profiler you can use to optimize the performance of your TensorFlow models.

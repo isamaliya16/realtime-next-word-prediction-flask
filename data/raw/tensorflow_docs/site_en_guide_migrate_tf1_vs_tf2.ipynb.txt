@@ -1,0 +1,293 @@
+TensorFlow 1.x vs TensorFlow 2 - Behaviors and APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+Under the hood, TensorFlow 2 follows a fundamentally different programming paradigm from TF1.x.
+
+This guide describes the fundamental differences between TF1.x and TF2 in terms of behaviors and the APIs, and how these all relate to your migration journey.
+
+High-level summary of major changes.
+
+Fundamentally, TF1.x and TF2 use a different set of runtime behaviors around execution (eager in TF2), variables, control flow, tensor shapes, and tensor equality comparisons. To be TF2 compatible, your code must be compatible with the full set of TF2 behaviors. During migration, you can enable or disable most of these behaviors individually via the <code> or <code> APIs. The one exception is the removal of collections, which is a side effect of enabling/disabling eager execution.
+
+At a high level, TensorFlow 2:
+
+Removes redundant APIs.
+
+Makes APIs more consistent - for example, Unified RNNs and Unified Optimizers.
+
+Prefers functions over sessions and integrates better with the Python runtime with Eager execution enabled by default along with <code> that provides automatic control dependencies for graphs and compilation.
+
+Deprecates global graph collections.
+
+Alters Variable concurrency semantics by using <code> over <code>.
+
+Supports function-based and differentiable control flow (Control Flow v2).
+
+Simplifies the TensorShape API to hold <code>s instead of <code> objects.
+
+Updates tensor equality mechanics. In TF1.x the <code> operator on tensors and variables checks for object reference equality. In TF2 it checks for value equality. Additionally, tensors/variables are no longer hashable, but you can get hashable object references to them via <code> if you need to use them in sets or as <code> keys.
+
+The sections below provide some more context on the differences between TF1.x and TF2. To learn more about the design process behind TF2, read the RFCs and the design docs.
+
+API cleanup.
+
+Many APIs are either gone or moved in TF2. Some of the major changes include removing <code>, <code>, and <code> in favor of the now open-source absl-py, rehoming projects that lived in <code>, and cleaning up the main <code> namespace by moving lesser used functions into subpackages like <code>. Some APIs have been replaced with their TF2 equivalents - <code>, <code>, and <code>.
+
+<code>: Legacy and Compatibility API Endpoints.
+
+Symbols under the <code> and <code> namespaces are not considered TF2 APIs. These namespaces expose a mix of compatibility symbols, as well as legacy API endpoints from TF 1.x. These are intended to aid migration from TF1.x to TF2. However, as none of these <code> APIs are idiomatic TF2 APIs, do not use them for writing brand-new TF2 code.
+
+Individual <code> symbols may be TF2 compatible because they continue to work even with TF2 behaviors enabled (such as <code>), while others are incompatible with TF2 (such as <code>). Many <code> symbols (though not all) contain dedicated migration information in their documentation that explains their degree of compatibility with TF2 behaviors, as well as how to migrate them to TF2 APIs.
+
+The TF2 upgrade script can map many <code> API symbols to equivalent TF2 APIs in the case where they are aliases or have the same arguments but with a different ordering. You can also use the upgrade script to automatically rename TF1.x APIs.
+
+False friend APIs.
+
+There are a set of "false-friend" symbols found in the TF2 <code> namespace (not under <code>) that actually ignore TF2 behaviors under-the-hood, and/or are not fully compatible with the full set of TF2 behaviors. As such, these APIs are likely to misbehave with TF2 code, potentially in silent ways.
+
+<code>: Estimators create and use graphs and sessions under the hood. As such, these should not be considered TF2-compatible. If your code is running estimators, it is not using TF2 behaviors.
+
+<code>: This creates an Estimator under the hood, which as mentioned above is not TF2-compatible.
+
+<code>: This enters TF1.x graph behaviors and does not follow standard TF2-compatible <code> behaviors. Code that enters graphs like this will generally run them via Sessions, and should not be considered TF2-compatible.
+
+<code> The feature column APIs generally rely on TF1-style <code> variable creation and assume that the created variables will be accessed via global collections. As TF2 does not support collections, APIs may not work correctly when running them with TF2 behaviors enabled.
+
+Other API changes.
+
+TF2 features significant improvements to the device placement algorithms which renders the usage of <code> unnecessary. If removing it causes a performance degradation, please file a bug.
+
+Replace all usage of <code> with equivalent functions from <code>.
+
+Eager execution.
+
+TF1.x required you to manually stitch together an abstract syntax tree (the graph) by making <code> API calls and then manually compile the abstract syntax tree by passing a set of output tensors and input tensors to a <code> call. TF2 executes eagerly (like Python normally does) and makes graphs and sessions feel like implementation details.
+
+One notable byproduct of eager execution is that <code> is no longer required, as all lines of code execute in order (within a <code>, code with side effects executes in the order written).
+
+No more globals.
+
+TF1.x relied heavily on implicit global namespaces and collections. When you call <code>, it would be put into a collection in the default graph, and it would remain there, even if you lost track of the Python variable pointing to it. You could then recover that <code>, but only if you knew the name that it had been created with. This was difficult to do if you were not in control of the variable's creation. As a result, all sorts of mechanisms proliferated to attempt to help you find your variables again, and for frameworks to find user-created variables. Some of these include: variable scopes, global collections, helper methods like <code> and <code>, optimizers implicitly computing gradients over all trainable variables, and so on. TF2 eliminates all of these mechanisms (Variables 2.0 RFC) in favor of the default mechanism - you keep track of your variables. If you lose track of a <code>, it gets garbage collected.
+
+The requirement to track variables creates some extra work, but with tools like the modeling shims and behaviors like implicit object-oriented variable collections in <code>s and <code>s, the burden is minimized.
+
+Functions, not sessions.
+
+A <code> call is almost like a function call: you specify the inputs and the function to be called, and you get back a set of outputs. In TF2, you can decorate a Python function using <code> to mark it for JIT compilation so that TensorFlow runs it as a single graph (Functions 2.0 RFC). This mechanism allows TF2 to gain all of the benefits of graph mode:
+
+Performance: The function can be optimized (node pruning, kernel fusion, etc.).
+
+Portability: The function can be exported/reimported (SavedModel 2.0 RFC), allowing you to reuse and share modular TensorFlow functions.
+
+With the power to freely intersperse Python and TensorFlow code, you can take advantage of Python's expressiveness. However, portable TensorFlow executes in contexts without a Python interpreter, such as mobile, C++, and JavaScript. To help avoid rewriting your code when adding <code>, use AutoGraph to convert a subset of Python constructs into their TensorFlow equivalents:
+
+<code>/<code> -> <code> (<code> and <code> are supported).
+
+<code> -> <code>.
+
+<code> -> <code>.
+
+AutoGraph supports arbitrary nestings of control flow, which makes it possible to performantly and concisely implement many complex ML programs such as sequence models, reinforcement learning, custom training loops, and more.
+
+Adapting to TF 2.x Behavior Changes.
+
+Your migration to TF2 is only complete once you have migrated to the full set of TF2 behaviors. The full set of behaviors can be enabled or disabled via <code> and <code>. The sections below discuss each major behavior change in detail.
+
+Using <code>s.
+
+The largest changes to your programs during migration are likely to come from the fundamental programming model paradigm shift from graphs and sessions to eager execution and <code>. Refer to the TF2 migration guides to learn more about moving from APIs that are incompatible with eager execution and <code> to APIs that are compatible with them.
+
+Note: During migration you may choose to directly enable and disable eager execution with <code> and <code>, but this may only be done once during the lifetime of your program.
+
+Below are some common program patterns not tied to any one API that may cause problems when switching from <code>s and <code>s to eager execution with <code>s.
+
+Pattern 1: Python object manipulation and variable creation intended to be done only once get run multiple times.
+
+In TF1.x programs that rely on graphs and sessions, the expectation is usually that all Python logic in your program will only run once. However, with eager execution and <code> it is fair to expect that your Python logic will be run at least once, but possibly more times (either multiple times eagerly, or multiple times across different <code> traces). Sometimes, <code> will even trace twice on the same input, causing unexpected behaviors (see Example 1 and 2). Refer to the <code> guide for more details.
+
+Note: This pattern usually causes your code to silently misbehave when executing eagerly without <code>s, but generally raises an <code> or a <code> when attempting to wrap the problematic code inside of a <code>. To discover and debug this issue, it is recommended you wrap your code with <code> early on, and use pdb or interactive debugging to identify the source of the <code>.
+
+Example 1: Variable creation.
+
+Consider the example below, where the function creates a variable when called:
+
+However, naively wrapping the above function that contains variable creation with <code> is not allowed. <code> only supports singleton variable creations on the first call. To enforce this, when tf.function detects variable creation in the first call, it will attempt to trace again and raise an error if there is variable creation in the second trace.
+
+A workaround is caching and reusing the variable after it is created in the first call.
+
+Example 2: Out-of-scope Tensors due to <code> retracing.
+
+As demonstrated in Example 1, <code> will retrace when it detects Variable creation in the first call. This can cause extra confusion, because the two tracings will create two graphs. When the second graph from retracing attempts to access a Tensor from the graph generated during the first tracing, Tensorflow will raise an error complaining that the Tensor is out of scope. To demonstrate the scenario, the code below creates a dataset on the first <code> call. This would run as expected.
+
+However, if we also attempt to create a variable on the first <code> call, the code will raise an error complaining that the dataset is out of scope. This is because the dataset is in the first graph, while the second graph is also attempting to access it.
+
+The most straightforward solution is ensuring that the variable creation and dataset creation are both outside of the <code> call. For example:
+
+However, sometimes it's not avoidable to create variables in <code> (such as slot variables in some TF keras optimizers). Still, we can simply move the dataset creation outside of the <code> call. The reason that we can rely on this is because <code> will receive the dataset as an implicit input and both graphs can access it properly.
+
+Example 3: Unexpected Tensorflow object re-creations due to dict usage.
+
+<code> has very poor support for python side effects such as appending to a list, or checking/adding to a dictionary. More details are in "Better performance with tf.function". In the example below, the code uses dictionaries to cache datasets and iterators. For the same key, each call to the model will return the same iterator of the dataset.
+
+However, the pattern above will not work as expected in <code>. During tracing, <code> will ignore the python side effect of addition to the dictionaries. Instead, it only remembers the creation of a new dataset and iterator. As a result, each call to the model will always return a new iterator. This issue is hard to notice unless the numerical results or performance are significant enough. Hence, we recommend users to think about the code carefully before wrapping <code> naively onto the python code.
+
+We can use <code> to lift the dataset and iterator creation outside of the graph, to achieve the expected behavior:
+
+The general rule of thumb is to avoid relying on Python side effects in your logic and only use them to debug your traces.
+
+Example 4: Manipulating a global Python list.
+
+The following TF1.x code uses a global list of losses that it uses to only maintain the list of losses generated by the current training step. Note that the Python logic that appends losses to the list will only be called once regardless of how many training steps the session is run for.
+
+However, if this Python logic is naively mapped to TF2 with eager execution, the global list of losses will have new values appended to it in each training step. This means the training step code which previously expected the list to only contain losses from the current training step now actually sees the list of losses from all training steps run so far. This is an unintended behavior change, and the list will either need to be cleared at the start of each step or made local to the training step.
+
+Pattern 2: A symbolic tensor meant to be recomputed every step in TF1.x is accidentally cached with the initial value when switching to eager.
+
+This pattern usually causes your code to silently misbehave when executing eagerly outside of tf.functions, but raises an <code> if the initial value caching occurs inside of a <code>. However, be aware that in order to avoid Pattern 1 above you will often inadvertently structure your code in such a way that this initial value caching will happen outside of any <code> that would be able to raise an error. So, take extra care if you know your program may be susceptible to this pattern.
+
+The general solution to this pattern is to restructure the code or use Python callables if necessary to make sure the value is recomputed each time instead of being accidentally cached.
+
+Example 1: Learning rate/hyperparameter/etc. schedules that depend on global step.
+
+In the following code snippet, the expectation is that every time the session is run the most recent <code> value will be read and a new learning rate will be computed.
+
+However, when trying to switch to eager, be wary of ending up with the learning rate only being computed once then reused, rather than following the intended schedule:
+
+Because this specific example is a common pattern and optimizers should only be initialized once rather than at each training step, TF2 optimizers support <code> schedules or Python callables as arguments for the learning rate and other hyperparameters.
+
+Example 2: Symbolic random number initializations assigned as object attributes then reused via pointer are accidentally cached when switching to eager.
+
+Consider the following <code> module:
+
+Using it as follows in TF1.x will compute a new random noise tensor every time the session is run:
+
+However, in TF2 initializing the <code> at the beginning will cause the <code> to be only computed once and get frozen for all training steps:
+
+To fix this, refactor <code> to call <code> every time a new random tensor is needed, instead of referring to the same tensor object each time.
+
+Pattern 3: TF1.x code directly relies on and looks up tensors by name.
+
+It is common for TF1.x code tests to rely on checking what tensors or operations are present in a graph. In some rare cases, modeling code will also rely on these lookups by name.
+
+Tensor names are not generated when executing eagerly outside of <code> at all, so all usages of <code> must happen inside of a <code>. Keep in mind the actual generated names are very likely to differ between TF1.x and TF2 even within the same <code>, and API guarantees do not ensure stability of the generated names across TF versions.
+
+Note: Variable names are still generated even outside of <code>s, but their names also are not guaranteed to match between TF1.x and TF2 except when following the relevant sections of the model mapping guide.
+
+Pattern 4: TF1.x session selectively runs only part of the generated graph.
+
+In TF1.x, you can construct a graph and then choose to only selectively run only a subset of it with a session by choosing a set of inputs and outputs that do not require running every op in the graph.
+
+For example, you may have both a generator and a discriminator inside of a single graph, and use separate <code> calls to alternate between only training the discriminator or only training the generator.
+
+In TF2, due to automatic control dependencies in <code> and eager execution, there is no selective pruning of <code> traces. A full graph containing all variable updates would get run even if, for example, only the output of the discriminator or the generator is output from the <code>.
+
+So, you would need to either use multiple <code>s containing different parts of the program, or a conditional argument to the <code> that you branch on so as to execute only the things you actually want to have run.
+
+Collections Removal.
+
+When eager execution is enabled, graph collection-related <code> APIs (including those that read or write to collections under the hood such as <code>) are no longer available. Some may raise <code>s, while others may silently return empty lists.
+
+The most standard usage of collections in TF1.x is to maintain initializers, the global step, weights, regularization losses, model output losses, and variable updates that need to be run such as from <code> layers.
+
+To handle each of these standard usages:
+
+Initializers - Ignore. Manual variable initialization is not required with eager execution enabled.
+
+Global step - See the documentation of <code> for migration instructions.
+
+Weights - Map your models to <code>s/<code>s/<code>s by following the guidance in the model mapping guide and then use their respective weight-tracking mechanisms such as <code>.
+
+Regularization losses - Map your models to <code>s/<code>s/<code>s by following the guidance in the model mapping guide and then use <code>. Alternatively, you can also manually track your regularization losses.
+
+Model output losses - Use <code> loss management mechanisms or separately track your losses without using collections.
+
+Weight updates - Ignore this collection. Eager execution and <code> (with autograph and auto-control-dependencies) means all variable updates will get run automatically. So, you will not have to explicitly run all weight updates at the end, but note that it means the weight updates may happen at a different time than they did in your TF1.x code, depending on how you were using control dependencies.
+
+Summaries - Refer to the migrating summary API guide.
+
+More complex collections usage (such as using custom collections) may require you to refactor your code to either maintain your own global stores, or to make it not rely on global stores at all.
+
+<code> instead of <code>.
+
+<code> have stronger read-write consistency guarantees than <code>. This leads to more predictable, easier-to-reason semantics about whether or not you will observe the result of a previous write when using your variables. This change is extremely unlikely to cause existing code to raise errors or to break silently.
+
+However, it is possible though unlikely that these stronger consistency guarantees may increase the memory usage of your specific program. Please file an issue if you find this to be the case. Additionally, if you have unit tests relying on exact string comparisons against the operator names in a graph corresponding to variable reads, be aware that enabling resource variables may slightly change the name of these operators.
+
+To isolate the impact of this behavior change on your code, if eager execution is disabled you can use <code> and <code> to globally disable or enable this behavior change. <code> will always be used if eager execution is enabled.
+
+Control flow v2.
+
+In TF1.x, control flow ops such as <code> and <code> inline low-level ops such as <code>, <code> etc. TF2 provides improved functional control flow ops that are implemented with separate <code> traces for every branch and support higher-order differentiation.
+
+To isolate the impact of this behavior change on your code, if eager execution is disabled you can use <code> and <code> to globally disable or enable this behavior change. However, you can only disable control flow v2 if eager execution is also disabled. If it is enabled, control flow v2 will always be used.
+
+This behavior change can dramatically change the structure of generated TF programs that use control flow, as they will contain several nested function traces rather than one flat graph. So, any code that is highly dependent on the exact semantics of produced traces may require some modification. This includes:
+
+Code relying on operator and tensor names.
+
+Code referring to tensors created within a TensorFlow control flow branch from outside of that branch. This is likely to produce an <code>.
+
+This behavior change is intended to be performance neutral to positive, but if you run into an issue where control flow v2 performs worse for you than TF1.x control flow then please file an issue with reproduction steps.
+
+TensorShape API behavior changes.
+
+The <code> class was simplified to hold <code>s, instead of <code> objects. So there is no need to call <code> to get an <code>.
+
+Individual <code> objects are still accessible from <code>.
+
+To isolate the impact of this behavior change on your code, you can use <code> and <code> to globally disable or enable this behavior change.
+
+The following demonstrate the differences between TF1.x and TF2.
+
+If you had this in TF1.x:
+
+Then do this in TF2:
+
+If you had this in TF1.x:
+
+Then, do this in TF2:
+
+If you had this in TF1.x (or used any other dimension method):
+
+Then do this in TF2:
+
+The boolean value of a <code> is <code> if the rank is known, <code> otherwise.
+
+Potential errors due to TensorShape changes.
+
+The TensorShape behavior changes are unlikely to silently break your code. However, you may see shape-related code begin to raise <code>s as <code>s and <code>s do not have the same attributes that <code>s do. Below are some examples of these <code>s:
+
+Tensor Equality by Value.
+
+The binary <code> and <code> operators on variables and tensors were changed to compare by value in TF2 rather than comparing by object reference like in TF1.x. Additionally, tensors and variables are no longer directly hashable or usable in sets or dict keys, because it may not be possible to hash them by value. Instead, they expose a <code> method that you can use to get a hashable reference to the tensor or variable.
+
+To isolate the impact of this behavior change, you can use <code> and <code> to globally disable or enable this behavior change.
+
+For example, in TF1.x, two variables with the same value will return false when you use the <code> operator:
+
+While in TF2 with tensor equality checks enabled, <code> will return <code>.
+
+So, in TF2, if you need to compare by object reference make sure to use <code> and <code>.
+
+Hashing tensors and variables.
+
+With TF1.x behaviors you used to be able to directly add variables and tensors to data structures that require hashing, such as <code> and <code> keys.
+
+However, in TF2 with tensor equality enabled, tensors and variables are made unhashable due to the <code> and <code> operator semantics changing to value equality checks.
+
+So, in TF2 if you need to use tensor or variable objects as keys or <code> contents, you can use <code> to get a hashable reference that can be used as a key:
+
+If needed, you can also get the tensor or variable from the reference by using <code>:
+
+Resources and further reading.
+
+Visit the Migrate to TF2 section to read more about migrating to TF2 from TF1.x.
+
+Read the model mapping guide to learn more mapping your TF1.x models to work in TF2 directly.

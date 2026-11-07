@@ -1,0 +1,219 @@
+Graph representation learning with node2vec.
+
+Introduction.
+
+Learning useful representations from objects structured as graphs is useful for a variety of machine learning (ML) applications—such as social and communication networks analysis, biomedicine studies, and recommendation systems. Graph representation Learning aims to learn embeddings for the graph nodes, which can be used for a variety of ML tasks such as node label prediction (e.g. categorizing an article based on its citations) and link prediction (e.g. recommending an interest group to a user in a social network).
+
+node2vec is a simple, yet scalable and effective technique for learning low-dimensional embeddings for nodes in a graph by optimizing a neighborhood-preserving objective. The aim is to learn similar embeddings for neighboring nodes, with respect to the graph structure.
+
+Given your data items structured as a graph (where the items are represented as nodes and the relationship between items are represented as edges), node2vec works as follows:
+
+Generate item sequences using (biased) random walk.
+
+Create positive and negative training examples from these sequences.
+
+Train a word2vec model (skip-gram) to learn embeddings for the items.
+
+In this example, we demonstrate the node2vec technique on the small version of the Movielens dataset to learn movie embeddings. Such a dataset can be represented as a graph by treating the movies as nodes, and creating edges between movies that have similar ratings by the users. The learnt movie embeddings can be used for tasks such as movie recommendation, or movie genres prediction.
+
+This example requires <code> package, which can be installed using the following command:
+
+Setup.
+
+Download the MovieLens dataset and prepare the data.
+
+The small version of the MovieLens dataset includes around 100k ratings from 610 users on 9,742 movies.
+
+First, let's download the dataset. The downloaded folder will contain three data files: <code>, <code>, and <code>. In this example, we will only need the <code>, and <code> data files.
+
+Then, we load the data into a Pandas DataFrame and perform some basic preprocessing.
+
+Let's inspect a sample instance of the <code> DataFrame.
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+userId movieId rating timestamp.
+
+0 1 movie_1 4.0 964982703.
+
+1 1 movie_3 4.0 964981247.
+
+2 1 movie_6 4.0 964982224.
+
+3 1 movie_47 5.0 964983815.
+
+4 1 movie_50 5.0 964982931.
+
+Next, let's check a sample instance of the <code> DataFrame.
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+movieId title genres.
+
+0 movie_1 Toy Story (1995) Adventure|Animation|Children|Comedy|Fantasy.
+
+1 movie_2 Jumanji (1995) Adventure|Children|Fantasy.
+
+2 movie_3 Grumpier Old Men (1995) Comedy|Romance.
+
+3 movie_4 Waiting to Exhale (1995) Comedy|Drama|Romance.
+
+4 movie_5 Father of the Bride Part II (1995) Comedy.
+
+Implement two utility functions for the <code> DataFrame.
+
+Construct the Movies graph.
+
+We create an edge between two movie nodes in the graph if both movies are rated by the same user >= <code>. The weight of the edge will be based on the pointwise mutual information between the two movies, which is computed as: <code>, where:
+
+<code> is how many users rated both movie <code> and movie <code> with >= <code>.
+
+<code> is how many users rated movie <code> >= <code>.
+
+<code> is how many users rated movie <code> >= <code>.
+
+<code> total number of movie ratings >= <code>.
+
+Step 1: create the weighted edges between movies.
+
+Compute movie rating frequencies: 0%| | 0/573 [00:00<?, ?it/s].
+
+Compute movie rating frequencies: 49%|████████████████████████████████████▌ | 283/573 [00:00<00:00, 2665.28it/s].
+
+Compute movie rating frequencies: 96%|███████████████████████████████████████████████████████████████████████ | 550/573 [00:00<00:00, 2460.74it/s].
+
+Compute movie rating frequencies: 100%|██████████████████████████████████████████████████████████████████████████| 573/573 [00:00<00:00, 2288.26it/s].
+
+Step 2: create the graph with the nodes and the edges.
+
+To reduce the number of edges between nodes, we only add an edge between movies if the weight of the edge is greater than <code>.
+
+Creating the movie graph: 0%| | 0/298586 [00:00<?, ?it/s].
+
+Creating the movie graph: 46%|█████████████████████████████████▍ | 136673/298586 [00:00<00:00, 1366688.94it/s].
+
+Creating the movie graph: 99%|████████████████████████████████████████████████████████████████████████▎| 295749/298586 [00:00<00:00, 1498456.83it/s].
+
+Creating the movie graph: 100%|█████████████████████████████████████████████████████████████████████████| 298586/298586 [00:00<00:00, 1476425.78it/s].
+
+Let's display the total number of nodes and edges in the graph. Note that the number of nodes is less than the total number of movies, since only the movies that have edges to other movies are added.
+
+Let's display the average node degree (number of neighbours) in the graph.
+
+Step 3: Create vocabulary and a mapping from tokens to integer indices.
+
+The vocabulary is the nodes (movie IDs) in the graph.
+
+Implement the biased random walk.
+
+A random walk starts from a given node, and randomly picks a neighbour node to move to. If the edges are weighted, the neighbour is selected probabilistically with respect to weights of the edges between the current node and its neighbours. This procedure is repeated for <code> to generate a sequence of related nodes.
+
+The biased random walk balances between breadth-first sampling (where only local neighbours are visited) and depth-first sampling (where distant neighbours are visited) by introducing the following two parameters:
+
+Return parameter (<code>): Controls the likelihood of immediately revisiting a node in the walk. Setting it to a high value encourages moderate exploration, while setting it to a low value would keep the walk local.
+
+In-out parameter (<code>): Allows the search to differentiate between inward and outward nodes. Setting it to a high value biases the random walk towards local nodes, while setting it to a low value biases the walk to visit nodes which are further away.
+
+Generate training data using the biased random walk.
+
+You can explore different configurations of <code> and <code> to different results of related movies.
+
+Random walks iteration 1: 0%| | 0/1405 [00:00<?, ?it/s].
+
+Random walks iteration 1: 72%|█████████████████████████████████████████████████████████▌ | 1012/1405 [00:01<00:00, 1011.26it/s].
+
+Random walks iteration 2: 0%| | 0/1405 [00:00<?, ?it/s].
+
+Random walks iteration 2: 72%|█████████████████████████████████████████████████████████▊ | 1016/1405 [00:01<00:00, 1015.77it/s].
+
+Random walks iteration 3: 0%| | 0/1405 [00:00<?, ?it/s].
+
+Random walks iteration 3: 75%|████████████████████████████████████████████████████████████ | 1054/1405 [00:01<00:00, 1053.31it/s].
+
+Random walks iteration 4: 0%| | 0/1405 [00:00<?, ?it/s].
+
+Random walks iteration 4: 74%|██████████████████████████████████████████████████████████▊ | 1033/1405 [00:01<00:00, 1032.74it/s].
+
+Random walks iteration 5: 0%| | 0/1405 [00:00<?, ?it/s].
+
+Random walks iteration 5: 74%|███████████████████████████████████████████████████████████ | 1037/1405 [00:01<00:00, 1035.86it/s].
+
+Generate positive and negative examples.
+
+To train a skip-gram model, we use the generated walks to create positive and negative training examples. In Keras 3, the legacy preprocessing module has been removed. We now implement a manual skip-gram sampling function using NumPy to generate positive and negative training examples from our random walks. Each example includes the following features:
+
+<code>: A movie in a walk sequence.
+
+<code>: Another movie in a walk sequence.
+
+<code>: How many times these two movies occurred in walk sequences.
+
+<code>: The label is 1 if these two movies are samples from the walk sequences, otherwise (i.e., if randomly sampled) the label is 0.
+
+Generate examples.
+
+Generating positive and negative examples: 0%| | 0/7025 [00:00<?, ?it/s].
+
+Generating positive and negative examples: 19%|███████████▊ | 1320/7025 [00:01<00:04, 1319.75it/s].
+
+Generating positive and negative examples: 38%|████████████████████████▏ | 2700/7025 [00:02<00:03, 1354.92it/s].
+
+Generating positive and negative examples: 58%|████████████████████████████████████▎ | 4055/7025 [00:03<00:02, 1351.41it/s].
+
+Generating positive and negative examples: 77%|████████████████████████████████████████████████▍ | 5407/7025 [00:04<00:01, 1339.05it/s].
+
+Generating positive and negative examples: 96%|████████████████████████████████████████████████████████████▌ | 6747/7025 [00:05<00:00, 1300.35it/s].
+
+Let's display the shapes of the outputs.
+
+Data Loading with PyDataset.
+
+We replace the tf.data pipeline with keras.utils.PyDataset. This ensures our data pipeline is fully backend-agnostic and avoids symbolic tensor errors when running on JAX or PyTorch.
+
+Train the skip-gram model.
+
+Our skip-gram is a simple binary classification model that works as follows:
+
+An embedding is looked up for the <code> movie.
+
+An embedding is looked up for the <code> movie.
+
+The dot product is computed between these two embeddings.
+
+The result (after a sigmoid activation) is compared to the label.
+
+A binary crossentropy loss is used.
+
+Implement the model.
+
+Train the model.
+
+We instantiate the model and compile it.
+
+Let's plot the model.
+
+Now we train the model on the <code>.
+
+Finally we plot the learning history.
+
+Analyze the learnt embeddings.
+
+Find related movies.
+
+Define a list with some movies called <code>.
+
+Get the embeddings of the movies in <code>.
+
+Compute the consine similarity between the embeddings of <code> and all the other movies, then pick the top k for each.
+
+Display the top related movies in <code>.
+
+Visualize the embeddings using the Embedding Projector.
+
+Download the <code> and <code> to analyze the obtained embeddings in the Embedding Projector.
+
+Example available on HuggingFace.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

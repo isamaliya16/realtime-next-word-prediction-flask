@@ -1,0 +1,109 @@
+Quickstart for the TensorFlow Core APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This quickstart tutorial demonstrates how you can use the TensorFlow Core low-level APIs to build and train a multiple linear regression model that predicts fuel efficiency. It uses the Auto MPG dataset which contains fuel efficiency data for late-1970s and early 1980s automobiles.
+
+You will follow the typical stages of a machine learning process:
+
+Load the dataset.
+
+Build an input pipeline.
+
+Build a multiple linear regression model.
+
+Evaluate the performance of the model.
+
+Setup.
+
+Import TensorFlow and other necessary libraries to get started:
+
+Load and preprocess the dataset.
+
+Next, you need to load and preprocess the Auto MPG dataset from the UCI Machine Learning Repository. This dataset uses a variety of quantitative and categorical features such as cylinders, displacement, horsepower and weight to predict the fuel efficiencies of automobiles in the late-1970s and early 1980s.
+
+The dataset contains a few unknown values. Make sure to drop any missing values with <code>, and convert the dataset to a <code> tensor type with the <code> and <code> functions.
+
+Next, split the dataset into training and test sets. Make sure to shuffle the dataset with <code> to avoid biased splits.
+
+Perform basic feature engineering by one-hot-encoding the <code> feature. The <code> function is useful for transforming this categorical column into 3 separate binary columns.
+
+This example shows a multiple regression problem with predictors or features on vastly different scales. Therefore, it is beneficial to standardize the data so that each feature has zero mean and unit variance. Use the <code> and <code> functions for standardization. The regression model's prediction can then be unstandardized to obtain its value in terms of the original units.
+
+Build a machine learning model.
+
+Build a linear regression model with the TensorFlow Core APIs. The equation for multiple linear regression is as follows:
+
+<math>.
+
+where.
+
+<math>: target vector.
+
+<math>: feature matrix.
+
+<math>: weight vector.
+
+<math>: bias.
+
+By using the <code> decorator, the corresponding Python code is traced to generate a callable TensorFlow graph. This approach is beneficial for saving and loading the model after training. It can also provide a performance boost for models with many layers and complex operations.
+
+For each example, the model returns a prediction for the input automobile's MPG by computing the weighted sum of its features plus a bias term. This prediction can then be unstandardized to obtain its value in terms of the original units.
+
+Define a loss function.
+
+Now, define a loss function to evaluate the model's performance during the training process.
+
+Since regression problems deal with continuous outputs, the mean squared error (MSE) is an ideal choice for the loss function. The MSE is defined by the following equation:
+
+<math>.
+
+where.
+
+<math>: vector of predictions.
+
+<math>: vector of true targets.
+
+The goal of this regression problem is to find the optimal weight vector, <math>, and bias, <math>, that minimizes the MSE loss function.
+
+Train and evaluate your model.
+
+Using mini-batches for training provides both memory efficiency and faster convergence. The <code> API has useful functions for batching and shuffling. The API enables you to build complex input pipelines from simple, reusable pieces. Learn more about building TensorFlow input pipelines in this guide.
+
+Next, write a training loop to iteratively update your model's parameters by making use of the MSE loss function and its gradients with respect to the input parameters.
+
+This iterative method is referred to as gradient descent. At each iteration, the model's parameters are updated by taking a step in the opposite direction of their computed gradients. The size of this step is determined by the learning rate, which is a configurable hyperparameter. Recall that the gradient of a function indicates the direction of its steepest ascent; therefore, taking a step in the opposite direction indicates the direction of steepest descent, which ultimately helps to minimize the MSE loss function.
+
+Plot the changes in MSE loss over time. Calculating performance metrics on a designated validation set or test set ensures the model does not overfit to the training dataset and can generalize well to unseen data.
+
+It seems like the model does a good job of fitting the training data while also generalizing well to the unseen test data.
+
+Save and load the model.
+
+Start by making an export module that takes in raw data and performs the following operations:
+
+Feature extraction.
+
+Normalization.
+
+Prediction.
+
+Unnormalization.
+
+If you want to save the model at its current state, use the <code> function. To load a saved model for making predictions, use the <code> function.
+
+Conclusion.
+
+Congratulations! You have trained a regression model using the TensorFlow Core low-level APIs.
+
+For more examples of using TensorFlow Core APIs, check out the following guides:
+
+Logistic regression for binary classification.
+
+Multi-layer perceptrons for hand-written digit recognition.

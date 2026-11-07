@@ -1,0 +1,191 @@
+Writing Distributed Applications with PyTorch Author: Séb Arnold.
+
+Prerequisites:
+
+PyTorch Distributed Overview.
+
+In this short tutorial, we will be going over the distributed package of PyTorch. We'll see how to set up the distributed setting, use the different communication strategies, and go over some of the internals of the package.
+
+Setup.
+
+The distributed package included in PyTorch (i.e., <code>) enables researchers and practitioners to easily parallelize their computations across processes and clusters of machines. To do so, it leverages message passing semantics allowing each process to communicate data to any of the other processes. As opposed to the multiprocessing (<code>) package, processes can use different communication backends and are not restricted to being executed on the same machine.
+
+In order to get started we need the ability to run multiple processes simultaneously. If you have access to compute cluster you should check with your local sysadmin or use your favorite coordination tool (e.g., pdsh, clustershell, or slurm). For the purpose of this tutorial, we will use a single machine and spawn multiple processes using the following template.
+
+The above script spawns two processes who will each setup the distributed environment, initialize the process group (<code>), and finally execute the given <code> function.
+
+Let's have a look at the <code> function. It ensures that every process will be able to coordinate through a master, using the same ip address and port. Note that we used the <code> backend but other backends are available. (c.f. Section 5.1) We will go over the magic happening in <code> at the end of this tutorial, but it essentially allows processes to communicate with each other by sharing their locations.
+
+Point-to-Point Communication.
+
+A transfer of data from one process to another is called a point-to-point communication. These are achieved through the <code> and <code> functions or their immediate counter-parts, <code> and <code>.
+
+In the above example, both processes start with a zero tensor, then process 0 increments the tensor and sends it to process 1 so that they both end up with 1.0. Notice that process 1 needs to allocate memory in order to store the data it will receive.
+
+Also notice that <code> are blocking: both processes block until the communication is completed. On the other hand immediates are non-blocking; the script continues its execution and the methods return a <code> object upon which we can choose to <code>.
+
+When using immediates we have to be careful about how we use the sent and received tensors. Since we do not know when the data will be communicated to the other process, we should not modify the sent tensor nor access the received tensor before <code> has completed. In other words.
+
+writing to <code> after <code> will result in undefined behaviour.
+
+reading from <code> after <code> will result in undefined behaviour, until <code> has been executed.
+
+However, after <code> has been executed we are guaranteed that the communication took place, and that the value stored in <code> is 1.0.
+
+Point-to-point communication is useful when we want more fine-grained control over the communication of our processes. They can be used to implement fancy algorithms, such as the one used in Baidu's DeepSpeech or Facebook's large-scale experiments.(c.f. Section 4.1).
+
+Collective Communication.
+
+As opposed to point-to-point communcation, collectives allow for communication patterns across all processes in a group. A group is a subset of all our processes. To create a group, we can pass a list of ranks to <code>. By default, collectives are executed on all processes, also known as the world. For example, in order to obtain the sum of all tensors on all processes, we can use the <code> collective.
+
+Since we want the sum of all tensors in the group, we use <code> as the reduce operator. Generally speaking, any commutative mathematical operation can be used as an operator. Out-of-the-box, PyTorch comes with many such operators, all working at the element-wise level:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+The full list of supported operators is here.
+
+In addition to <code>, there are many additional collectives currently implemented in PyTorch. Here are a few supported collectives.
+
+<code>: Copies <code> from <code> to all other processes.
+
+<code>: Applies <code> to every <code> and stores the result in <code>.
+
+<code>: Same as reduce, but the result is stored in all processes.
+
+<code>: Copies the i^{\text{th}} tensor <code> to the i^{\text{th}} process.
+
+<code>: Copies <code> from all processes in <code>.
+
+<code>: Copies <code> from all processes to <code>, on all processes.
+
+<code>: Blocks all processes in <code> until each one has entered this function.
+
+<code>: Scatters list of input tensors to all processes in a group and return gathered list of tensors in output list.
+
+The full list of supported collectives can be found by looking at the latest documentation for PyTorch Distributed (link).
+
+Distributed Training.
+
+Note: You can find the example script of this section in this GitHub repository.
+
+Now that we understand how the distributed module works, let us write something useful with it. Our goal will be to replicate the functionality of DistributedDataParallel. Of course, this will be a didactic example and in a real-world situation you should use the official, well-tested and well-optimized version linked above.
+
+Quite simply we want to implement a distributed version of stochastic gradient descent. Our script will let all processes compute the gradients of their model on their batch of data and then average their gradients. In order to ensure similar convergence results when changing the number of processes, we will first have to partition our dataset. (You could also use torch.utils.data.random_split, instead of the snippet below.).
+
+With the above snippet, we can now simply partition any dataset using the following few lines:
+
+Assuming we have 2 replicas, then each process will have a <code> of 60000 / 2 = 30000 samples. We also divide the batch size by the number of replicas in order to maintain the overall batch size of 128.
+
+We can now write our usual forward-backward-optimize training code, and add a function call to average the gradients of our models. (The following is largely inspired by the official PyTorch MNIST example.).
+
+It remains to implement the <code> function, which simply takes in a model and averages its gradients across the whole world.
+
+Et voilà! We successfully implemented distributed synchronous SGD and could train any model on a large computer cluster.
+
+Note: While the last sentence is technically true, there are a lot more tricks required to implement a production-level implementation of synchronous SGD. Again, use what has been tested and optimized.
+
+Our Own Ring-Allreduce.
+
+As an additional challenge, imagine that we wanted to implement DeepSpeech's efficient ring allreduce. This is fairly easy to implement using point-to-point collectives.
+
+In the above script, the <code> function has a slightly different signature than the ones in PyTorch. It takes a <code> tensor and will store the sum of all <code> tensors in it. As an exercise left to the reader, there is still one difference between our version and the one in DeepSpeech: their implementation divides the gradient tensor into chunks, so as to optimally utilize the communication bandwidth. (Hint: torch.chunk).
+
+Advanced Topics.
+
+We are now ready to discover some of the more advanced functionalities of <code>. Since there is a lot to cover, this section is divided into two subsections:
+
+Communication Backends: where we learn how to use MPI and Gloo for GPU-GPU communication.
+
+Initialization Methods: where we understand how to best set up the initial coordination phase in <code>.
+
+Communication Backends.
+
+One of the most elegant aspects of <code> is its ability to abstract and build on top of different backends. As mentioned before, there are multiple backends implemented in PyTorch. These backends can be easily selected using the Accelerator API, which provides a interface for working with different accelerator types. Some of the most popular backends are Gloo, NCCL, and MPI. They each have different specifications and tradeoffs, depending on the desired use case. A comparative table of supported functions can be found here.
+
+Gloo Backend.
+
+So far we have made extensive usage of the Gloo backend. It is quite handy as a development platform, as it is included in the pre-compiled PyTorch binaries and works on both Linux (since 0.2) and macOS (since 1.3). It supports all point-to-point and collective operations on CPU, and all collective operations on GPU. The implementation of the collective operations for CUDA tensors is not as optimized as the ones provided by the NCCL backend.
+
+As you have surely noticed, our distributed SGD example does not work if you put <code> on the GPU. In order to use multiple GPUs, let us also make the following modifications:
+
+Use Accelerator API <code>.
+
+Use <code>.
+
+<code> \rightarrow <code>.
+
+Use <code>.
+
+With these modifications, your model will now train across two GPUs. You can monitor GPU utilization using <code> if you are running on NVIDIA hardware.
+
+MPI Backend.
+
+The Message Passing Interface (MPI) is a standardized tool from the field of high-performance computing. It allows to do point-to-point and collective communications and was the main inspiration for the API of <code>. Several implementations of MPI exist (e.g. Open-MPI, MVAPICH2, Intel MPI) each optimized for different purposes. The advantage of using the MPI backend lies in MPI's wide availability - and high-level of optimization - on large computer clusters. Some recent implementations are also able to take advantage of CUDA IPC and GPU Direct technologies in order to avoid memory copies through the CPU.
+
+Unfortunately, PyTorch's binaries cannot include an MPI implementation and we'll have to recompile it by hand. Fortunately, this process is fairly simple given that upon compilation, PyTorch will look by itself for an available MPI implementation. The following steps install the MPI backend, by installing PyTorch from source.
+
+Create and activate your Anaconda environment, install all the pre-requisites following the guide, but do not run <code> yet.
+
+Choose and install your favorite MPI implementation. Note that enabling CUDA-aware MPI might require some additional steps. In our case, we'll stick to Open-MPI without GPU support: <code>.
+
+Now, go to your cloned PyTorch repo and execute <code>.
+
+In order to test our newly installed backend, a few modifications are required.
+
+Replace the content under <code> with <code>.
+
+Run <code>.
+
+The reason for these changes is that MPI needs to create its own environment before spawning the processes. MPI will also spawn its own processes and perform the handshake described in Initialization Methods, making the <code>\ and <code> arguments of <code> superfluous. This is actually quite powerful as you can pass additional arguments to <code> in order to tailor computational resources for each process. (Things like number of cores per process, hand-assigning machines to specific ranks, and some more) Doing so, you should obtain the same familiar output as with the other communication backends.
+
+NCCL Backend.
+
+The NCCL backend provides an optimized implementation of collective operations against CUDA tensors. If you only use CUDA tensors for your collective operations, consider using this backend for the best in class performance. The NCCL backend is included in the pre-built binaries with CUDA support.
+
+XCCL Backend.
+
+The <code> offers an optimized implementation of collective operations for XPU tensors. If your workload uses only XPU tensors for collective operations, this backend provides best-in-class performance. The XCCL backend is included in the pre-built binaries with XPU support.
+
+Initialization Methods.
+
+To conclude this tutorial, let's examine the initial function we invoked: <code>. Specifically, we will discuss the various initialization methods responsible for the preliminary coordination step between each process. These methods enable you to define how this coordination is accomplished.
+
+The choice of initialization method depends on your hardware setup, and one method may be more suitable than others. In addition to the following sections, please refer to the official documentation for further information.
+
+Environment Variable.
+
+We have been using the environment variable initialization method throughout this tutorial. By setting the following four environment variables on all machines, all processes will be able to properly connect to the master, obtain information about the other processes, and finally handshake with them.
+
+<code>: A free port on the machine that will host the process with rank 0.
+
+<code>: IP address of the machine that will host the process with rank 0.
+
+<code>: The total number of processes, so that the master knows how many workers to wait for.
+
+<code>: Rank of each process, so they will know whether it is the master or a worker.
+
+Shared File System.
+
+The shared filesystem requires all processes to have access to a shared file system, and will coordinate them through a shared file. This means that each process will open the file, write its information, and wait until everybody did so. After that all required information will be readily available to all processes. In order to avoid race conditions, the file system must support locking through fcntl.
+
+TCP.
+
+Initializing via TCP can be achieved by providing the IP address of the process with rank 0 and a reachable port number. Here, all workers will be able to connect to the process with rank 0 and exchange information on how to reach each other.
+
+Acknowledgements.
+
+I'd like to thank the PyTorch developers for doing such a good job on their implementation, documentation, and tests. When the code was unclear, I could always count on the docs or the tests to find an answer. In particular, I'd like to thank Soumith Chintala, Adam Paszke, and Natalia Gimelshein for providing insightful comments and answering questions on early drafts.

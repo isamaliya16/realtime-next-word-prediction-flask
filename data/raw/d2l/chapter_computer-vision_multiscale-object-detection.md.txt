@@ -1,0 +1,55 @@
+Multiscale Object Detection.
+
+In section <num>, we generated multiple anchor boxes centered on each pixel of an input image. Essentially these anchor boxes represent samples of different regions of the image. However, we may end up with too many anchor boxes to compute if they are generated for every pixel. Think of a <math> input image. If five anchor boxes with varying shapes are generated for each pixel as their center, over two million anchor boxes (<math>) need to be labeled and predicted on the image.
+
+Multiscale Anchor Boxes.
+
+You may realize that it is not difficult to reduce anchor boxes on an image. For instance, we can just uniformly sample a small portion of pixels from the input image to generate anchor boxes centered on them. In addition, at different scales we can generate different numbers of anchor boxes of different sizes. Intuitively, smaller objects are more likely to appear on an image than larger ones. As an example, <math>, <math>, and <math> objects can appear on a <math> image in 4, 2, and 1 possible ways, respectively. Therefore, when using smaller anchor boxes to detect smaller objects, we can sample more regions, while for larger objects we can sample fewer regions.
+
+To demonstrate how to generate anchor boxes at multiple scales, let's read an image. Its height and width are 561 and 728 pixels, respectively.
+
+Recall that in section <num> we call a two-dimensional array output of a convolutional layer a feature map. By defining the feature map shape, we can determine centers of uniformly sampled anchor boxes on any image.
+
+The <code> function is defined below. [We generate anchor boxes (<code>) on the feature map (<code>) with each unit (pixel) as the anchor box center.] Since the <math>-axis coordinate values in the anchor boxes (<code>) have been divided by the width and height of the feature map (<code>), these values are between 0 and 1, which indicate the relative positions of anchor boxes in the feature map.
+
+Since centers of the anchor boxes (<code>) are spread over all units on the feature map (<code>), these centers must be uniformly distributed on any input image in terms of their relative spatial positions. More concretely, given the width and height of the feature map <code> and <code>, respectively, the following function will uniformly sample pixels in <code> rows and <code> columns on any input image. Centered on these uniformly sampled pixels, anchor boxes of scale <code> (assuming the length of the list <code> is 1) and different aspect ratios (<code>) will be generated.
+
+First, let's [consider detection of small objects]. In order to make it easier to distinguish when displayed, the anchor boxes with different centers here do not overlap: the anchor box scale is set to 0.15 and the height and width of the feature map are set to 4. We can see that the centers of the anchor boxes in 4 rows and 4 columns on the image are uniformly distributed.
+
+We move on to [reduce the height and width of the feature map by half and use larger anchor boxes to detect larger objects]. When the scale is set to 0.4, some anchor boxes will overlap with each other.
+
+Finally, we [further reduce the height and width of the feature map by half and increase the anchor box scale to 0.8]. Now the center of the anchor box is the center of the image.
+
+Multiscale Detection.
+
+Since we have generated multiscale anchor boxes, we will use them to detect objects of various sizes at different scales. In the following we introduce a CNN-based multiscale object detection method that we will implement in section <num>.
+
+At some scale, say that we have <math> feature maps of shape <math>. Using the method in section <num>, we generate <math> sets of anchor boxes, where each set has <math> anchor boxes with the same center. For example, at the first scale in the experiments in section <num>, given ten (number of channels) <math> feature maps, we generated 16 sets of anchor boxes, where each set contains 3 anchor boxes with the same center. Next, each anchor box is labeled with the class and offset based on ground-truth bounding boxes. At the current scale, the object detection model needs to predict the classes and offsets of <math> sets of anchor boxes on the input image, where different sets have different centers.
+
+Assume that the <math> feature maps here are the intermediate outputs obtained by the CNN forward propagation based on the input image. Since there are <math> different spatial positions on each feature map, the same spatial position can be thought of as having <math> units. According to the definition of receptive field in section <num>, these <math> units at the same spatial position of the feature maps have the same receptive field on the input image: they represent the input image information in the same receptive field. Therefore, we can transform the <math> units of the feature maps at the same spatial position into the classes and offsets of the <math> anchor boxes generated using this spatial position. In essence, we use the information of the input image in a certain receptive field to predict the classes and offsets of the anchor boxes that are close to that receptive field on the input image.
+
+When the feature maps at different layers have varying-size receptive fields on the input image, they can be used to detect objects of different sizes. For example, we can design a neural network where units of feature maps that are closer to the output layer have wider receptive fields, so they can detect larger objects from the input image.
+
+In a nutshell, we can leverage layerwise representations of images at multiple levels by deep neural networks for multiscale object detection. We will show how this works through a concrete example in section <num>.
+
+Summary.
+
+At multiple scales, we can generate anchor boxes with different sizes to detect objects with different sizes.
+
+By defining the shape of feature maps, we can determine centers of uniformly sampled anchor boxes on any image.
+
+We use the information of the input image in a certain receptive field to predict the classes and offsets of the anchor boxes that are close to that receptive field on the input image.
+
+Through deep learning, we can leverage its layerwise representations of images at multiple levels for multiscale object detection.
+
+Exercises.
+
+According to our discussions in section <num>, deep neural networks learn hierarchical features with increasing levels of abstraction for images. In multiscale object detection, do feature maps at different scales correspond to different levels of abstraction? Why or why not?
+
+At the first scale (<code>) in the experiments in section <num>, generate uniformly distributed anchor boxes that may overlap.
+
+Given a feature map variable with shape <math>, where <math>, <math>, and <math> are the number of channels, height, and width of the feature maps, respectively. How can you transform this variable into the classes and offsets of anchor boxes? What is the shape of the output?
+
+Discussions.
+
+Discussions.

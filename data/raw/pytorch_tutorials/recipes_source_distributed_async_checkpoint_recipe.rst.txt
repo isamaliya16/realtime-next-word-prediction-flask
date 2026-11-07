@@ -1,0 +1,29 @@
+Asynchronous Saving with Distributed Checkpoint (DCP).
+
+Checkpointing is often a bottleneck in the critical path for distributed training workloads, incurring larger and larger costs as both model and world sizes grow. One excellent strategy for offsetting this cost is to checkpoint in parallel, asynchronously. Below, we expand the save example from the Getting Started with Distributed Checkpoint Tutorial to show how this can be integrated quite easily with <code>.
+
+Asynchronous Checkpointing Overview Before getting started with Asynchronous Checkpointing, it's important to understand its differences and limitations as compared to synchronous checkpointing. Specifically:
+
+Memory requirements - Asynchronous checkpointing works by first copying models into internal CPU-buffers. This is helpful since it ensures model and optimizer weights are not changing while the model is still checkpointing, but does raise CPU memory by a factor of <code>. Additionally, users should take care to understand the memory constraints of their systems. Specifically, pinned memory implies the usage of <code> memory, which can be scarce as compared to <code> memory.
+
+Checkpoint Management - Since checkpointing is asynchronous, it is up to the user to manage concurrently run checkpoints. In general, users can employ their own management strategies by handling the future object returned form <code>. For most users, we recommend limiting checkpoints to one asynchronous request at a time, avoiding additional memory pressure per request.
+
+Even more performance with Pinned Memory If the above optimization is still not performant enough, you can take advantage of an additional optimization for GPU models which utilizes a pinned memory buffer for checkpoint staging. Specifically, this optimization attacks the main overhead of asynchronous checkpointing, which is the in-memory copying to checkpointing buffers. By maintaining a pinned memory buffer between checkpoint requests users can take advantage of direct memory access to speed up this copy.
+
+Fully Asynchronous Staging with DefaultStager.
+
+While <code> handles the disk write asynchronously, the process of copying data from GPU to CPU (known as "staging") typically happens on the main thread. Even with Pinned Memory, this Device-to-Host (D2H) copy can block the training loop for large models.
+
+To achieve maximum overlap between computation and checkpointing, we can use the <code>. This component offloads the state dictionary creation and the D2H copy to a background thread.
+
+Timeline Comparison:
+
+Standard async_save: <code>.
+
+With AsyncStager: <code>.
+
+Conclusion In conclusion, we have learned how to use DCP's async_save API to generate checkpoints off the critical training path. We've also learned about the additional memory and concurrency overhead introduced by using this API, as well as additional optimizations which utilize pinned memory to speed things up even further.
+
+Saving and loading models tutorial.
+
+Getting started with FullyShardedDataParallel tutorial.

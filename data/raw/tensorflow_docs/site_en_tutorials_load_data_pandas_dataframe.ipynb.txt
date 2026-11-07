@@ -1,0 +1,139 @@
+Licensed under the Apache License, Version 2.0 (the "License");
+
+Load a pandas DataFrame.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial provides examples of how to load pandas DataFrames into TensorFlow.
+
+You will use a small heart disease dataset provided by the UCI Machine Learning Repository. There are several hundred rows in the CSV. Each row describes a patient, and each column describes an attribute. You will use this information to predict whether a patient has heart disease, which is a binary classification task.
+
+Read data using pandas.
+
+Download the CSV file containing the heart disease dataset:
+
+Read the CSV file using pandas:
+
+This is what the data looks like:
+
+You will build models to predict the label contained in the <code> column.
+
+A DataFrame as an array.
+
+If your data has a uniform datatype, or <code>, it's possible to use a pandas DataFrame anywhere you could use a NumPy array. This works because the <code> class supports the <code> protocol, and TensorFlow's <code> function accepts objects that support the protocol.
+
+Take the numeric features from the dataset (skip the categorical features for now):
+
+The DataFrame can be converted to a NumPy array using the <code> property or <code>. To convert it to a tensor, use <code>:
+
+In general, if an object can be converted to a tensor with <code> it can be passed anywhere you can pass a <code>.
+
+With Model.fit.
+
+A DataFrame, interpreted as a single tensor, can be used directly as an argument to the <code> method.
+
+Below is an example of training a model on the numeric features of the dataset.
+
+The first step is to normalize the input ranges. Use a <code> layer for that.
+
+To set the layer's mean and standard-deviation before running it be sure to call the <code> method:
+
+Call the layer on the first three rows of the DataFrame to visualize an example of the output from this layer:
+
+Use the normalization layer as the first layer of a simple model:
+
+When you pass the DataFrame as the <code> argument to <code>, Keras treats the DataFrame as it would a NumPy array:
+
+With tf.data.
+
+If you want to apply <code> transformations to a DataFrame of a uniform <code>, the <code> method will create a dataset that iterates over the rows of the DataFrame. Each row is initially a vector of values. To train a model, you need <code> pairs, so pass <code> and <code> will return the needed pairs of slices:
+
+A DataFrame as a dictionary.
+
+When you start dealing with heterogeneous data, it is no longer possible to treat the DataFrame as if it were a single array. TensorFlow tensors require that all elements have the same <code>.
+
+So, in this case, you need to start treating it as a dictionary of columns, where each column has a uniform <code>. A DataFrame is a lot like a dictionary of arrays, so typically all you need to do is cast the DataFrame to a Python dict. Many important TensorFlow APIs support (nested-)dictionaries of arrays as inputs.
+
+<code> input pipelines handle this quite well. All <code> operations handle dictionaries and tuples automatically. So, to make a dataset of dictionary-examples from a DataFrame, just cast it to a dict before slicing it with <code>:
+
+Here are the first three examples from that dataset:
+
+Typically, Keras models and layers expect a single input tensor, but these classes can accept and return nested structures of dictionaries, tuples and tensors. These structures are known as "nests" (refer to the <code> module for details).
+
+There are two equivalent ways you can write a Keras model that accepts a dictionary as input.
+
+1. The Model-subclass style.
+
+You write a subclass of <code> (or <code>). You directly handle the inputs, and create the outputs:
+
+This model can accept either a dictionary of columns or a dataset of dictionary-elements for training:
+
+Here are the predictions for the first three examples:
+
+2. The Keras functional style.
+
+You can train the functional model the same way as the model subclass:
+
+Full example.
+
+If you're passing a heterogeneous DataFrame to Keras, each column may need unique preprocessing. You could do this preprocessing directly in the DataFrame, but for a model to work correctly, inputs always need to be preprocessed the same way. So, the best approach is to build the preprocessing into the model. Keras preprocessing layers cover many common tasks.
+
+Build the preprocessing head.
+
+In this dataset some of the "integer" features in the raw data are actually Categorical indices. These indices are not really ordered numeric values (refer to the the dataset description for details). Because these are unordered they are inappropriate to feed directly to the model; the model would interpret them as being ordered. To use these inputs you'll need to encode them, either as one-hot vectors or embedding vectors. The same applies to string-categorical features.
+
+Note: If you have many features that need identical preprocessing it's more efficient to concatenate them together before applying the preprocessing.
+
+Binary features on the other hand do not generally need to be encoded or normalized.
+
+Start by by creating a list of the features that fall into each group:
+
+The next step is to build a preprocessing model that will apply appropriate preprocessing to each input and concatenate the results.
+
+This section uses the Keras Functional API to implement the preprocessing. You start by creating one <code> for each column of the dataframe:
+
+For each input you'll apply some transformations using Keras layers and TensorFlow ops. Each feature starts as a batch of scalars (<code>). The output for each should be a batch of <code> vectors (<code>). The last step will concatenate all those vectors together.
+
+Binary inputs.
+
+Since the binary inputs don't need any preprocessing, just add the vector axis, cast them to <code> and add them to the list of preprocessed inputs:
+
+Numeric inputs.
+
+Like in the earlier section you'll want to run these numeric inputs through a <code> layer before using them. The difference is that this time they're input as a dict. The code below collects the numeric features from the DataFrame, stacks them together and passes those to the <code> method.
+
+The code below stacks the numeric features and runs them through the normalization layer.
+
+Categorical features.
+
+To use categorical features you'll first need to encode them into either binary vectors or embeddings. Since these features only contain a small number of categories, convert the inputs directly to one-hot vectors using the <code> option, supported by both the <code> and <code> layers.
+
+Here is an example of how these layers work:
+
+To determine the vocabulary for each input, create a layer to convert that vocabulary to a one-hot vector:
+
+Assemble the preprocessing head.
+
+At this point <code> is just a Python list of all the preprocessing results, each result has a shape of <code>:
+
+Concatenate all the preprocessed features along the <code> axis, so each dictionary-example is converted into a single vector. The vector contains categorical features, numeric features, and categorical one-hot features:
+
+Now create a model out of that calculation so it can be reused:
+
+To test the preprocessor, use the DataFrame.iloc accessor to slice the first example from the DataFrame. Then convert it to a dictionary and pass the dictionary to the preprocessor. The result is a single vector containing the binary features, normalized numeric features and the one-hot categorical features, in that order:
+
+Create and train a model.
+
+Now build the main body of the model. Use the same configuration as in the previous example: A couple of <code> rectified-linear layers and a <code> output layer for the classification.
+
+Now put the two pieces together using the Keras functional API.
+
+This model expects a dictionary of inputs. The simplest way to pass it the data is to convert the DataFrame to a dict and pass that dict as the <code> argument to <code>:
+
+Using <code> works as well:

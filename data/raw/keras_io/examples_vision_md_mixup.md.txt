@@ -1,0 +1,51 @@
+MixUp augmentation for image classification.
+
+Introduction.
+
+mixup is a domain-agnostic data augmentation technique proposed in mixup: Beyond Empirical Risk Minimization by Zhang et al. It's implemented with the following formulas:
+
+(Note that the lambda values are values with the [0, 1] range and are sampled from the Beta distribution.).
+
+The technique is quite systematically named. We are literally mixing up the features and their corresponding labels. Implementation-wise it's simple. Neural networks are prone to memorizing corrupt labels. mixup relaxes this by combining different features with one another (same happens for the labels too) so that a network does not get overconfident about the relationship between the features and their labels.
+
+mixup is specifically useful when we are not sure about selecting a set of augmentation transforms for a given dataset, medical imaging datasets, for example. mixup can be extended to a variety of data modalities such as computer vision, naturallanguage processing, speech, and so on.
+
+Setup.
+
+Prepare the dataset.
+
+In this example, we will be using the FashionMNIST dataset. But this same recipe can be used for other classification datasets as well.
+
+Define hyperparameters.
+
+Convert the data into TensorFlow <code> objects.
+
+Define the mixup technique function.
+
+To perform the mixup routine, we create new virtual datasets using the training data from the same dataset, and apply a lambda value within the [0, 1] range sampled from a Beta distribution — such that, for example, <code> (where <code> and <code> are images) and the same equation is applied to the labels as well.
+
+Note that here , we are combining two images to create a single one. Theoretically, we can combine as many we want but that comes at an increased computation cost. In certain cases, it may not help improve the performance as well.
+
+Visualize the new augmented dataset.
+
+Model building.
+
+For the sake of reproducibility, we serialize the initial random weights of our shallow network.
+
+1. Train the model with the mixed up dataset.
+
+2. Train the model without the mixed up dataset.
+
+Readers are encouraged to try out mixup on different datasets from different domains and experiment with the lambda parameter. You are strongly advised to check out the original paper as well - the authors present several ablation studies on mixup showing how it can improve generalization, as well as show their results of combining more than two images to create a single one.
+
+Notes.
+
+With mixup, you can create synthetic examples — especially when you lack a large dataset - without incurring high computational costs.
+
+Label smoothing and mixup usually do not work well together because label smoothing already modifies the hard labels by some factor.
+
+mixup does not work well when you are using Supervised Contrastive Learning (SCL) since SCL expects the true labels during its pre-training phase.
+
+A few other benefits of mixup include (as described in the paper) robustness to adversarial examples and stabilized GAN (Generative Adversarial Networks) training.
+
+There are a number of data augmentation techniques that extend mixup such as CutMix and AugMix.

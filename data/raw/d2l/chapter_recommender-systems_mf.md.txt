@@ -1,0 +1,61 @@
+Matrix Factorization.
+
+Matrix Factorization is a well-established algorithm in the recommender systems literature. The first version of matrix factorization model is proposed by Simon Funk in a famous blog post in which he described the idea of factorizing the interaction matrix. It then became widely known due to the Netflix contest which was held in 2006. At that time, Netflix, a media-streaming and video-rental company, announced a contest to improve its recommender system performance. The best team that can improve on the Netflix baseline, i.e., Cinematch), by 10 percent would win a one million USD prize. As such, this contest attracted a lot of attention to the field of recommender system research. Subsequently, the grand prize was won by the BellKor's Pragmatic Chaos team, a combined team of BellKor, Pragmatic Theory, and BigChaos (you do not need to worry about these algorithms now). Although the final score was the result of an ensemble solution (i.e., a combination of many algorithms), the matrix factorization algorithm played a critical role in the final blend. The technical report of the Netflix Grand Prize solution provides a detailed introduction to the adopted model. In this section, we will dive into the details of the matrix factorization model and its implementation.
+
+The Matrix Factorization Model.
+
+Matrix factorization is a class of collaborative filtering models. Specifically, the model factorizes the user-item interaction matrix (e.g., rating matrix) into the product of two lower-rank matrices, capturing the low-rank structure of the user-item interactions.
+
+Let <math> denote the interaction matrix with <math> users and <math> items, and the values of <math> represent explicit ratings. The user-item interaction will be factorized into a user latent matrix <math> and an item latent matrix <math>, where <math>, is the latent factor size. Let <math> denote the <math> row of <math> and <math> denote the <math> row of <math>. For a given item <math>, the elements of <math> measure the extent to which the item possesses those characteristics such as the genres and languages of a movie. For a given user <math>, the elements of <math> measure the extent of interest the user has in items' corresponding characteristics. These latent factors might measure obvious dimensions as mentioned in those examples or are completely uninterpretable. The predicted ratings can be estimated by.
+
+<math>.
+
+where <math> is the predicted rating matrix which has the same shape as <math>. One major problem of this prediction rule is that users/items biases can not be modeled. For example, some users tend to give higher ratings or some items always get lower ratings due to poorer quality. These biases are commonplace in real-world applications. To capture these biases, user specific and item specific bias terms are introduced. Specifically, the predicted rating user <math> gives to item <math> is calculated by.
+
+<math>.
+
+Then, we train the matrix factorization model by minimizing the mean squared error between predicted rating scores and real rating scores. The objective function is defined as follows:
+
+<math>.
+
+where <math> denotes the regularization rate. The regularizing term $\lambda (\| \mathbf{P} \|^2F + \| \mathbf{Q} \|^2F + bu^2 + bi^2 )$ is used to avoid over-fitting by penalizing the magnitude of the parameters. The <math> pairs for which <math> is known are stored in the set <math>. The model parameters can be learned with an optimization algorithm, such as Stochastic Gradient Descent and Adam.
+
+An intuitive illustration of the matrix factorization model is shown below:
+
+In the rest of this section, we will explain the implementation of matrix factorization and train the model on the MovieLens dataset.
+
+Model Implementation.
+
+First, we implement the matrix factorization model described above. The user and item latent factors can be created with the <code>. The <code> is the number of items/users and the <code> is the dimension of the latent factors <math>. We can also use <code> to create the user/item biases by setting the <code> to one. In the <code> function, user and item ids are used to look up the embeddings.
+
+Evaluation Measures.
+
+We then implement the RMSE (root-mean-square error) measure, which is commonly used to measure the differences between rating scores predicted by the model and the actually observed ratings (ground truth) . RMSE is defined as:
+
+<math>.
+
+where <math> is the set consisting of pairs of users and items that you want to evaluate on. <math> is the size of this set. We can use the RMSE function provided by <code>.
+
+Training and Evaluating the Model.
+
+In the training function, we adopt the <math> loss with weight decay. The weight decay mechanism has the same effect as the <math> regularization.
+
+Finally, let's put all things together and train the model. Here, we set the latent factor dimension to 30.
+
+Below, we use the trained model to predict the rating that a user (ID 20) might give to an item (ID 30).
+
+Summary.
+
+The matrix factorization model is widely used in recommender systems. It can be used to predict ratings that a user might give to an item.
+
+We can implement and train matrix factorization for recommender systems.
+
+Exercises.
+
+Vary the size of latent factors. How does the size of latent factors influence the model performance?
+
+Try different optimizers, learning rates, and weight decay rates.
+
+Check the predicted rating scores of other users for a specific movie.
+
+Discussions.

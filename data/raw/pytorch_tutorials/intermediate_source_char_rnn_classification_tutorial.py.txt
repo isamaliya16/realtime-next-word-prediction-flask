@@ -1,0 +1,121 @@
+NLP From Scratch: Classifying Names with a Character-Level RNN Author: Sean Robertson.
+
+This tutorials is part of a three-part series:
+
+NLP From Scratch: Classifying Names with a Character-Level RNN.
+
+NLP From Scratch: Generating Names with a Character-Level RNN.
+
+NLP From Scratch: Translation with a Sequence to Sequence Network and Attention.
+
+We will be building and training a basic character-level Recurrent Neural Network (RNN) to classify words. This tutorial, along with two other Natural Language Processing (NLP) "from scratch" tutorials /intermediate/charrnngenerationtutorial and /intermediate/seq2seqtranslation_tutorial, show how to preprocess data to model NLP. In particular, these tutorials show how preprocessing to model NLP works at a low level.
+
+A character-level RNN reads words as a series of characters - outputting a prediction and "hidden state" at each step, feeding its previous hidden state into each next step. We take the final prediction to be the output, i.e. which class the word belongs to.
+
+Specifically, we'll train on a few thousand surnames from 18 languages of origin, and predict which language a name is from based on the spelling.
+
+Recommended Preparation.
+
+Before starting this tutorial it is recommended that you have installed PyTorch, and have a basic understanding of Python programming language and Tensors:
+
+For installation instructions.
+
+/beginner/deeplearning60min_blitz to get started with PyTorch in general and learn the basics of Tensors.
+
+/beginner/pytorchwithexamples for a wide and deep overview.
+
+/beginner/formertorchiestutorial if you are former Lua Torch user.
+
+It would also be useful to know about RNNs and how they work:
+
+The Unreasonable Effectiveness of Recurrent Neural Networks shows a bunch of real life examples.
+
+Understanding LSTM Networks is about LSTMs specifically but also informative about RNNs in general.
+
+Preparing Torch.
+
+Set up torch to default to the right device use GPU acceleration depending on your hardware (CPU or CUDA).
+
+Preparing the Data.
+
+Download the data from here and extract it to the current directory.
+
+Included in the <code> directory are 18 text files named as <code>. Each file contains a bunch of names, one name per line, mostly romanized (but we still need to convert from Unicode to ASCII).
+
+The first step is to define and clean our data. Initially, we need to convert Unicode to plain ASCII to limit the RNN input layers. This is accomplished by converting Unicode strings to ASCII and allowing only a small set of allowed characters.
+
+Here's an example of converting a unicode alphabet name to plain ASCII. This simplifies the input layer.
+
+Turning Names into Tensors.
+
+Now that we have all the names organized, we need to turn them into Tensors to make any use of them.
+
+To represent a single letter, we use a "one-hot vector" of size <code>. A one-hot vector is filled with 0s except for a 1 at index of the current letter, e.g. <code>.
+
+To make a word we join a bunch of those into a 2D matrix <code>.
+
+That extra 1 dimension is because PyTorch assumes everything is in batches - we're just using a batch size of 1 here.
+
+Here are some examples of how to use <code> for a single and multiple character string.
+
+Congratulations, you have built the foundational tensor objects for this learning task! You can use a similar approach for other RNN tasks with text.
+
+Next, we need to combine all our examples into a dataset so we can train, test and validate our models. For this, we will use the Dataset and DataLoader classes to hold our dataset. Each Dataset needs to implement three functions: <code>, <code>, and <code>.
+
+Here we can load our example data into the <code>.
+
+Using the dataset object allows us to easily split the data into train and test sets. Here we create a 85/15 split but the <code> has more useful utilities. Here we specify a generator since we need to use the same device as PyTorch defaults to above.
+
+Now we have a basic dataset containing 20074 examples where each example is a pairing of label and name. We have also split the dataset into training and testing so we can validate the model that we build.
+
+Creating the Network.
+
+Before autograd, creating a recurrent neural network in Torch involved cloning the parameters of a layer over several timesteps. The layers held hidden state and gradients which are now entirely handled by the graph itself. This means you can implement a RNN in a very "pure" way, as regular feed-forward layers.
+
+This CharRNN class implements an RNN with three components. First, we use the nn.RNN implementation. Next, we define a layer that maps the RNN hidden layers to our output. And finally, we apply a <code> function. Using <code> leads to a significant improvement in performance, such as cuDNN-accelerated kernels, versus implementing each layer as a <code>. It also simplifies the implementation in <code>.
+
+We can then create an RNN with 58 input nodes, 128 hidden nodes, and 18 outputs:
+
+After that we can pass our Tensor to the RNN to obtain a predicted output. Subsequently, we use a helper function, <code>, to derive a text label for the class.
+
+Training.
+
+Training the Network.
+
+Now all it takes to train this network is show it a bunch of examples, have it make guesses, and tell it if it's wrong.
+
+We do this by defining a <code> function which trains the model on a given dataset using minibatches. RNNs RNNs are trained similarly to other networks; therefore, for completeness, we include a batched training method here. The loop (<code>) computes the losses for each of the items in the batch before adjusting the weights. This operation is repeated until the number of epochs is reached.
+
+We can now train a dataset with minibatches for a specified number of epochs. The number of epochs for this example is reduced to speed up the build. You can get better results with different parameters.
+
+Plotting the Results.
+
+Plotting the historical loss from <code> shows the network learning:
+
+Evaluating the Results.
+
+To see how well the network performs on different categories, we will create a confusion matrix, indicating for every actual language (rows) which language the network guesses (columns). To calculate the confusion matrix a bunch of samples are run through the network with <code>, which is the same as <code> minus the backprop.
+
+You can pick out bright spots off the main axis that show which languages it guesses incorrectly, e.g. Chinese for Korean, and Spanish for Italian. It seems to do very well with Greek, and very poorly with English (perhaps because of overlap with other languages).
+
+Exercises.
+
+Get better results with a bigger and/or better shaped network.
+
+Adjust the hyperparameters to enhance performance, such as changing the number of epochs, batch size, and learning rate.
+
+Try the <code> and <code> layers.
+
+Modify the size of the layers, such as increasing or decreasing the number of hidden nodes or adding additional linear layers.
+
+Combine multiple of these RNNs as a higher level network.
+
+Try with a different dataset of line -> label, for example:
+
+Any word -> language.
+
+First name -> gender.
+
+Character name -> writer.
+
+Page title -> blog or subreddit.

@@ -1,0 +1,29 @@
+End-of-chapter quiz.
+
+Let's test what you learned in this chapter!
+
+1. What are models on the Hub limited to?
+
+2. How can you manage models on the Hub?
+
+git-lfs</code> for large files.", correct: true } ]} />.
+
+3. What can you do using the Hugging Face Hub web interface?
+
+4. What is a model card?
+
+5. Which of these objects of the 🤗 Transformers library can be directly shared on the Hub with <code>?
+
+pushtohub</code> method, and using it will push all the tokenizer files (vocabulary, architecture of the tokenizer, etc.) to a given repo. That's not the only right answer, though!", correct: true }, { text: "A model configuration", explain: "Right! All model configurations have the <code>pushtohub</code> method, and using it will push them to a given repo. What else can you share?", correct: true }, { text: "A model", explain: "Correct! All models have the <code>pushtohub</code> method, and using it will push them and their configuration files to a given repo. That's not all you can share, though.", correct: true }, { text: "A Trainer", explain: "That's right — the <code>Trainer</code> also implements the <code>pushtohub</code> method, and using it will upload the model, its configuration, the tokenizer, and a model card draft to a given repo. Try another answer!", correct: true } ]} />.
+
+pushtohub</code> method, and using it will push all the tokenizer files (vocabulary, architecture of the tokenizer, etc.) to a given repo. That's not the only right answer, though!", correct: true }, { text: "A model configuration", explain: "Right! All model configurations have the <code>pushtohub</code> method, and using it will push them to a given repo. What else can you share?", correct: true }, { text: "A model", explain: "Correct! All models have the <code>pushtohub</code> method, and using it will push them and their configuration files to a given repo. That's not all you can share, though.", correct: true }, { text: "All of the above with a dedicated callback", explain: "That's right — the <code>PushToHubCallback</code> will regularly send all of those objects to a repo during training.", correct: true } ]} />.
+
+6. What is the first step when using the <code> method or the CLI tools?
+
+7. You're using a model and a tokenizer — how can you upload them to the Hub?
+
+huggingfacehub</code> utility.", explain: "Models and tokenizers already benefit from <code>huggingfacehub</code> utilities: no need for additional wrapping!" }, { text: "By saving them to disk and calling <code>transformers-cli upload-model</code>", explain: "The command <code>upload-model</code> does not exist." } ]} />.
+
+8. Which git operations can you do with the <code> class?
+
+gitcommit()</code> method is there for that.", correct: true }, { text: "A pull", explain: "That is the purpose of the <code>gitpull()</code> method.", correct: true }, { text: "A push", explain: "The method <code>git_push()</code> does this.", correct: true }, { text: "A merge", explain: "No, that operation will never be possible with this API." } ]} />.

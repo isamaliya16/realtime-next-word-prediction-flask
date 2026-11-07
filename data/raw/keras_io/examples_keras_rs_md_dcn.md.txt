@@ -1,0 +1,91 @@
+Ranking with Deep and Cross Networks.
+
+Introduction.
+
+This tutorial demonstrates how to use Deep & Cross Networks (DCN) to effectively learn feature crosses. Before diving into the example, let's briefly discuss feature crosses.
+
+Imagine that we are building a recommender system for blenders. Individual features might include a customer's past purchase history (e.g., <code>, <code>) or geographic location. However, a customer who has purchased both bananas and cooking books is more likely to be interested in a blender than someone who purchased only one or the other. The combination of <code> and <code> is a feature cross. Feature crosses capture interaction information between individual features, providing richer context than the individual features alone.
+
+Learning effective feature crosses presents several challenges. In web-scale applications, data is often categorical, resulting in high-dimensional and sparse feature spaces. Identifying impactful feature crosses in such environments typically relies on manual feature engineering or computationally expensive exhaustive searches. While traditional feed-forward multilayer perceptrons (MLPs) are universal function approximators, they often struggle to efficiently learn even second- or third-order feature interactions.
+
+The Deep & Cross Network (DCN) architecture is designed for more effective learning of explicit and bounded-degree feature crosses. It comprises three main components: an input layer (typically an embedding layer), a cross network for modeling explicit feature interactions, and a deep network for capturing implicit interactions.
+
+The cross network is the core of the DCN. It explicitly performs feature crossing at each layer, with the highest polynomial degree of feature interaction increasing with depth. The following figure shows the <code>-th cross layer.
+
+The deep network is a standard feedforward multilayer perceptron (MLP). These two networks are then combined to form the DCN. Two common combination strategies exist: a stacked structure, where the deep network is placed on top of the cross network, and a parallel structure, where they operate in parallel.
+
+Parallel layers.
+
+Stacked layers.
+
+Now that we know a little bit about DCN, let's start writing some code. We will first train a DCN on a toy dataset, and demonstrate that the model has indeed learnt important feature crosses.
+
+Let's set the backend to JAX, and get our imports sorted.
+
+Let's also define variables which will be reused throughout the example.
+
+Here, we define a helper function for visualising weights of the cross layer in order to better understand its functioning. Also, we define a function for compiling, training and evaluating a given model.
+
+Toy Example.
+
+To illustrate the benefits of DCNs, let's consider a simple example. Suppose we have a dataset for modeling the likelihood of a customer clicking on a blender advertisement. The features and label are defined as follows:
+
+Then, we let the data follow the following underlying distribution: <code> <code>.
+
+This distribution shows that the click likelihood (<code>) depends linearly on individual features (<code>) and on multiplicative interactions between them. In this scenario, the likelihood of purchasing a blender (<code>) is influenced not only by purchasing bananas (<code>) or cookbooks (<code>) individually, but also significantly by the interaction of purchasing both bananas and cookbooks (<code>).
+
+Preparing the dataset.
+
+Let's create synthetic data based on the above equation, and form the train-test splits.
+
+Building the model.
+
+To demonstrate the advantages of a cross network in recommender systems, we'll compare its performance with a deep network. Since our example data only contains second-order feature interactions, a single-layered cross network will suffice. For datasets with higher-order interactions, multiple cross layers can be stacked to form a multi-layered cross network. We will build two models:
+
+A cross network with a single cross layer.
+
+A deep network with wider and deeper feedforward layers.
+
+Model training.
+
+Before we train the model, we need to batch our datasets.
+
+Let's train both models. Remember we have set <code> for brevity's sake, so do not be alarmed if you do not see any output for a while.
+
+After training, we evaluate the models on the unseen dataset. We will report the Root Mean Squared Error (RMSE) here.
+
+We observe that the cross network achieved significantly lower RMSE compared to a ReLU-based DNN, while also using fewer parameters. This points to the efficiency of the cross network in learning feature interactions.
+
+Visualizing feature interactions.
+
+Since we already know which feature crosses are important in our data, it would be interesting to verify whether our model has indeed learned these key feature interactions. This can be done by visualizing the learned weight matrix in the cross network, where the weight <code> represents the learned importance of the interaction between features <code> and <code>.
+
+Real-world example.
+
+Let's use the MovieLens 100K dataset. This dataset is used to train models to predict users' movie ratings, based on user-related features and movie-related features.
+
+Preparing the dataset.
+
+The dataset processing steps here are similar to what's given in the basic ranking tutorial. Let's load the dataset, and keep only the useful columns.
+
+For every feature, let's get the list of unique values, i.e., vocabulary, so that we can use that for the embedding layer.
+
+One thing we need to do is to use <code> and <code> to convert all features into indices, which can then be fed into embedding layers.
+
+Let's split our data into train and test sets. We also use <code> and <code> for better performance.
+
+Building the model.
+
+The model will have embedding layers, followed by cross and/or feedforward layers.
+
+We have three models - a deep cross network, an optimised deep cross network with a low-rank matrix (to reduce training and serving costs) and a normal deep network without cross layers. The deep cross network is a stacked DCN model, i.e., the inputs are fed to cross layers, followed by feedforward layers. Let's run each model 10 times, and report the average/standard deviation of the RMSE.
+
+DCN slightly outperforms a larger DNN with ReLU layers, demonstrating superior performance. Furthermore, the low-rank DCN effectively reduces the number of parameters without compromising accuracy.
+
+Visualizing feature interactions.
+
+Like we did for the toy example, we will plot the weight matrix of the cross layer to see which feature crosses are important. In the previous example, the importance of interactions between the <code>-th and <code> features is captured by the <code>-{th} element of the weight matrix.
+
+In this case, the feature embeddings are of size 32 rather than 1. Therefore, the importance of feature interactions is represented by the <code>-th block of the weight matrix, which has dimensions <code>. To quantify the significance of these interactions, we use the Frobenius norm of each block. A larger value implies higher importance.
+
+And we are all done!

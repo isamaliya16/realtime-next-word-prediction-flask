@@ -1,0 +1,61 @@
+Network in Network (NiN).
+
+LeNet, AlexNet, and VGG all share a common design pattern: extract features exploiting spatial structure via a sequence of convolutions and pooling layers and post-process the representations via fully connected layers. The improvements upon LeNet by AlexNet and VGG mainly lie in how these later networks widen and deepen these two modules.
+
+This design poses two major challenges. First, the fully connected layers at the end of the architecture consume tremendous numbers of parameters. For instance, even a simple model such as VGG-11 requires a monstrous matrix, occupying almost 400MB of RAM in single precision (FP32). This is a significant impediment to computation, in particular on mobile and embedded devices. After all, even high-end mobile phones sport no more than 8GB of RAM. At the time VGG was invented, this was an order of magnitude less (the iPhone 4S had 512MB). As such, it would have been difficult to justify spending the majority of memory on an image classifier.
+
+Second, it is equally impossible to add fully connected layers earlier in the network to increase the degree of nonlinearity: doing so would destroy the spatial structure and require potentially even more memory.
+
+The network in network (NiN) blocks offer an alternative, capable of solving both problems in one simple strategy. They were proposed based on a very simple insight: (i) use <math> convolutions to add local nonlinearities across the channel activations and (ii) use global average pooling to integrate across all locations in the last representation layer. Note that global average pooling would not be effective, were it not for the added nonlinearities. Let's dive into this in detail.
+
+(NiN Blocks).
+
+Recall section <num>. In it we said that the inputs and outputs of convolutional layers consist of four-dimensional tensors with axes corresponding to the example, channel, height, and width. Also recall that the inputs and outputs of fully connected layers are typically two-dimensional tensors corresponding to the example and feature. The idea behind NiN is to apply a fully connected layer at each pixel location (for each height and width). The resulting <math> convolution can be thought of as a fully connected layer acting independently on each pixel location.
+
+section <num> illustrates the main structural differences between VGG and NiN, and their blocks. Note both the difference in the NiN blocks (the initial convolution is followed by <math> convolutions, whereas VGG retains <math> convolutions) and at the end where we no longer require a giant fully connected layer.
+
+[NiN Model].
+
+NiN uses the same initial convolution sizes as AlexNet (it was proposed shortly thereafter). The kernel sizes are <math>, <math>, and <math>, respectively, and the numbers of output channels match those of AlexNet. Each NiN block is followed by a max-pooling layer with a stride of 2 and a window shape of <math>.
+
+The second significant difference between NiN and both AlexNet and VGG is that NiN avoids fully connected layers altogether. Instead, NiN uses a NiN block with a number of output channels equal to the number of label classes, followed by a global average pooling layer, yielding a vector of logits. This design significantly reduces the number of required model parameters, albeit at the expense of a potential increase in training time.
+
+We create a data example to see [the output shape of each block].
+
+[Training].
+
+As before we use Fashion-MNIST to train the model using the same optimizer that we used for AlexNet and VGG.
+
+Summary.
+
+NiN has dramatically fewer parameters than AlexNet and VGG. This stems primarily from the fact that it needs no giant fully connected layers. Instead, it uses global average pooling to aggregate across all image locations after the last stage of the network body. This obviates the need for expensive (learned) reduction operations and replaces them by a simple average. What surprised researchers at the time was the fact that this averaging operation did not harm accuracy. Note that averaging across a low-resolution representation (with many channels) also adds to the amount of translation invariance that the network can handle.
+
+Choosing fewer convolutions with wide kernels and replacing them by <math> convolutions aids the quest for fewer parameters further. It can cater for a significant amount of nonlinearity across channels within any given location. Both <math> convolutions and global average pooling significantly influenced subsequent CNN designs.
+
+Exercises.
+
+Why are there two <math> convolutional layers per NiN block? Increase their number to three. Reduce their number to one. What changes?
+
+What changes if you replace the <math> convolutions by <math> convolutions?
+
+What happens if you replace the global average pooling by a fully connected layer (speed, accuracy, number of parameters)?
+
+Calculate the resource usage for NiN.
+
+What is the number of parameters?
+
+What is the amount of computation?
+
+What is the amount of memory needed during training?
+
+What is the amount of memory needed during prediction?
+
+What are possible problems with reducing the <math> representation to a <math> representation in one step?
+
+Use the structural design decisions in VGG that led to VGG-11, VGG-16, and VGG-19 to design a family of NiN-like networks.
+
+Discussions.
+
+Discussions.
+
+Discussions.

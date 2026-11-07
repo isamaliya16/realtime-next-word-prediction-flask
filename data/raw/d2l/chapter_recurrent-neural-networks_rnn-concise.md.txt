@@ -1,0 +1,39 @@
+Concise Implementation of Recurrent Neural Networks.
+
+Like most of our from-scratch implementations, section <num> was designed to provide insight into how each component works. But when you are using RNNs every day or writing production code, you will want to rely more on libraries that cut down on both implementation time (by supplying library code for common models and functions) and computation time (by optimizing the heck out of these library implementations). This section will show you how to implement the same language model more efficiently using the high-level API provided by your deep learning framework. We begin, as before, by loading The Time Machine dataset.
+
+[Defining the Model].
+
+We define the following class using the RNN implemented by high-level APIs.
+
+Specifically, to initialize the hidden state, we invoke the member method <code>. This returns a list that contains an initial hidden state for each example in the minibatch, whose shape is (number of hidden layers, batch size, number of hidden units). For some models to be introduced later (e.g., long short-term memory), this list will also contain other information.
+
+Flax does not provide an RNNCell for concise implementation of Vanilla RNNs as of today. There are more advanced variants of RNNs like LSTMs and GRUs which are available in the Flax <code> API.
+
+Inheriting from the <code> class in section <num>, the following <code> class defines a complete RNN-based language model. Note that we need to create a separate fully connected output layer.
+
+Training and Predicting.
+
+Before training the model, let's [make a prediction with a model initialized with random weights.] Given that we have not trained the network, it will generate nonsensical predictions.
+
+Next, we [train our model, leveraging the high-level API].
+
+Compared with section <num>, this model achieves comparable perplexity, but runs faster due to the optimized implementations. As before, we can generate predicted tokens following the specified prefix string.
+
+Summary.
+
+High-level APIs in deep learning frameworks provide implementations of standard RNNs. These libraries help you to avoid wasting time reimplementing standard models. Moreover, framework implementations are often highly optimized, leading to significant (computational) performance gains when compared with implementations from scratch.
+
+Exercises.
+
+Can you make the RNN model overfit using the high-level APIs?
+
+Implement the autoregressive model of section <num> using an RNN.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

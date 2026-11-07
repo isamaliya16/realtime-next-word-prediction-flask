@@ -1,0 +1,73 @@
+Image Augmentation.
+
+In section <num>, we mentioned that large datasets are a prerequisite for the success of deep neural networks in various applications. Image augmentation generates similar but distinct training examples after a series of random changes to the training images, thereby expanding the size of the training set. Alternatively, image augmentation can be motivated by the fact that random tweaks of training examples allow models to rely less on certain attributes, thereby improving their generalization ability. For example, we can crop an image in different ways to make the object of interest appear in different positions, thereby reducing the dependence of a model on the position of the object. We can also adjust factors such as brightness and color to reduce a model's sensitivity to color. It is probably true that image augmentation was indispensable for the success of AlexNet at that time. In this section we will discuss this widely used technique in computer vision.
+
+Common Image Augmentation Methods.
+
+In our investigation of common image augmentation methods, we will use the following <math> image an example.
+
+Most image augmentation methods have a certain degree of randomness. To make it easier for us to observe the effect of image augmentation, next we define an auxiliary function <code>. This function runs the image augmentation method <code> multiple times on the input image <code> and shows all the results.
+
+Flipping and Cropping.
+
+[Flipping the image left and right] usually does not change the category of the object. This is one of the earliest and most widely used methods of image augmentation. Next, we use the <code> module to create the <code> instance, which flips an image left and right with a 50% chance.
+
+[Flipping the image left and right] usually does not change the category of the object. This is one of the earliest and most widely used methods of image augmentation. Next, we use the <code> module to create the <code> instance, which flips an image left and right with a 50% chance.
+
+[Flipping up and down] is not as common as flipping left and right. But at least for this example image, flipping up and down does not hinder recognition. Next, we create a <code> instance to flip an image up and down with a 50% chance.
+
+[Flipping up and down] is not as common as flipping left and right. But at least for this example image, flipping up and down does not hinder recognition. Next, we create a <code> instance to flip an image up and down with a 50% chance.
+
+In the example image we used, the cat is in the middle of the image, but this may not be the case in general. In section <num>, we explained that the pooling layer can reduce the sensitivity of a convolutional layer to the target position. In addition, we can also randomly crop the image to make objects appear in different positions in the image at different scales, which can also reduce the sensitivity of a model to the target position.
+
+In the code below, we [randomly crop] an area with an area of <math> of the original area each time, and the ratio of width to height of this area is randomly selected from <math>. Then, the width and height of the region are both scaled to 200 pixels. Unless otherwise specified, the random number between <math> and <math> in this section refers to a continuous value obtained by random and uniform sampling from the interval <math>.
+
+Changing Colors.
+
+Another augmentation method is changing colors. We can change four aspects of the image color: brightness, contrast, saturation, and hue. In the example below, we [randomly change the brightness] of the image to a value between 50% (<math>) and 150% (<math>) of the original image.
+
+Similarly, we can [randomly change the hue] of the image.
+
+We can also create a <code> instance and set how to [randomly change the <code>, <code>, <code>, and <code> of the image at the same time].
+
+Combining Multiple Image Augmentation Methods.
+
+In practice, we will [combine multiple image augmentation methods]. For example, we can combine the different image augmentation methods defined above and apply them to each image via a <code> instance.
+
+[Training with Image Augmentation].
+
+Let's train a model with image augmentation. Here we use the CIFAR-10 dataset instead of the Fashion-MNIST dataset that we used before. This is because the position and size of the objects in the Fashion-MNIST dataset have been normalized, while the color and size of the objects in the CIFAR-10 dataset have more significant differences. The first 32 training images in the CIFAR-10 dataset are shown below.
+
+In order to obtain definitive results during prediction, we usually only apply image augmentation to training examples, and do not use image augmentation with random operations during prediction. [Here we only use the simplest random left-right flipping method]. In addition, we use a <code> instance to convert a minibatch of images into the format required by the deep learning framework, i.e., 32-bit floating point numbers between 0 and 1 with the shape of (batch size, number of channels, height, width).
+
+Next, we define an auxiliary function to facilitate reading the image and applying image augmentation. The <code> function provided by Gluon's datasets applies image augmentation to the first element of each training example (image and label), i.e., the image. For a detailed introduction to <code>, please refer to section <num>.
+
+Next, we [define an auxiliary function to facilitate reading the image and applying image augmentation]. The <code> argument provided by PyTorch's dataset applies augmentation to transform the images. For a detailed introduction to <code>, please refer to section <num>.
+
+Multi-GPU Training.
+
+We train the ResNet-18 model from section <num> on the CIFAR-10 dataset. Recall the introduction to multi-GPU training in section <num>. In the following, [we define a function to train and evaluate the model using multiple GPUs].
+
+Now we can [define the <code> function to train the model with image augmentation]. This function gets all available GPUs, uses Adam as the optimization algorithm, applies image augmentation to the training dataset, and finally calls the <code> function just defined to train and evaluate the model.
+
+Let's [train the model] using image augmentation based on random left-right flipping.
+
+Summary.
+
+Image augmentation generates random images based on existing training data to improve the generalization ability of models.
+
+In order to obtain definitive results during prediction, we usually only apply image augmentation to training examples, and do not use image augmentation with random operations during prediction.
+
+Deep learning frameworks provide many different image augmentation methods, which can be applied simultaneously.
+
+Exercises.
+
+Train the model without using image augmentation: <code>. Compare training and testing accuracy when using and not using image augmentation. Can this comparative experiment support the argument that image augmentation can mitigate overfitting? Why?
+
+Combine multiple different image augmentation methods in model training on the CIFAR-10 dataset. Does it improve test accuracy?
+
+Refer to the online documentation of the deep learning framework. What other image augmentation methods does it also provide?
+
+Discussions.
+
+Discussions.

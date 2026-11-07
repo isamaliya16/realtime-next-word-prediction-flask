@@ -1,0 +1,77 @@
+Migrating your TFLite code to TF2.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+TensorFlow Lite (TFLite) is a set of tools that helps developers run ML inference on-device (mobile, embedded, and IoT devices). The TFLite converter is one such tool that converts existing TF models into an optimized TFLite model format that can be efficiently run on-device.
+
+In this doc, you'll learn what changes you need to make to your TF to TFLite conversion code, followed by a few examples that do the same.
+
+Changes to your TF to TFLite conversion code.
+
+If you're using a legacy TF1 model format (such as Keras file, frozen GraphDef, checkpoints, tf.Session), update it to TF1/TF2 SavedModel and use the TF2 converter API <code> to convert it to a TFLite model (refer to Table 1).
+
+Update the converter API flags (refer to Table 2).
+
+Remove legacy APIs such as <code>. (eg: Replace <code> with <code>).
+
+// Table 1 // TFLite Python Converter API Update.
+
+TF1 API | TF2 API | --- | --- | <code> | supported | <code> | removed (update to SavedModel format) | <code> | removed (update to SavedModel format) | <code> | removed (update to SavedModel format).
+
+.table {margin-left: 0 !important;}.
+
+// Table 2 // TFLite Python Converter API Flags Update.
+
+TF1 API | TF2 API | --- | --- | <code> <code> <code> <code> <code> <code> <code> <code> | supported | <code> <code> <code> <code> <code>| removed (unsupported converter API arguments) | <code> <code> <code> <code> <code> <code> | removed (unsupported quantization workflows) | <code> <code> <code> | removed (instead, visualize models using Netron or visualize.py) | <code> <code> | removed (unsupported features in TF2).
+
+Examples.
+
+You'll now walk through some examples to convert legacy TF1 models to TF1/TF2 SavedModels and then convert them to TF2 TFLite models.
+
+Setup.
+
+Start with the necessary TensorFlow imports.
+
+Create all the necessary TF1 model formats.
+
+1. Convert a TF1 SavedModel to a TFLite model.
+
+Before: Converting with TF1.
+
+This is typical code for TF1-style TFlite conversion.
+
+After: Converting with TF2.
+
+Directly convert the TF1 SavedModel to a TFLite model, with a smaller v2 converter flags set.
+
+2. Convert a TF1 Keras model file to a TFLite model.
+
+Before: Converting with TF1.
+
+This is typical code for TF1-style TFlite conversion.
+
+After: Converting with TF2.
+
+First, convert the TF1 Keras model file to a TF2 SavedModel and then convert it to a TFLite model, with a smaller v2 converter flags set.
+
+3. Convert a TF1 frozen GraphDef to a TFLite model.
+
+Before: Converting with TF1.
+
+This is typical code for TF1-style TFlite conversion.
+
+After: Converting with TF2.
+
+First, convert the TF1 frozen GraphDef to a TF1 SavedModel and then convert it to a TFLite model, with a smaller v2 converter flags set.
+
+Further reading.
+
+Refer to the TFLite Guide to learn more about the workflows and latest features.
+
+If you're using TF1 code or legacy TF1 model formats (Keras <code> files, frozen GraphDef <code>, etc), please update your code and migrate your models to the TF2 SavedModel format.

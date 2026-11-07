@@ -1,0 +1,167 @@
+Investigating Vision Transformer representations.
+
+Introduction.
+
+In this example, we look into the representations learned by different Vision Transformer (ViT) models. Our main goal with this example is to provide insights into what empowers ViTs to learn from image data. In particular, the example discusses implementations of a few different ViT analysis tools.
+
+Note: when we say "Vision Transformer", we refer to a computer vision architecture that involves Transformer blocks (Vaswani et al.) and not necessarily the original Vision Transformer model (Dosovitskiy et al.).
+
+Models considered.
+
+Since the inception of the original Vision Transformer, the computer vision community has seen a number of different ViT variants improving upon the original in various ways: training improvements, architecture improvements, and so on. In this example, we consider the following ViT model families:
+
+ViTs trained using supervised pretraining with the ImageNet-1k and ImageNet-21k datasets (Dosovitskiy et al.).
+
+ViTs trained using supervised pretraining but only with the ImageNet-1k dataset with more regularization and distillation (Touvron et al.) (DeiT).
+
+ViTs trained using self-supervised pretraining (Caron et al.) (DINO).
+
+Since the pretrained models are not implemented in Keras, we first implemented them as faithfully as possible. We then populated them with the official pretrained parameters. Finally, we evaluated our implementations on the ImageNet-1k validation set to ensure the evaluation numbers were matching with the original implementations. The details of our implementations are available in this repository.
+
+To keep the example concise, we won't exhaustively pair each model with the analysis methods. We'll provide notes in the respective sections so that you can pick up the pieces.
+
+To run this example on Google Colab, we need to update the <code> library like so:
+
+Imports.
+
+Constants.
+
+Data utilities.
+
+For the original ViT models, the input images need to be scaled to the range <code>. For the other model families mentioned at the beginning, we need to normalize the images with channel-wise mean and standard deviation of the ImageNet-1k training set.
+
+Load a test image and display it.
+
+Load a model.
+
+More about the model:
+
+This model was pretrained on the ImageNet-21k dataset and was then fine-tuned on the ImageNet-1k dataset. To learn more about how we developed this model in TensorFlow (with pretrained weights from this source) refer to this notebook.
+
+Running regular inference with the model.
+
+We now run inference with the loaded model on our test image.
+
+<code> contains the attention scores (softmaxed outputs) from each attention head of each Transformer block.
+
+Method I: Mean attention distance.
+
+Dosovitskiy et al. and Raghu et al. use a measure called "mean attention distance" from each attention head of different Transformer blocks to understand how local and global information flows into Vision Transformers.
+
+Mean attention distance is defined as the distance between query tokens and the other tokens times attention weights. So, for a single image.
+
+we take individual patches (tokens) extracted from the image.
+
+calculate their geometric distance, and.
+
+multiply that with the attention scores.
+
+Attention scores are calculated here after forward passing the image in inference mode through the network. The following figure may help you understand the process a little bit better.
+
+This animation is created by Ritwik Raha.
+
+Thanks to Simon Kornblith from Google who helped us with this code snippet. It can be found here. Let's now use these utilities to generate a plot of attention distances with our loaded model and test image.
+
+Inspecting the plots.
+
+How does self-attention span across the input space? Do they attend input regions locally or globally?
+
+The promise of self-attention is to enable the learning of contextual dependencies so that a model can attend to the regions of inputs which are the most salient w.r.t the objective. From the above plots we can notice that different attention heads yield different attention distances suggesting they use both local and global information from an image. But as we go deeper in the Transformer blocks the heads tend to focus more on global aggregate information.
+
+Inspired by Raghu et al. we computed mean attention distances over 1000 images randomly taken from the ImageNet-1k validation set and we repeated the process for all the models mentioned at the beginning. Intrestingly, we notice the following:
+
+Pretraining with a larger dataset helps with more global attention spans:
+
+When distilled from a CNN ViTs tend to have less global attention spans:
+
+To reproduce these plots, please refer to this notebook.
+
+Method II: Attention Rollout.
+
+Abnar et al. introduce "Attention rollout" for quantifying how information flow through self-attention layers of Transformer blocks. Original ViT authors use this method to investigate the learned representations, stating: Briefly, we averaged attention weights of ViTL/16 across all heads and then recursively multiplied the weight matrices of all layers. This accounts for the mixing of attention across tokens through all layers.
+
+We used this notebook and modified the attention rollout code from it for compatibility with our models.
+
+Let's now use these utilities to generate an attention plot based on our previous results from the "Running regular inference with the model" section. Following are the links to download each individual model:
+
+Original ViT model (pretrained on ImageNet-21k).
+
+Original ViT model (pretrained on ImageNet-1k).
+
+DINO model (pretrained on ImageNet-1k).
+
+DeiT models (pretrained on ImageNet-1k including distilled and non-distilled ones).
+
+Inspecting the plots.
+
+How can we quanitfy the information flow that propagates through the attention layers?
+
+We notice that the model is able to focus its attention on the salient parts of the input image. We encourage you to apply this method to the other models we mentioned and compare the results. The attention rollout plots will differ according to the tasks and augmentation the model was trained with. We observe that DeiT has the best rollout plot, likely due to its augmentation regime.
+
+Method III: Attention heatmaps.
+
+A simple yet useful way to probe into the representation of a Vision Transformer is to visualise the attention maps overlayed on the input images. This helps form an intuition about what the model attends to. We use the DINO model for this purpose, because it yields better attention heatmaps.
+
+A Transformer block consists of multiple heads. Each head in a Transformer block projects the input data to different sub-spaces. This helps each individual head to attend to different parts of the image. Therefore, it makes sense to visualize each attention head map seperately, to make sense of what each heads looks at.
+
+Notes:
+
+The following code has been copy-modified from the original DINO codebase.
+
+Here we grab the attention maps of the last Transformer block.
+
+DINO was pretrained using a self-supervised objective.
+
+We can use the same image we used for inference with DINO and the <code> we extracted from the results.
+
+Inspecting the plots.
+
+How can we qualitatively evaluate the attention weights?
+
+The attention weights of a Transformer block are computed between the key and the query. The weights quantifies how important is the key to the query. In the ViTs the key and the query comes from the same image, hence the weights determine which part of the image is important.
+
+Plotting the attention weigths overlayed on the image gives us a great intuition about the parts of the image that are important to the Transformer. This plot qualitatively evaluates the purpose of the attention weights.
+
+Method IV: Visualizing the learned projection filters.
+
+After extracting non-overlapping patches, ViTs flatten those patches across their saptial dimensions, and then linearly project them. One might wonder, how do these projections look like? Below, we take the ViT B-16 model and visualize its learned projections.
+
+Inspecting the plots.
+
+What do the projection filters learn?
+
+When visualized, the kernels of a convolutional neural network show the pattern that they look for in an image. This could be circles, sometimes lines -- when combined together (in later stage of a ConvNet), the filters transform into more complex shapes. We have found a stark similarity between such ConvNet kernels and the projection filters of a ViT.
+
+Method V: Visualizing the positional emebddings.
+
+Transformers are permutation-invariant. This means that do not take into account the spatial position of the input tokens. To overcome this limitation, we add positional information to the input tokens.
+
+The positional information can be in the form of leaned positional embeddings or handcrafted constant embeddings. In our case, all the three variants of ViTs feature learned positional embeddings.
+
+In this section, we visualize the similarities between the learned positional embeddings with itself. Below, we take the ViT B-16 model and visualize the similarity of the positional embeddings by taking their dot-product.
+
+Inspecting the plots.
+
+What do the positional embeddings tell us?
+
+The plot has a distinctive diagonal pattern. The main diagonal is the brightest signifying that a position is the most similar to itself. An interesting pattern to look out for is the repeating diagonals. The repeating pattern portrays a sinusoidal function which is close in essence to what was proposed by Vaswani et. al. as a hand-crafted feature.
+
+Notes.
+
+DINO extended the attention heatmap generation process to videos. We also applied our DINO implementation on a series of videos and obtained similar results. Here's one such video of attention heatmaps:
+
+Raghu et al. use an array of techniques to investigate the representations learned by ViTs and make comparisons with that of ResNets. We strongly recommend reading their work.
+
+To author this example, we developed this repository to guide our readers so that they can easily reproduce the experiments and extend them.
+
+Another repository that you may find interesting in this regard is <code>.
+
+One can also plot the attention rollout and attention heat maps with custom images using our Hugging Face spaces.
+
+Acknowledgements.
+
+PyImageSearch.
+
+Jarvislabs.ai.
+
+GDE Program.

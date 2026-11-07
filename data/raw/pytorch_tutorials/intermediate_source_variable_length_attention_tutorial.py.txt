@@ -1,0 +1,73 @@
+Using Variable Length Attention in PyTorch.
+
+In this tutorial, we will introduce a variable length attention API. This API is called <code> and is a custom op in PyTorch, meaning it is also compilable using <code>.
+
+build. This op currently only works with NVIDIA CUDA on A100 machines or newer. Supported dtypes include BF16 and FP16.
+
+What you will learn.
+
+Variable length attention and how it differs from Scaled Dot Product Attention (SDPA).
+
+Explore an example of how to use <code> in a simple Transformer attention layer.
+
+Prerequisites.
+
+PyTorch v2.10.0.dev or later.
+
+NVIDIA A100 GPU or newer.
+
+A basic understanding of attention and our current offerings. Please reference these tutorials for more details on FlexAttention and SDPA.
+
+Overview of Variable Length Attention.
+
+In normal SDPA, sequences are expected to be a fixed length. In practice, this means that input tensors are often padded to the same length in a batch. However, this wastes both memory and compute through storing this padding and performing unnecessary computations. Variable length attention handles sequences of varying length by packing the tensors in a batch together and essentially collapsing the batch dimension.
+
+However, we still need to maintain the boundaries between documents. To do so, we compute cumulative sequence positions for query and key/value that mark the end of documents. In the diagram below, doc 1 is 7 tokens long, doc 2 is 10 tokens long, etc. so <code>.
+
+Note that <code> is another way to enable variable length with packed tensors (see tutorial here).
+
+Definition.
+
+Below is the definition of <code> which returns the output tensor from the attention computation.
+
+<code>, <code>, and <code> correspond to the <code>, <code>, and <code> of the packed input. <code> and <code> are the cumulative indices for query and key/value, respectively. These mark the logical boundaries that separate the documents in our input. <code> and <code> are the maximum sequence lengths of query and key, respectively. <code> specifies which auxiliary outputs to return (ie <code>). <code> is an optional scaling factor applied to the attention scores before softmax. <code> is a <code> tuple that controls sliding window attention: use <code> for full attention (default), <code> for causal attention, or <code> for causal attention with a sliding window of size <code>.
+
+Note on causal masking When <code> is set to <code>, causal masking is applied which means that tokens can only attend to previous tokens. For bidirectional (full) attention, use the default <code>.
+
+In torchtitan (PyTorch's pretraining framework), we set <code> uniformly to prevent the model from cheating and artificially driving the loss down too quickly.
+
+Example.
+
+Let’s walk through a simple example of how we would use <code> in the context of training a Transformer model.
+
+Creating Required Metadata for <code> from Input Batches.
+
+Given an input batch, how would we construct the metadata that <code> expects? More specifically, how do we calculate the cumulative sequence indices?
+
+The helper function <code> returns the required <code> and <code> given <code> and the end of sequence token ID that marks the end of documents.
+
+Implementing the Attention Block with <code>.
+
+Let's explore how we would use <code> in an Attention module. We define an attention module as usual, but in the <code> method, we call the new <code> custom op.
+
+This function expects the <code> indices and <code> that we computed earlier using <code> to mark the boundaries of the different documents.
+
+Before we call <code>, we also pack our input so that it has the shape <code>. Recall that variable length attention allows us to collapse the <code> dimension so that we can lay out our input samples contiguously.
+
+We can also use <code> with <code> and define:
+
+We can call <code> instead of <code> in the Attention forward, and everything else stays the same.
+
+Creating a Transformer.
+
+Now, we can use this <code> module in a simple Transformer.
+
+Running a Training Step.
+
+Now we’re ready to put all the pieces together! Let’s run a training step with our <code>. We define our model, compute <code> and <code> using <code>, and run a forward and backward pass.
+
+Conclusion.
+
+In this tutorial, we have covered how to use the <code> API in PyTorch to efficiently handle sequences of varying lengths without padding. We explored how to create the necessary metadata including the cumulative sequence indices, implemented a simple Transformer attention layer with variable length attention, and ran a complete training step.
+
+This approach eliminates wasted computation on padding tokens and enables more efficient training and inference for models processing documents of different lengths.

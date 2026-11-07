@@ -1,0 +1,117 @@
+Automatically rewrite TF 1.x and compat.v1 API symbols.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+TensorFlow 2.x includes many API changes from TF 1.x and the <code> APIs, such as reordering arguments, renaming symbols, and changing default values for parameters. Manually performing all of these modifications would be tedious and prone to error. To streamline the changes, and to make your transition to TF 2.x as seamless as possible, the TensorFlow team has created the <code> utility to help transition legacy code to the new API.
+
+Note: <code> is installed automatically for TensorFlow 1.13 and later (including all TF 2.x builds).
+
+Typical usage is like this:
+
+tfupgradev2 \ --intree myproject/ \ --outtree myproject_v2/ \ --reportfile report.txt.
+
+It will accelerate your upgrade process by converting existing TensorFlow 1.x Python scripts to TensorFlow 2.x.
+
+The conversion script automates many mechanical API transformations, though many APIs cannot be automatically migrated. It is also not able to fully make your code compatible with TF2 behaviors and APIs. So, it is only a part of your migration journey.
+
+Compatibility modules.
+
+Certain API symbols can not be upgraded simply by using a string replacement. Those that cannot be automatically upgraded will be mapped to their locations in the <code> module. This module replaces TF 1.x symbols like <code> with the equivalent <code> reference. If you are already using <code> APIs by importing TF via <code>, the <code> script will attempt to convert these usages to the non-compat APIs where possible. Note that while some <code> APIs are compatible with TF2.x behaviors, many are not. Therefore, it's recommended to manually proofread replacements and migrate them to new APIs in the <code> namespace instead of <code> namespace as quickly as possible.
+
+Because of TensorFlow 2.x module deprecations (for example, <code> and <code>), some changes can not be worked around by switching to <code>. Upgrading this code may require using an additional library (for example, <code>) or switching to a package in tensorflow/addons.
+
+Recommended upgrade process.
+
+The rest of this guide demonstrates how to use the symbol-rewriting script. While the script is easy to use, it is strongly recommended that you use the script as part of the following process:
+
+Unit Test: Ensure that the code you’re upgrading has a unit test suite with reasonable coverage. This is Python code, so the language won’t protect you from many classes of mistakes. Also ensure that any dependency you have has already been upgraded to be compatible with TensorFlow 2.x.
+
+Install TensorFlow 1.15: Upgrade your TensorFlow to the latest TensorFlow 1.x version, at least 1.15. This includes the final TensorFlow 2.0 API in <code>.
+
+Test With 1.15: Ensure your unit tests pass at this point. You’ll be running them repeatedly as you upgrade so starting from green is important.
+
+Run the upgrade script: Run <code> on your entire source tree, tests included. This will upgrade your code to a format where it only uses symbols available in TensorFlow 2.0. Deprecated symbols will be accessed with <code>. These will eventually require manual attention, but not immediately.
+
+Run the converted tests with TensorFlow 1.15: Your code should still run fine in TensorFlow 1.15. Run your unit tests again. Any error in your tests here means there’s a bug in the upgrade script. Please let us know.
+
+Check the upgrade report for warnings and errors: The script writes a report file that explains any conversions you should double-check, or any manual action you need to take. For example: Any remaining instances of contrib will require manual action to remove. Please consult the RFC for more instructions.
+
+Install TensorFlow 2.x: At this point it should be safe to switch to TensorFlow 2.x binaries, even if you are running with legacy behaviors.
+
+Test with <code>: Re-running your tests with a <code> in the tests' main function should give the same results as running under 1.15.
+
+Enable V2 Behavior: Now that your tests work using the TF2 binaries, you can now begin migrating your code to avoiding <code>s and only using supported TF2 behaviors (with no TF2 behavior disabling). See the Migration guides for details.
+
+Using the symbol-rewriting <code> script.
+
+Setup.
+
+Before getting started ensure that TensorFlow 2.x is installed.
+
+Clone the tensorflow/models git repository so you have some code to test on:
+
+Read the help.
+
+The script should be installed with TensorFlow. Here is the builtin help:
+
+Example TF1 code.
+
+Here is a simple TensorFlow 1.0 script:
+
+With TensorFlow 2.x installed it does not run:
+
+Single file.
+
+The script can be run on a single Python file:
+
+The script will print errors if it can not find a fix for the code.
+
+Directory tree.
+
+Typical projects, including this simple example, will use much more than one file. Typically want to update an entire package, so the script can also be run on a directory tree:
+
+Note the one warning about the <code> function.
+
+Now the script works in with TensorFlow 2.x:
+
+Note that because the <code> module is included in TF 1.15, the converted script will also run in TensorFlow 1.15.
+
+Detailed report.
+
+The script also reports a list of detailed changes. In this example it found one possibly unsafe transformation and included a warning at the top of the file:
+
+Note again the one warning about the <code>.
+
+In other cases the output will explain the reasoning for non-trivial changes:
+
+Here is the modified file contents, note how the script adds argument names to deal with moved and renamed arguments:
+
+A larger project might contain a few errors. For example convert the deeplab model:
+
+It produced the output files:
+
+But there were errors. The report will help you pin-point what you need to fix before this will run. Here are the first three errors:
+
+"Safety" mode.
+
+The conversion script also has a less invasive <code> mode that simply changes the imports to use the <code> module:
+
+As you can see this doesn't upgrade your code, but does allow TensorFlow 1 code to run against TensorFlow 2 binaries. Note that this does not mean your code is running supported TF 2.x behaviors!
+
+Caveats.
+
+Do not update parts of your code manually before running this script. In particular, functions that have had reordered arguments like <code> or <code> cause the script to incorrectly add keyword arguments that mismap your existing code.
+
+The script assumes that <code> is imported using <code>, or <code>.
+
+This script does not reorder arguments. Instead, the script adds keyword arguments to functions that have their arguments reordered.
+
+Check out tf2up.ml for a convenient tool to upgrade Jupyter notebooks and Python files in a GitHub repository.
+
+To report upgrade script bugs or make feature requests, please file an issue on GitHub.

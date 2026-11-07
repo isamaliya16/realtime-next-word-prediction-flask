@@ -1,0 +1,151 @@
+Load and preprocess images.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial shows how to load and preprocess an image dataset in three ways:
+
+First, you will use high-level Keras preprocessing utilities (such as <code>) and layers (such as <code>) to read a directory of images on disk.
+
+Next, you will write your own input pipeline from scratch using tf.data.
+
+Finally, you will download a dataset from the large catalog available in TensorFlow Datasets.
+
+Setup.
+
+Download the flowers dataset.
+
+This tutorial uses a dataset of several thousand photos of flowers. The flowers dataset contains five sub-directories, one per class:
+
+Note: all images are licensed CC-BY, creators are listed in the LICENSE.txt file.
+
+After downloading (218MB), you should now have a copy of the flower photos available. There are 3,670 total images:
+
+Each directory contains images of that type of flower. Here are some roses:
+
+Load data using a Keras utility.
+
+Let's load these images off disk using the helpful <code> utility.
+
+Create a dataset.
+
+Define some parameters for the loader:
+
+It's good practice to use a validation split when developing your model. You will use 80% of the images for training and 20% for validation.
+
+You can find the class names in the <code> attribute on these datasets.
+
+Visualize the data.
+
+Here are the first nine images from the training dataset.
+
+You can train a model using these datasets by passing them to <code> (shown later in this tutorial). If you like, you can also manually iterate over the dataset and retrieve batches of images:
+
+The <code> is a tensor of the shape <code>. This is a batch of 32 images of shape <code> (the last dimension refers to color channels RGB). The <code> is a tensor of the shape <code>, these are corresponding labels to the 32 images.
+
+You can call <code> on either of these tensors to convert them to a <code>.
+
+Standardize the data.
+
+The RGB channel values are in the <code> range. This is not ideal for a neural network; in general you should seek to make your input values small.
+
+Here, you will standardize values to be in the <code> range by using <code>:
+
+There are two ways to use this layer. You can apply it to the dataset by calling <code>:
+
+Or, you can include the layer inside your model definition to simplify deployment. You will use the second approach here.
+
+Note: If you would like to scale pixel values to <code> you can instead write <code>.
+
+Note: You previously resized images using the <code> argument of <code>. If you want to include the resizing logic in your model as well, you can use the <code> layer.
+
+Configure the dataset for performance.
+
+Let's make sure to use buffered prefetching so you can yield data from disk without having I/O become blocking. These are two important methods you should use when loading data:
+
+<code> keeps the images in memory after they're loaded off disk during the first epoch. This will ensure the dataset does not become a bottleneck while training your model. If your dataset is too large to fit into memory, you can also use this method to create a performant on-disk cache.
+
+<code> overlaps data preprocessing and model execution while training.
+
+Interested readers can learn more about both methods, as well as how to cache data to disk in the Prefetching section of the Better performance with the tf.data API guide.
+
+Train a model.
+
+For completeness, you will show how to train a simple model using the datasets you have just prepared.
+
+The Sequential model consists of three convolution blocks (<code>) with a max pooling layer (<code>) in each of them. There's a fully-connected layer (<code>) with 128 units on top of it that is activated by a ReLU activation function (<code>). This model has not been tuned in any way—the goal is to show you the mechanics using the datasets you just created. To learn more about image classification, visit the Image classification tutorial.
+
+Choose the <code> optimizer and <code> loss function. To view training and validation accuracy for each training epoch, pass the <code> argument to <code>.
+
+Note: You will only train for a few epochs so this tutorial runs quickly.
+
+Note: You can also write a custom training loop instead of using <code>. To learn more, visit the Writing a training loop from scratch tutorial.
+
+You may notice the validation accuracy is low compared to the training accuracy, indicating your model is overfitting. You can learn more about overfitting and how to reduce it in this tutorial.
+
+Using tf.data for finer control.
+
+The above Keras preprocessing utility—<code>—is a convenient way to create a <code> from a directory of images.
+
+For finer grain control, you can write your own input pipeline using <code>. This section shows how to do just that, beginning with the file paths from the TGZ file you downloaded earlier.
+
+The tree structure of the files can be used to compile a <code> list.
+
+Split the dataset into training and validation sets:
+
+You can print the length of each dataset as follows:
+
+Write a short function that converts a file path to an <code> pair:
+
+Use <code> to create a dataset of <code> pairs:
+
+Configure dataset for performance.
+
+To train a model with this dataset you will want the data:
+
+To be well shuffled.
+
+To be batched.
+
+Batches to be available as soon as possible.
+
+These features can be added using the <code> API. For more details, visit the Input Pipeline Performance guide.
+
+Visualize the data.
+
+You can visualize this dataset similarly to the one you created previously:
+
+Continue training the model.
+
+You have now manually built a similar <code> to the one created by <code> above. You can continue training the model with it. As before, you will train for just a few epochs to keep the running time short.
+
+Using TensorFlow Datasets.
+
+So far, this tutorial has focused on loading data off disk. You can also find a dataset to use by exploring the large catalog of easy-to-download datasets at TensorFlow Datasets.
+
+As you have previously loaded the Flowers dataset off disk, let's now import it with TensorFlow Datasets.
+
+Download the Flowers dataset using TensorFlow Datasets:
+
+The flowers dataset has five classes:
+
+Retrieve an image from the dataset:
+
+As before, remember to batch, shuffle, and configure the training, validation, and test sets for performance:
+
+You can find a complete example of working with the Flowers dataset and TensorFlow Datasets by visiting the Data augmentation tutorial.
+
+Next steps.
+
+This tutorial showed two ways of loading images off disk. First, you learned how to load and preprocess an image dataset using Keras preprocessing layers and utilities. Next, you learned how to write an input pipeline from scratch using <code>. Finally, you learned how to download a dataset from TensorFlow Datasets.
+
+For your next steps:
+
+You can learn how to add data augmentation.
+
+To learn more about <code>, you can visit the tf.data: Build TensorFlow input pipelines guide.

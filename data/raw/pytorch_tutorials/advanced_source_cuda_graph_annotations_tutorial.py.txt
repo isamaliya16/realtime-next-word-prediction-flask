@@ -1,0 +1,165 @@
+CUDA Graph Kernel Annotations and Profiling.
+
+CUDA graphs are a powerful optimization technique that can significantly reduce kernel launch overhead by capturing and replaying sequences of CUDA operations. However, when profiling CUDA graphs, all kernels appear on the same stream, making it difficult to understand the logical structure of your computation.
+
+This tutorial demonstrates how to use kernel annotations to add semantic labels to kernels within CUDA graphs. The profiler can include these annotations directly when exporting traces and create custom visualization lanes, making it easier to understand and debug complex graph executions.
+
+Annotations are not limited to compute kernels. One of the most valuable uses is annotating communication collectives. In eager mode, the profiler attaches rich metadata to every NCCL kernel -- the collective type, message size, process group, and ranks -- so you can see exactly what each comm is doing. Under CUDA graphs that metadata is lost: the collective replays as an opaque kernel. This tutorial shows how to re-attach that metadata with annotations so graphed comms read just like eager ones.
+
+Overview.
+
+CUDA graph kernel annotations allow you to add semantic labels to kernels during graph capture. These labels help you understand what each kernel does when profiling, making it easy to identify which parts of your model (e.g., attention, MLP, normalization) are executing at any given time.
+
+Without annotations, profiler traces show all kernels on a single stream with auto-generated names, making it difficult to understand the logical structure of your computation. With annotations, you can:
+
+Label kernel groups with meaningful names during capture.
+
+Assign custom stream IDs for visual organization.
+
+Export labels directly in profiler traces for semantic visualization.
+
+The result is a profiler trace where kernels are labeled and organized by their function, making it much easier to identify performance bottlenecks and understand execution flow.
+
+Before annotations: All kernels appear on a single stream with auto-generated names, making it difficult to understand which operations belong to which logical component of your model.
+
+After annotations: Kernels are organized into semantic lanes (streams 61 and 62) with meaningful labels like "attention" and "mlp", making it easy to identify different components and understand the execution structure.
+
+As another example, here is an AllReduce kernel with annotated metadata:
+
+Requirements.
+
+For this tutorial, you'll need:
+
+PyTorch 2.15+ (use a nightly build until 2.15 is released).
+
+A CUDA GPU.
+
+Driver/CUDA-compat >= 13.1 for annotation support.
+
+The <code> package >= 13.1.0 (<code>).
+
+The cuda-bindings package provides the Python bindings for CUDA runtime APIs. Version 13.1.0+ is required for the <code> API that enables kernel annotations. If you have an older version, the tutorial will run but annotations will be disabled with a warning message explaining how to upgrade.
+
+On older drivers or cuda-bindings versions, the capture and profiling will still work, but <code> will be a no-op and no semantic lanes will appear in the final trace.
+
+Building a Model.
+
+Let's create a simple transformer block as our example model. We'll annotate different parts of the computation (QKV projection, attention, output projection, MLP) to see them as separate lanes in the profiler.
+
+The <code> Context Manager.
+
+The key API is <code>, which takes a dictionary with:
+
+<code>: A string label stored in the kernel event's <code> (also used as the lane name when a custom stream is assigned).
+
+<code> (optional): A virtual stream ID for visualization.
+
+Any CUDA kernels launched within the context will be tagged with these annotations. When we export the profiler trace with <code>, these tags organize kernels into custom lanes. The stream IDs control only visualization; they do not change where the kernels execute.
+
+Capturing a CUDA Graph with Annotations.
+
+To capture a graph with annotations enabled, we pass <code> to <code>. This automatically handles the annotation lifecycle: enabling, resolving, and remapping.
+
+Profiling the Graph.
+
+After capturing the graph, we replay it a few times to warm up, then profile subsequent replays. Pass the recorded annotations directly to <code> to include them in the exported kernel events. We also export a raw trace from the same profile for comparison.
+
+<code> selects the Python exporter automatically when the mapping is nonempty. We explicitly select it for both exports so they also work with an empty mapping. Both files can be opened in.
+
+Choosing the Trace Layout.
+
+<code> places graphed events with a <code> annotation on that display lane. Other graphed events go to <code> (7 by default). Moved events retain their actual execution stream in <code>. This groups attention on lane 62 and MLP on lane 61 in our example.
+
+To keep the recorded stream layout, omit <code> or set it to <code>. Annotation metadata is still included in each matching event's <code>, and any annotated stream is stored as <code>. This is useful when inspecting concurrency on the original streams.
+
+An empty annotation mapping is treated as no annotations. Since <code> requires a nonempty mapping, the example uses <code> when annotation support is unavailable.
+
+Keep the captured graph alive until export finishes: destroying or resetting it removes its entries from the live annotation registry. There is no need to save annotations to a separate file or post-process the exported trace.
+
+Comparing Before and After.
+
+To see the impact of annotations, let's count how kernels are distributed across thread IDs (which represent visualization lanes in the trace).
+
+Putting It All Together.
+
+Now let's run the complete workflow: build a model, capture it with annotations, profile it, and export the annotated trace.
+
+Recording Logical Streams with <code>.
+
+When your computation already uses multiple CUDA streams, <code> switches to a stream and records a logical lane ID for its kernels. This helper currently lives in the private <code> module. Use <code> with an explicit <code> field when you only want to change the display layout, as in the transformer example above.
+
+The block below runs two independent projections on separate CUDA streams, then combines their results. Each side stream waits for the current stream inside its <code> scope. These waits make the side streams join the capture before launching work. The current stream waits for both branches before reading their outputs and ending capture. <code> does not insert these dependencies for you.
+
+Reuse the capture and profiling helpers to export this graph. With <code>, the projections appear on distinct logical lanes named <code> and <code>, even if graph replay schedules them on different hardware streams. The <code> kernel goes to the default lane, 7. Moved events retain <code>.
+
+Lane IDs are assigned automatically and may vary depending on which streams have already been marked. Reusing the same stream reuses its lane ID. Passing the current stream to <code> adds the label without assigning a new lane. With <code>, the original layout is preserved and the recorded lane IDs appear in <code> instead.
+
+Run <code> and open <code> in.
+
+Annotating Communication Collectives.
+
+In eager mode the profiler automatically intercepts NCCL collectives and records rich metadata: collective type, input/output message sizes, the process group, its size, and the participating ranks.
+
+Under CUDA graphs that automatic interception stops working. The collective is captured once and then replayed as an opaque kernel node. The profiler cannot intercept graph replay, so it has nothing to attach the NCCL metadata to. The kernels still show up in the trace (e.g., <code>), but they are opaque: you cannot tell what collective type it is, how many bytes moved, or which process group it belongs to.
+
+Annotations close this gap. By wrapping the collective in <code> with the same fields the profiler auto-attaches in eager mode, we manually re-attach that metadata to the graphed kernel. After export, a graphed collective reads just like an eager one. The helper below builds the metadata dict; using the field names the profiler uses in eager (<code>, <code>, <code>, ...) keeps the annotated trace consistent with non-graphed traces.
+
+A Block That Mixes Compute and Communication.
+
+A tensor- or data-parallel layer interleaves matmuls with collectives. Here the projection output is all-reduced across the group, mirroring the comm in a tensor-parallel linear. The collective is annotated with <code> and lands on its own lane.
+
+Running the Communication Demo.
+
+Performance Considerations.
+
+Kernel annotations add minimal overhead:
+
+Annotation marking happens during graph capture (one-time cost).
+
+Graph replay performance is identical to unannotated graphs.
+
+Annotations are added during trace export, after profiling finishes.
+
+The main cost is the profiling itself, which you would do anyway when optimizing performance. Annotations simply make the profiler output more useful by adding semantic structure.
+
+Troubleshooting.
+
+No annotations in the trace?
+
+Check that your driver/CUDA-compat >= 13.1.
+
+Verify that <code> was passed to <code>.
+
+Ensure <code> is installed.
+
+Pass <code> to <code> while the graph is still alive.
+
+Annotations not showing up in specific kernels?
+
+Some operations may not launch kernels (e.g., tensor views).
+
+Only kernels launched within the <code> context are annotated.
+
+Verify the operation actually produces CUDA kernels using <code>.
+
+Conclusion.
+
+CUDA graph kernel annotations provide a powerful way to add semantic structure to your profiling traces. By marking logical components of your model during graph capture and including these annotations during export, you can create visualizations that make it much easier to understand and optimize complex CUDA graph executions.
+
+Key takeaways:
+
+Use <code> to label regions during graph capture.
+
+Use <code> to record logical lanes when switching CUDA streams.
+
+Enable annotations with <code>.
+
+Annotate communication collectives to recover the NCCL metadata (collective type, message size, group, rank) that CUDA graphs drop but eager traces expose.
+
+Pass annotations directly to <code>.
+
+Use <code> to organize graphed kernels into semantic lanes.
+
+View results in for intuitive visualization.
+
+This technique is especially valuable for large models with many components, distributed training setups, or any scenario where understanding the execution structure is critical for performance optimization.

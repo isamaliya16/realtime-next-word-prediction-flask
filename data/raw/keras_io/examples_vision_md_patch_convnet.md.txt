@@ -1,0 +1,67 @@
+Augmenting convnets with aggregated attention.
+
+Introduction.
+
+Vision transformers (Dosovitskiy et. al) have emerged as a powerful alternative to Convolutional Neural Networks. ViTs process the images in a patch-based manner. The image information is then aggregated into a <code> token. This token correlates to the most important patches of the image for a particular classification decision.
+
+The interaction between the <code> token and the patches can be visualized to help explain a classification decision. In the academic paper Augmenting convolutional networks with attention-based aggregation by Touvron et. al, the authors propose to set up an equivalent visualization for convnets. They propose to substitute the global average pooling layer of a convnet with a Transformer layer. The self-attention layer of the Transformer would produce attention maps that correspond to the most attended patches of the image for the classification decision.
+
+In this example, we minimally implement the ideas of Augmenting Convolutional networks with attention-based aggregation. The main goal of this example is to cover the following ideas, with minor modifications (to adjust the implementation with CIFAR10):
+
+The simple design for the attention-based pooling layer, such that it explicitly provides the weights (importance) of the different patches.
+
+The novel architecture of convnet is called the PatchConvNet which deviates from the age old pyramidal architecture.
+
+Setup and Imports.
+
+This example requires TensorFlow Addons, which can be installed using the following command:
+
+Hyperparameters.
+
+Load the CIFAR10 dataset.
+
+Augmentation layers.
+
+Convolutional stem.
+
+The stem of the model is a lightweight preprocessing module that maps images pixels to a set of vectors (patches).
+
+Convolutional trunk.
+
+The trunk of the model is the most compute-intesive part. It consists of <code> stacked residual convolutional blocks.
+
+Attention Pooling.
+
+The output of the convolutional trunk is attended with a trainable query class token. The resulting attention map is the weight of every patch of the image for a classification decision.
+
+Patch convnet.
+
+The patch-convnet is shown in the figure below.
+
+All the modules in the architecture are built in the earlier seciton. In this section, we stack all of the different modules together.
+
+Callbacks.
+
+This callback will plot the image and the attention map overlayed on the image.
+
+Learning rate schedule.
+
+Training.
+
+We build the model, compile it, and train it.
+
+Inference.
+
+Here, we use the trained model to plot the attention map.
+
+Conclusions.
+
+The attention map corresponding to the trainable <code> token and the patches of the image helps explain the classificaiton decision. One should also note that the attention maps gradually get better. In the initial training regime, the attention is scattered all around while at a later stage, it focuses more on the objects of the image.
+
+The non-pyramidal convnet achieves an accuracy of ~84-85% top-1 test accuracy.
+
+I would like to thank JarvisLabs.ai for providing GPU credits for this project.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 9: ConvNet architecture patterns.

@@ -1,0 +1,39 @@
+Migrate evaluation.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Evaluation is a critical part of measuring and benchmarking models.
+
+This guide demonstrates how to migrate evaluator tasks from TensorFlow 1 to TensorFlow 2. In Tensorflow 1 this functionality is implemented by <code>, when the API is running distributedly. In Tensorflow 2, you can use the built-in <code>, or a custom evaluation loop on the evaluator task.
+
+There are simple serial evaluation options in both TensorFlow 1 (<code>) and TensorFlow 2 (<code> or <code>). The evaluator task is preferable when you would like your workers not switching between training and evaluation, and built-in evaluation in <code> is preferable when you would like your evaluation to be distributed.
+
+Setup.
+
+TensorFlow 1: Evaluating using tf.estimator.trainandevaluate.
+
+In TensorFlow 1, you can configure a <code> to evaluate the estimator using <code>.
+
+In this example, start by defining the <code> and specifying training and evaluation specifications:
+
+Then, train and evaluate the model. The evaluation runs synchronously between training because it's limited as a local run in this notebook and alternates between training and evaluation. However, if the estimator is used distributedly, the evaluator will run as a dedicated evaluator task. For more information, check the migration guide on distributed training.
+
+TensorFlow 2: Evaluating a Keras model.
+
+In TensorFlow 2, if you use the Keras <code> API for training, you can evaluate the model with <code>. You can also visualize the evaluation metrics in TensorBoard which is not shown in this guide.
+
+To help demonstrate this, let's first start by defining and training the model:
+
+Then, evaluate the model using <code>. In real training, it's recommended to use a separate job to conduct the evaluation to free up worker resources for training.
+
+Next steps.
+
+To learn more about sidecar evaluation consider reading the <code> API docs.
+
+To consider alternating training and evaluation in Keras consider reading about other built-in methods.

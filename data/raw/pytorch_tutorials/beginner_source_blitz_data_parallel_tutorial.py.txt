@@ -1,0 +1,59 @@
+Optional: Data Parallelism Authors: Sung Kim and Jenny Kang.
+
+In this tutorial, we will learn how to use multiple GPUs using <code>.
+
+It's very easy to use GPUs with PyTorch. You can put the model on a GPU:
+
+Then, you can copy all your tensors to the GPU:
+
+Please note that just calling <code> returns a new copy of <code> on GPU instead of rewriting <code>. You need to assign it to a new tensor and use that tensor on the GPU.
+
+It's natural to execute your forward, backward propagations on multiple GPUs. However, Pytorch will only use one GPU by default. You can easily run your operations on multiple GPUs by making your model run parallelly using <code>:
+
+That's the core behind this tutorial. We will explore it in more detail below.
+
+Imports and parameters.
+
+Import PyTorch modules and define parameters.
+
+Device.
+
+Dummy DataSet.
+
+Make a dummy (random) dataset. You just need to implement the getitem.
+
+Simple Model.
+
+For the demo, our model just gets an input, performs a linear operation, and gives an output. However, you can use <code> on any model (CNN, RNN, Capsule Net etc.).
+
+We've placed a print statement inside the model to monitor the size of input and output tensors. Please pay attention to what is printed at batch rank 0.
+
+Create Model and DataParallel.
+
+This is the core part of the tutorial. First, we need to make a model instance and check if we have multiple GPUs. If we have multiple GPUs, we can wrap our model using <code>. Then we can put our model on GPUs by <code>.
+
+Run the Model.
+
+Now we can see the sizes of input and output tensors.
+
+Results.
+
+If you have no GPU or one GPU, when we batch 30 inputs and 30 outputs, the model gets 30 and outputs 30 as expected. But if you have multiple GPUs, then you can get results like this.
+
+2 GPUs.
+
+If you have 2, you will see:
+
+3 GPUs.
+
+If you have 3 GPUs, you will see:
+
+8 GPUs.
+
+If you have 8, you will see:
+
+Summary.
+
+DataParallel splits your data automatically and sends job orders to multiple models on several GPUs. After each model finishes their job, DataParallel collects and merges the results before returning it to you.
+
+For more information, please check out.

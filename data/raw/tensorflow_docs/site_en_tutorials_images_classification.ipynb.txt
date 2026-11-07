@@ -1,0 +1,191 @@
+Image classification.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial shows how to classify images of flowers using a <code> model and load data using <code>. It demonstrates the following concepts:
+
+Efficiently loading a dataset off disk.
+
+Identifying overfitting and applying techniques to mitigate it, including data augmentation and dropout.
+
+This tutorial follows a basic machine learning workflow:
+
+Examine and understand data.
+
+Build an input pipeline.
+
+Build the model.
+
+Train the model.
+
+Test the model.
+
+Improve the model and repeat the process.
+
+In addition, the notebook demonstrates how to convert a saved model to a TensorFlow Lite model for on-device machine learning on mobile, embedded, and IoT devices.
+
+Setup.
+
+Import TensorFlow and other necessary libraries:
+
+Download and explore the dataset.
+
+This tutorial uses a dataset of about 3,700 photos of flowers. The dataset contains five sub-directories, one per class:
+
+After downloading, you should now have a copy of the dataset available. There are 3,670 total images:
+
+Here are some roses:
+
+And some tulips:
+
+Load data using a Keras utility.
+
+Next, load these images off disk using the helpful <code> utility. This will take you from a directory of images on disk to a <code> in just a couple lines of code. If you like, you can also write your own data loading code from scratch by visiting the Load and preprocess images tutorial.
+
+Create a dataset.
+
+Define some parameters for the loader:
+
+It's good practice to use a validation split when developing your model. Use 80% of the images for training and 20% for validation.
+
+You can find the class names in the <code> attribute on these datasets. These correspond to the directory names in alphabetical order.
+
+Visualize the data.
+
+Here are the first nine images from the training dataset:
+
+You will pass these datasets to the Keras <code> method for training later in this tutorial. If you like, you can also manually iterate over the dataset and retrieve batches of images:
+
+The <code> is a tensor of the shape <code>. This is a batch of 32 images of shape <code> (the last dimension refers to color channels RGB). The <code> is a tensor of the shape <code>, these are corresponding labels to the 32 images.
+
+You can call <code> on the <code> and <code> tensors to convert them to a <code>.
+
+Configure the dataset for performance.
+
+Make sure to use buffered prefetching, so you can yield data from disk without having I/O become blocking. These are two important methods you should use when loading data:
+
+<code> keeps the images in memory after they're loaded off disk during the first epoch. This will ensure the dataset does not become a bottleneck while training your model. If your dataset is too large to fit into memory, you can also use this method to create a performant on-disk cache.
+
+<code> overlaps data preprocessing and model execution while training.
+
+Interested readers can learn more about both methods, as well as how to cache data to disk in the Prefetching section of the Better performance with the tf.data API guide.
+
+Standardize the data.
+
+The RGB channel values are in the <code> range. This is not ideal for a neural network; in general you should seek to make your input values small.
+
+Here, you will standardize values to be in the <code> range by using <code>:
+
+There are two ways to use this layer. You can apply it to the dataset by calling <code>:
+
+Or, you can include the layer inside your model definition, which can simplify deployment. Use the second approach here.
+
+Note: You previously resized images using the <code> argument of <code>. If you want to include the resizing logic in your model as well, you can use the <code> layer.
+
+A basic Keras model.
+
+Create the model.
+
+The Keras Sequential model consists of three convolution blocks (<code>) with a max pooling layer (<code>) in each of them. There's a fully-connected layer (<code>) with 128 units on top of it that is activated by a ReLU activation function (<code>). This model has not been tuned for high accuracy; the goal of this tutorial is to show a standard approach.
+
+Compile the model.
+
+For this tutorial, choose the <code> optimizer and <code> loss function. To view training and validation accuracy for each training epoch, pass the <code> argument to <code>.
+
+Model summary.
+
+View all the layers of the network using the Keras <code> method:
+
+Train the model.
+
+Train the model for 10 epochs with the Keras <code> method:
+
+Visualize training results.
+
+Create plots of the loss and accuracy on the training and validation sets:
+
+The plots show that training accuracy and validation accuracy are off by large margins, and the model has achieved only around 60% accuracy on the validation set.
+
+The following tutorial sections show how to inspect what went wrong and try to increase the overall performance of the model.
+
+Overfitting.
+
+In the plots above, the training accuracy is increasing linearly over time, whereas validation accuracy stalls around 60% in the training process. Also, the difference in accuracy between training and validation accuracy is noticeable—a sign of overfitting.
+
+When there are a small number of training examples, the model sometimes learns from noises or unwanted details from training examples—to an extent that it negatively impacts the performance of the model on new examples. This phenomenon is known as overfitting. It means that the model will have a difficult time generalizing on a new dataset.
+
+There are multiple ways to fight overfitting in the training process. In this tutorial, you'll use data augmentation and add dropout to your model.
+
+Data augmentation.
+
+Overfitting generally occurs when there are a small number of training examples. Data augmentation takes the approach of generating additional training data from your existing examples by augmenting them using random transformations that yield believable-looking images. This helps expose the model to more aspects of the data and generalize better.
+
+You will implement data augmentation using the following Keras preprocessing layers: <code>, <code>, and <code>. These can be included inside your model like other layers, and run on the GPU.
+
+Visualize a few augmented examples by applying data augmentation to the same image several times:
+
+You will add data augmentation to your model before training in the next step.
+
+Dropout.
+
+Another technique to reduce overfitting is to introduce dropout regularization to the network.
+
+When you apply dropout to a layer, it randomly drops out (by setting the activation to zero) a number of output units from the layer during the training process. Dropout takes a fractional number as its input value, in the form such as 0.1, 0.2, 0.4, etc. This means dropping out 10%, 20% or 40% of the output units randomly from the applied layer.
+
+Create a new neural network with <code> before training it using the augmented images:
+
+Compile and train the model.
+
+Visualize training results.
+
+After applying data augmentation and <code>, there is less overfitting than before, and training and validation accuracy are closer aligned:
+
+Predict on new data.
+
+Use your model to classify an image that wasn't included in the training or validation sets.
+
+Note: Data augmentation and dropout layers are inactive at inference time.
+
+Use TensorFlow Lite.
+
+TensorFlow Lite is a set of tools that enables on-device machine learning by helping developers run their models on mobile, embedded, and edge devices.
+
+Convert the Keras Sequential model to a TensorFlow Lite model.
+
+To use the trained model with on-device applications, first convert it to a smaller and more efficient model format called a TensorFlow Lite model.
+
+In this example, take the trained Keras Sequential model and use <code> to generate a TensorFlow Lite model:
+
+The TensorFlow Lite model you saved in the previous step can contain several function signatures. The Keras model converter API uses the default signature automatically. Learn more about TensorFlow Lite signatures.
+
+Run the TensorFlow Lite model.
+
+You can access the TensorFlow Lite saved model signatures in Python via the <code> class.
+
+Load the model with the <code>:
+
+Print the signatures from the converted model to obtain the names of the inputs (and outputs):
+
+In this example, you have one default signature called <code>. In addition, the name of the <code> is <code>, while the <code> are called <code>. You can look up these first and last Keras layer names when running <code>, as demonstrated earlier in this tutorial.
+
+Now you can test the loaded TensorFlow Model by performing inference on a sample image with <code> by passing the signature name as follows:
+
+Similar to what you did earlier in the tutorial, you can use the TensorFlow Lite model to classify images that weren't included in the training or validation sets.
+
+You have already tensorized that image and saved it as <code>. Now, pass it to the first argument (the name of the <code>) of the loaded TensorFlow Lite model (<code>), compute softmax activations, and then print the prediction for the class with the highest computed probability.
+
+The prediction generated by the lite model should be almost identical to the predictions generated by the original model:
+
+Of the five classes—<code>, <code>, <code>, <code>, and <code>—the model should predict the image belongs to sunflowers, which is the same result as before the TensorFlow Lite conversion.
+
+Next steps.
+
+This tutorial showed how to train a model for image classification, test it, convert it to the TensorFlow Lite format for on-device applications (such as an image classification app), and perform inference with the TensorFlow Lite model with the Python API.
+
+You can learn more about TensorFlow Lite through tutorials and guides.

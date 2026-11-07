@@ -1,0 +1,63 @@
+Using KerasCV COCO Metrics.
+
+Overview.
+
+With KerasCV's COCO metrics implementation, you can easily evaluate your object detection model's performance all from within the TensorFlow graph. This guide shows you how to use KerasCV's COCO metrics and integrate it into your own model evaluation pipeline. Historically, users have evaluated COCO metrics as a post training step. KerasCV offers an in graph implementation of COCO metrics, enabling users to evaluate COCO metrics during training!
+
+Let's get started using KerasCV's COCO metrics.
+
+Input format.
+
+All KerasCV components that process bounding boxes, including COCO metrics, require a <code> parameter. This parameter is used to tell the components what format your bounding boxes are in. While this guide uses the <code> format, a full list of supported formats is available in the bounding_box API documentation.
+
+The metrics expect <code> and be a <code> Tensor with the shape `[batch, numimages, numboxes, 5]`, with the ordering of last set of axes determined by the provided format. The same is true of <code>, except that an additional <code> axis must be provided.
+
+Due to the fact that each image may have a different number of bounding boxes, the <code> dimension may actually have a mismatching shape between images. KerasCV works around this by allowing you to either pass a <code> as an input to the KerasCV COCO metrics, or padding unused bounding boxes with <code>.
+
+Utility functions to manipulate bounding boxes, transform between formats, and pad bounding box Tensors with <code> are available from the <code> package.
+
+Independent metric use.
+
+The usage first pattern for KerasCV COCO metrics is to manually call <code> and <code> methods. This pattern is recommended for users who want finer grained control of their metric evaluation, or want to use a different format for <code> in their model.
+
+Let's run through a quick code example.
+
+1.) First, we must construct our metric:
+
+2.) Create Some Bounding Boxes:
+
+3.) Update metric state:
+
+4.) Evaluate the result:
+
+Evaluating COCORecall for your object detection model is as simple as that!
+
+Metric use in a model.
+
+You can also leverage COCORecall in your model's training loop. Let's walk through this process.
+
+1.) Construct your the metric and a dummy model.
+
+2.) Create some fake bounding boxes:
+
+3.) Create the metric and compile the model.
+
+4.) Use <code> to evaluate the metric.
+
+Looks great! That's all it takes to use KerasCV's COCO metrics to evaluate object detection models.
+
+Supported constructor parameters.
+
+KerasCV COCO Metrics are sufficiently parameterized to support all of the permutations evaluated in the original COCO challenge, all metrics evaluated in the accompanying <code> library, and more!
+
+Check out the full documentation for <code> and <code>.
+
+Conclusion & next steps.
+
+KerasCV makes it easier than ever before to evaluate a Keras object detection model. Historically, users had to perform post training evaluation. With KerasCV, you can perform train time evaluation to see how these metrics evolve over time!
+
+As an additional exercise for readers, you can:
+
+Configure <code>, <code>, and <code> to reproduce the suite of metrics evaluted in <code>.
+
+Integrate COCO metrics into a RetinaNet using the keras.io RetinaNet example.

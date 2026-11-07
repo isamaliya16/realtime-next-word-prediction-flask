@@ -1,0 +1,95 @@
+Models.
+
+In this section, we'll take a closer look at creating and using models. We'll use the <code> class, which is handy when you want to instantiate any model from a checkpoint.
+
+Creating a Transformer.
+
+Let's begin by examining what happens when we instantiate an <code>:
+
+Similar to the tokenizer, the <code> method will download and cache the model data from the Hugging Face Hub. As mentioned previously, the checkpoint name corresponds to a specific model architecture and weights, in this case a BERT model with a basic architecture (12 layers, 768 hidden size, 12 attention heads) and cased inputs (meaning that the uppercase/lowercase distinction is important). There are many checkpoints available on the Hub — you can explore them here.
+
+The <code> class and its associates are actually simple wrappers designed to fetch the appropriate model architecture for a given checkpoint. It's an "auto" class meaning it will guess the appropriate model architecture for you and instantiate the correct model class. However, if you know the type of model you want to use, you can use the class that defines its architecture directly:
+
+Loading and saving.
+
+Saving a model is as simple as saving a tokenizer. In fact, the models actually have the same <code> method, which saves the model's weights and architecture configuration:
+
+This will save two files to your disk:
+
+If you look inside the config.json file, you'll see all the necessary attributes needed to build the model architecture. This file also contains some metadata, such as where the checkpoint originated and what 🤗 Transformers version you were using when you last saved the checkpoint.
+
+The pytorch_model.safetensors file is known as the state dictionary; it contains all your model's weights. The two files work together: the configuration file is needed to know about the model architecture, while the model weights are the parameters of the model.
+
+To reuse a saved model, use the <code> method again:
+
+A wonderful feature of the 🤗 Transformers library is the ability to easily share models and tokenizers with the community. To do this, make sure you have an account on Hugging Face. If you're using a notebook, you can easily log in with this:
+
+Otherwise, at your terminal run:
+
+Then you can push the model to the Hub with the <code> method:
+
+This will upload the model files to the Hub, in a repository under your namespace named my-awesome-model. Then, anyone can load your model with the <code> method!
+
+You can do a lot more with the Hub API:
+
+Push a model from a local repository.
+
+Update specific files without re-uploading everything.
+
+Add model cards to document the model's abilities, limitations, known biases, etc.
+
+See the documentation for a complete tutorial on this, or check out the advanced Chapter 4.
+
+Encoding text.
+
+Transformer models handle text by turning the inputs into numbers. Here we will look at exactly what happens when your text is processed by the tokenizer. We've already seen in Chapter 1 that tokenizers split the text into tokens and then convert these tokens into numbers. We can see this conversion through a simple tokenizer:
+
+We get a dictionary with the following fields:
+
+input_ids: numerical representations of your tokens.
+
+tokentypeids: these tell the model which part of the input is sentence A and which is sentence B (discussed more in the next section).
+
+attention_mask: this indicates which tokens should be attended to and which should not (discussed more in a bit).
+
+We can decode the input IDs to get back the original text:
+
+You'll notice that the tokenizer has added special tokens — <code> and <code> — required by the model. Not all models need special tokens; they're utilized when a model was pretrained with them, in which case the tokenizer needs to add them as that model expects these tokens.
+
+You can encode multiple sentences at once, either by batching them together (we'll discuss this soon) or by passing a list:
+
+Note that when passing multiple sentences, the tokenizer returns a list for each sentence for each dictionary value. We can also ask the tokenizer to return tensors directly from PyTorch:
+
+But there's a problem: the two lists don't have the same length! Arrays and tensors need to be rectangular, so we can't simply convert these lists to a PyTorch tensor (or NumPy array). The tokenizer provides an option for that: padding.
+
+Padding inputs.
+
+If we ask the tokenizer to pad the inputs, it will make all sentences the same length by adding a special padding token to the sentences that are shorter than the longest one:
+
+Now we have rectangular tensors! Note that the padding tokens have been encoded into input IDs with ID 0, and they have an attention mask value of 0 as well. This is because those padding tokens shouldn't be analyzed by the model: they're not part of the actual sentence.
+
+Truncating inputs.
+
+The tensors might get too big to be processed by the model. For instance, BERT was only pretrained with sequences up to 512 tokens, so it cannot process longer sequences. If you have sequences longer than the model can handle, you'll need to truncate them with the <code> parameter:
+
+By combining the padding and truncation arguments, you can make sure your tensors have the exact size you need:
+
+Adding special tokens.
+
+Special tokens (or at least the concept of them) is particularly important to BERT and derived models. These tokens are added to better represent the sentence boundaries, such as the beginning of a sentence (<code>) or separator between sentences (<code>). Let's look at a simple example:
+
+These special tokens are automatically added by the tokenizer. Not all models need special tokens; they are primarily used when a model was pretrained with them, in which case the tokenizer will add them since the model expects them.
+
+Why is all of this necessary?
+
+Here's a concrete example. Consider these encoded sequences:
+
+Once tokenized, we have:
+
+This is a list of encoded sequences: a list of lists. Tensors only accept rectangular shapes (think matrices). This "array" is already of rectangular shape, so converting it to a tensor is easy:
+
+Using the tensors as inputs to the model.
+
+Making use of the tensors with the model is extremely simple — we just call the model with the inputs:
+
+While the model accepts a lot of different arguments, only the input IDs are necessary. We'll explain what the other arguments do and when they are required later, but first we need to take a closer look at the tokenizers that build the inputs that a Transformer model can understand.

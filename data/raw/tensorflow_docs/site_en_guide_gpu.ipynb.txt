@@ -1,0 +1,87 @@
+Use a GPU.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+TensorFlow code, and <code> models will transparently run on a single GPU with no code changes required.
+
+Note: Use <code> to confirm that TensorFlow is using the GPU.
+
+The simplest way to run on multiple GPUs, on one or many machines, is using Distribution Strategies.
+
+This guide is for users who have tried these approaches and found that they need fine-grained control of how TensorFlow uses the GPU. To learn how to debug performance issues for single and multi-GPU scenarios, see the Optimize TensorFlow GPU Performance guide.
+
+Setup.
+
+Ensure you have the latest TensorFlow gpu release installed.
+
+Overview.
+
+TensorFlow supports running computations on a variety of types of devices, including CPU and GPU. They are represented with string identifiers for example:
+
+<code>: The CPU of your machine.
+
+<code>: Short-hand notation for the first GPU of your machine that is visible to TensorFlow.
+
+<code>: Fully qualified name of the second GPU of your machine that is visible to TensorFlow.
+
+If a TensorFlow operation has both CPU and GPU implementations, by default, the GPU device is prioritized when the operation is assigned. For example, <code> has both CPU and GPU kernels and on a system with devices <code> and <code>, the <code> device is selected to run <code> unless you explicitly request to run it on another device.
+
+If a TensorFlow operation has no corresponding GPU implementation, then the operation falls back to the CPU device. For example, since <code> only has a CPU kernel, on a system with devices <code> and <code>, the <code> device is selected to run <code>, even if requested to run on the <code> device.
+
+Logging device placement.
+
+To find out which devices your operations and tensors are assigned to, put <code> as the first statement of your program. Enabling device placement logging causes any Tensor allocations or operations to be printed.
+
+The above code will print an indication the <code> op was executed on <code>.
+
+Manual device placement.
+
+If you would like a particular operation to run on a device of your choice instead of what's automatically selected for you, you can use <code> to create a device context, and all the operations within that context will run on the same designated device.
+
+You will see that now <code> and <code> are assigned to <code>. Since a device was not explicitly specified for the <code> operation, the TensorFlow runtime will choose one based on the operation and available devices (<code> in this example) and automatically copy tensors between devices if required.
+
+Limiting GPU memory growth.
+
+By default, TensorFlow maps nearly all of the GPU memory of all GPUs (subject to <code>) visible to the process. This is done to more efficiently use the relatively precious GPU memory resources on the devices by reducing memory fragmentation. To limit TensorFlow to a specific set of GPUs, use the <code> method.
+
+In some cases it is desirable for the process to only allocate a subset of the available memory, or to only grow the memory usage as is needed by the process. TensorFlow provides two methods to control this.
+
+The first option is to turn on memory growth by calling <code>, which attempts to allocate only as much GPU memory as needed for the runtime allocations: it starts out allocating very little memory, and as the program gets run and more GPU memory is needed, the GPU memory region is extended for the TensorFlow process. Memory is not released since it can lead to memory fragmentation. To turn on memory growth for a specific GPU, use the following code prior to allocating any tensors or executing any ops.
+
+Another way to enable this option is to set the environmental variable <code> to <code>. This configuration is platform specific.
+
+The second method is to configure a virtual GPU device with <code> and set a hard limit on the total memory to allocate on the GPU.
+
+This is useful if you want to truly bound the amount of GPU memory available to the TensorFlow process. This is common practice for local development when the GPU is shared with other applications such as a workstation GUI.
+
+Using a single GPU on a multi-GPU system.
+
+If you have more than one GPU in your system, the GPU with the lowest ID will be selected by default. If you would like to run on a different GPU, you will need to specify the preference explicitly:
+
+If the device you have specified does not exist, you will get a <code>: <code>.
+
+If you would like TensorFlow to automatically choose an existing and supported device to run the operations in case the specified one doesn't exist, you can call <code>.
+
+Using multiple GPUs.
+
+Developing for multiple GPUs will allow a model to scale with the additional resources. If developing on a system with a single GPU, you can simulate multiple GPUs with virtual devices. This enables easy testing of multi-GPU setups without requiring additional resources.
+
+Once there are multiple logical GPUs available to the runtime, you can utilize the multiple GPUs with <code> or with manual placement.
+
+With <code>.
+
+The best practice for using multiple GPUs is to use <code>. Here is a simple example:
+
+This program will run a copy of your model on each GPU, splitting the input data between them, also known as "data parallelism".
+
+For more information about distribution strategies, check out the guide here.
+
+Manual placement.
+
+<code> works under the hood by replicating computation across devices. You can manually implement replication by constructing your model on each GPU. For example:

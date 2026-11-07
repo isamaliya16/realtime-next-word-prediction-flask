@@ -1,0 +1,253 @@
+Distributions.
+
+Now that we have learned how to work with probability in both the discrete and the continuous setting, let's get to know some of the common distributions encountered. Depending on the area of machine learning, we may need to be familiar with vastly more of these, or for some areas of deep learning potentially none at all. This is, however, a good basic list to be familiar with. Let's first import some common libraries.
+
+Bernoulli.
+
+This is the simplest random variable usually encountered. This random variable encodes a coin flip which comes up <math> with probability <math> and <math> with probability <math>. If we have a random variable <math> with this distribution, we will write.
+
+<math>.
+
+The cumulative distribution function is.
+
+<math>.
+
+The probability mass function is plotted below.
+
+Now, let's plot the cumulative distribution function <num>.
+
+If <math>, then:
+
+<math>.
+
+<math>.
+
+We can sample an array of arbitrary shape from a Bernoulli random variable as follows.
+
+Discrete Uniform.
+
+The next commonly encountered random variable is a discrete uniform. For our discussion here, we will assume that it is supported on the integers <math>, however any other set of values can be freely chosen. The meaning of the word uniform in this context is that every possible value is equally likely. The probability for each value <math> is <math>. We will denote a random variable <math> with this distribution as.
+
+<math>.
+
+The cumulative distribution function is.
+
+<math>.
+
+Let's first plot the probability mass function.
+
+Now, let's plot the cumulative distribution function <num>.
+
+If <math>, then:
+
+<math>.
+
+<math>.
+
+We can sample an array of arbitrary shape from a discrete uniform random variable as follows.
+
+Continuous Uniform.
+
+Next, let's discuss the continuous uniform distribution. The idea behind this random variable is that if we increase the <math> in the discrete uniform distribution, and then scale it to fit within the interval <math>, we will approach a continuous random variable that just picks an arbitrary value in <math> all with equal probability. We will denote this distribution as.
+
+<math>.
+
+The probability density function is.
+
+<math>.
+
+The cumulative distribution function is.
+
+<math>.
+
+Let's first plot the probability density function <num>.
+
+Now, let's plot the cumulative distribution function <num>.
+
+If <math>, then:
+
+<math>.
+
+<math>.
+
+We can sample an array of arbitrary shape from a uniform random variable as follows. Note that it by default samples from a <math>, so if we want a different range we need to scale it.
+
+Binomial.
+
+Let's make things a little more complex and examine the binomial random variable. This random variable originates from performing a sequence of <math> independent experiments, each of which has probability <math> of succeeding, and asking how many successes we expect to see.
+
+Let's express this mathematically. Each experiment is an independent random variable <math> where we will use <math> to encode success, and <math> to encode failure. Since each is an independent coin flip which is successful with probability <math>, we can say that <math>. Then, the binomial random variable is.
+
+<math>.
+
+In this case, we will write.
+
+<math>.
+
+To get the cumulative distribution function, we need to notice that getting exactly <math> successes can occur in <math> ways each of which has a probability of <math> of occurring. Thus the cumulative distribution function is.
+
+<math>.
+
+Let's first plot the probability mass function.
+
+Now, let's plot the cumulative distribution function <num>.
+
+If <math>, then:
+
+<math>.
+
+<math>.
+
+This follows from the linearity of expected value over the sum of <math> Bernoulli random variables, and the fact that the variance of the sum of independent random variables is the sum of the variances. This can be sampled as follows.
+
+Poisson.
+
+Let's now perform a thought experiment. We are standing at a bus stop and we want to know how many buses will arrive in the next minute. Let's start by considering <math> which is simply the probability that a bus arrives in the one minute window. For bus stops far from an urban center, this might be a pretty good approximation. We may never see more than one bus in a minute.
+
+However, if we are in a busy area, it is possible or even likely that two buses will arrive. We can model this by splitting our random variable into two parts for the first 30 seconds, or the second 30 seconds. In this case we can write.
+
+<math>.
+
+where <math> is the total sum, and <math>. The total distribution is then <math>.
+
+Why stop here? Let's continue to split that minute into <math> parts. By the same reasoning as above, we see that.
+
+<math>.
+
+Consider these random variables. By the previous section, we know that <num> has mean <math>, and variance <math>. If we take <math>, we can see that these numbers stabilize to <math>, and variance <math>. This indicates that there could be some random variable we can define in this infinite subdivision limit.
+
+This should not come as too much of a surprise, since in the real world we can just count the number of bus arrivals, however it is nice to see that our mathematical model is well defined. This discussion can be made formal as the law of rare events.
+
+Following through this reasoning carefully, we can arrive at the following model. We will say that <math> if it is a random variable which takes the values <math> with probability.
+
+<math>.
+
+The value <math> is known as the rate (or the shape parameter), and denotes the average number of arrivals we expect in one unit of time.
+
+We may sum this probability mass function to get the cumulative distribution function.
+
+<math>.
+
+Let's first plot the probability mass function <num>.
+
+Now, let's plot the cumulative distribution function <num>.
+
+As we saw above, the means and variances are particularly concise. If <math>, then:
+
+<math>.
+
+<math>.
+
+This can be sampled as follows.
+
+Gaussian.
+
+Now Let's try a different, but related experiment. Let's say we again are performing <math> independent <math> measurements <math>. The distribution of the sum of these is <math>. Rather than taking a limit as <math> increases and <math> decreases, Let's fix <math>, and then send <math>. In this case <math> and <math>, so there is no reason to think this limit should be well defined.
+
+However, not all hope is lost! Let's just make the mean and variance be well behaved by defining.
+
+<math>.
+
+This can be seen to have mean zero and variance one, and so it is plausible to believe that it will converge to some limiting distribution. If we plot what these distributions look like, we will become even more convinced that it will work.
+
+One thing to note: compared to the Poisson case, we are now dividing by the standard deviation which means that we are squeezing the possible outcomes into smaller and smaller areas. This is an indication that our limit will no longer be discrete, but rather continuous.
+
+A derivation of what occurs is beyond the scope of this document, but the central limit theorem states that as <math>, this will yield the Gaussian Distribution (or sometimes normal distribution). More explicitly, for any <math>:
+
+<math>.
+
+where we say a random variable is normally distributed with given mean <math> and variance <math>, written <math> if <math> has density.
+
+<math>.
+
+Let's first plot the probability density function <num>.
+
+Now, let's plot the cumulative distribution function. It is beyond the scope of this appendix, but the Gaussian c.d.f. does not have a closed-form formula in terms of more elementary functions. We will use <code> which provides a way to compute this integral numerically.
+
+Keen-eyed readers will recognize some of these terms. Indeed, we encountered this integral in section <num>. Indeed we need exactly that computation to see that this <math> has total area one and is thus a valid density.
+
+Our choice of working with coin flips made computations shorter, but nothing about that choice was fundamental. Indeed, if we take any collection of independent identically distributed random variables <math>, and form.
+
+<math>.
+
+Then.
+
+<math>.
+
+will be approximately Gaussian. There are additional requirements needed to make it work, most commonly <math>, but the philosophy is clear.
+
+The central limit theorem is the reason why the Gaussian is fundamental to probability, statistics, and machine learning. Whenever we can say that something we measured is a sum of many small independent contributions, we can assume that the thing being measured will be close to Gaussian.
+
+There are many more fascinating properties of Gaussians, and we would like to discuss one more here. The Gaussian is what is known as a maximum entropy distribution. We will get into entropy more deeply in section <num>, however all we need to know at this point is that it is a measure of randomness. In a rigorous mathematical sense, we can think of the Gaussian as the most random choice of random variable with fixed mean and variance. Thus, if we know that our random variable has some mean and variance, the Gaussian is in a sense the most conservative choice of distribution we can make.
+
+To close the section, let's recall that if <math>, then:
+
+<math>.
+
+<math>.
+
+We can sample from the Gaussian (or standard normal) distribution as shown below.
+
+Exponential Family.
+
+One shared property for all the distributions listed above is that they all belong to which is known as the exponential family. The exponential family is a set of distributions whose density can be expressed in the following form:
+
+<math>.
+
+As this definition can be a little subtle, let's examine it closely.
+
+First, <math> is known as the underlying measure or the base measure. This can be viewed as an original choice of measure we are modifying with our exponential weight.
+
+Second, we have the vector $\boldsymbol{\eta} = (\eta1, \eta2, ..., \etal) \in \mathbb{R}^l$ called the natural parameters or canonical parameters . These define how the base measure will be modified. The natural parameters enter into the new measure by taking the dot product of these parameters against some function <math> of $\mathbf{x}= (x1, x2, ..., xn) \in \mathbb{R}^n$ and exponentiated. The vector $T(\mathbf{x})= (T1(\mathbf{x}), T2(\mathbf{x}), ..., T_l(\mathbf{x}))$ is called the sufficient statistics for <math>. This name is used since the information represented by <math> is sufficient to calculate the probability density and no other information from the sample <math>'s are required.
+
+Third, we have <math>, which is referred to as the cumulant function, which ensures that the above distribution <num> integrates to one, i.e.
+
+<math>.
+
+To be concrete, let's consider the Gaussian. Assuming that <math> is an univariate variable, we saw that it had a density of.
+
+<math>.
+
+This matches the definition of the exponential family with:
+
+underlying measure: <math>.
+
+natural parameters: $\boldsymbol{\eta} = \begin{bmatrix} \eta1 \\ \eta2 \end{bmatrix} = \begin{bmatrix} \frac{\mu}{\sigma^2} \\ \frac{1}{2 \sigma^2} \end{bmatrix}$.
+
+sufficient statistics: <math>, and.
+
+cumulant function: $A({\boldsymbol\eta}) = \frac{1}{2 \sigma^2} \mu^2 + \log(\sigma) = \frac{\eta1^2}{4 \eta2} - \frac{1}{2}\log(2 \eta_2)$.
+
+It is worth noting that the exact choice of each of above terms is somewhat arbitrary. Indeed, the important feature is that the distribution can be expressed in this form, not the exact form itself.
+
+As we allude to in section <num>, a widely used technique is to assume that the final output <math> follows an exponential family distribution. The exponential family is a common and powerful family of distributions encountered frequently in machine learning.
+
+Summary.
+
+Bernoulli random variables can be used to model events with a yes/no outcome.
+
+Discrete uniform distributions model selects from a finite set of possibilities.
+
+Continuous uniform distributions select from an interval.
+
+Binomial distributions model a series of Bernoulli random variables, and count the number of successes.
+
+Poisson random variables model the arrival of rare events.
+
+Gaussian random variables model the result of adding a large number of independent random variables together.
+
+All the above distributions belong to exponential family.
+
+Exercises.
+
+What is the standard deviation of a random variable that is the difference <math> of two independent binomial random variables <math>.
+
+If we take a Poisson random variable <math> and consider <math> as <math>, we can show that this becomes approximately Gaussian. Why does this make sense?
+
+What is the probability mass function for a sum of two discrete uniform random variables on <math> elements?
+
+Discussions.
+
+Discussions.
+
+Discussions.

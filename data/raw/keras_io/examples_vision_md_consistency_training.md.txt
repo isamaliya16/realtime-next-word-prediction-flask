@@ -1,0 +1,105 @@
+Consistency training with supervision.
+
+Deep learning models excel in many image recognition tasks when the data is independent and identically distributed (i.i.d.). However, they can suffer from performance degradation caused by subtle distribution shifts in the input data (such as random noise, contrast change, and blurring). So, naturally, there arises a question of why. As discussed in A Fourier Perspective on Model Robustness in Computer Vision, there's no reason for deep learning models to be robust against such shifts. Standard model training procedures (such as standard image classification training workflows) don't enable a model to learn beyond what's fed to it in the form of training data.
+
+In this example, we will be training an image classification model enforcing a sense of consistency inside it by doing the following:
+
+Train a standard image classification model.
+
+Train an equal or larger model on a noisy version of the dataset (augmented using RandAugment).
+
+To do this, we will first obtain predictions of the previous model on the clean images of the dataset.
+
+We will then use these predictions and train the second model to match these predictions on the noisy variant of the same images. This is identical to the workflow of Knowledge Distillation but since the student model is equal or larger in size this process is also referred to as Self-Training.
+
+This overall training workflow finds its roots in works like FixMatch, Unsupervised Data Augmentation for Consistency Training, and Noisy Student Training. Since this training process encourages a model yield consistent predictions for clean as well as noisy images, it's often referred to as consistency training or training with consistency regularization. Although the example focuses on using consistency training to enhance the robustness of models to common corruptions this example can also serve a template for performing weakly supervised learning.
+
+Imports and setup.
+
+Define hyperparameters.
+
+Load the CIFAR-10 dataset.
+
+Create PyDataset <code> objects.
+
+For training the teacher model, we will only be using two geometric augmentation transforms: random horizontal flip and random crop.
+
+We make sure <code> and <code> are shuffled using the same seed to ensure their orders are exactly the same. This will be helpful during training the student model.
+
+Eval Dataset.
+
+We make sure <code> and <code> are shuffled using the same seed to ensure their orders are exactly the same. This will be helpful during training the student model.
+
+Visualize the datasets.
+
+Define a model building utility function.
+
+We now define our model building utility. Our model is based on the ResNet50V2 architecture.
+
+In the interest of reproducibility, we serialize the initial random weights of the teacher network.
+
+Train the teacher model.
+
+As noted in Noisy Student Training, if the teacher model is trained with geometric ensembling and when the student model is forced to mimic that, it leads to better performance. The original work uses Stochastic Depth and Dropout to bring in the ensembling part but for this example, we will use Stochastic Weight Averaging (SWA) which also resembles geometric ensembling.
+
+Epoch 1/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 683s 2s/step - accuracy: 0.4433 - loss: 1.5387 - valaccuracy: 0.4900 - valloss: 1.4593 - learning_rate: 0.0010.
+
+Epoch 2/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 725s 2s/step - accuracy: 0.5755 - loss: 1.1979 - valaccuracy: 0.5660 - valloss: 1.4343 - learning_rate: 0.0010.
+
+Epoch 3/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 714s 2s/step - accuracy: 0.6457 - loss: 1.0012 - valaccuracy: 0.5360 - valloss: 1.7527 - learning_rate: 0.0010.
+
+Epoch 4/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 730s 2s/step - accuracy: 0.6962 - loss: 0.8689 - valaccuracy: 0.6860 - valloss: 1.0094 - learning_rate: 0.0010.
+
+Epoch 5/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 728s 2s/step - accuracy: 0.7354 - loss: 0.7610 - valaccuracy: 0.7360 - valloss: 0.8522 - learning_rate: 0.0010.
+
+Test accuracy: 69.760000705719%.
+
+Distillation loss is a custom loss function that takes the true labels and the concatenated logits from the student and teacher models. It computes the standard sparse categorical cross-entropy loss for the student model and the Kullback-Leibler divergence between the softened outputs of the teacher and student models. The final loss is the average of these two losses, following the No.
+
+The only difference in this implementation is the way loss is being calculated. Instead of weighted the distillation loss and student loss differently we are taking their average following Noisy Student Training.
+
+Train the student model.
+
+Epoch 1/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 904s 2s/step - accuracy: 0.4076 - loss: 0.8434 - valaccuracy: 0.4040 - valloss: 0.9461 - learning_rate: 0.0010.
+
+Epoch 2/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 901s 2s/step - accuracy: 0.5147 - loss: 0.6926 - valaccuracy: 0.5680 - valloss: 0.6619 - learning_rate: 0.0010.
+
+Epoch 3/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 917s 2s/step - accuracy: 0.5716 - loss: 0.6179 - valaccuracy: 0.5460 - valloss: 0.7084 - learning_rate: 0.0010.
+
+Epoch 4/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 960s 2s/step - accuracy: 0.6182 - loss: 0.5548 - valaccuracy: 0.5600 - valloss: 0.7931 - learning_rate: 0.0010.
+
+Epoch 5/5.
+
+387/387 ━━━━━━━━━━━━━━━━━━━━ 1025s 3s/step - accuracy: 0.6485 - loss: 0.5139 - valaccuracy: 0.6040 - valloss: 0.6095 - learning_rate: 0.0010.
+
+Test accuracy from student model: 62.01000213623047%.
+
+Assess the robustness of the models.
+
+A standard benchmark of assessing the robustness of vision models is to record their performance on corrupted datasets like ImageNet-C and CIFAR-10-C both of which were proposed in Benchmarking Neural Network Robustness to Common Corruptions and Perturbations. For this example, we will be using the CIFAR-10-C dataset which has 19 different corruptions on 5 different severity levels. To assess the robustness of the models on this dataset, we will do the following:
+
+Run the pre-trained models on the highest level of severities and obtain the top-1 accuracies.
+
+Compute the mean top-1 accuracy.
+
+For the purpose of this example, we won't be going through these steps. This is why we trained the models for only 5 epochs. You can check out this repository that demonstrates the full-scale training experiments and also the aforementioned assessment. The figure below presents an executive summary of that assessment:
+
+Mean Top-1 results stand for the CIFAR-10-C dataset and Test Top-1 results stand for the CIFAR-10 test set. It's clear that consistency training has an advantage on not only enhancing the model robustness but also on improving the standard test performance. """.

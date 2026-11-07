@@ -1,0 +1,73 @@
+Approximate Training.
+
+Recall our discussions in section <num>. The main idea of the skip-gram model is using softmax operations to calculate the conditional probability of generating a context word <math> based on the given center word <math> in <num>, whose corresponding logarithmic loss is given by the opposite of <num>.
+
+Due to the nature of the softmax operation, since a context word may be anyone in the dictionary <math>, the opposite of <num> contains the summation of items as many as the entire size of the vocabulary. Consequently, the gradient calculation for the skip-gram model in <num> and that for the continuous bag-of-words model in <num> both contain the summation. Unfortunately, the computational cost for such gradients that sum over a large dictionary (often with hundreds of thousands or millions of words) is huge!
+
+In order to reduce the aforementioned computational complexity, this section will introduce two approximate training methods: negative sampling and hierarchical softmax. Due to the similarity between the skip-gram model and the continuous bag of words model, we will just take the skip-gram model as an example to describe these two approximate training methods.
+
+Negative Sampling.
+
+Negative sampling modifies the original objective function. Given the context window of a center word <math>, the fact that any (context) word <math> comes from this context window is considered as an event with the probability modeled by.
+
+<math>.
+
+where <math> uses the definition of the sigmoid activation function:
+
+<math>.
+
+Let's begin by maximizing the joint probability of all such events in text sequences to train word embeddings. Specifically, given a text sequence of length <math>, denote by <math> the word at time step <math> and let the context window size be <math>, consider maximizing the joint probability.
+
+<math>.
+
+However, <num> only considers those events that involve positive examples. As a result, the joint probability in <num> is maximized to 1 only if all the word vectors are equal to infinity. Of course, such results are meaningless. To make the objective function more meaningful, negative sampling adds negative examples sampled from a predefined distribution.
+
+Denote by <math> the event that a context word <math> comes from the context window of a center word <math>. For this event involving <math>, from a predefined distribution <math> sample <math> noise words that are not from this context window. Denote by <math> the event that a noise word <math> (<math>) does not come from the context window of <math>. Assume that these events involving both the positive example and negative examples <math> are mutually independent. Negative sampling rewrites the joint probability (involving only positive examples) in <num> as.
+
+<math>.
+
+where the conditional probability is approximated through events <math>:
+
+<math>.
+
+Denote by <math> and <math> the indices of a word <math> at time step <math> of a text sequence and a noise word <math>, respectively. The logarithmic loss with respect to the conditional probabilities in <num> is.
+
+<math>.
+
+We can see that now the computational cost for gradients at each training step has nothing to do with the dictionary size, but linearly depends on <math>. When setting the hyperparameter <math> to a smaller value, the computational cost for gradients at each training step with negative sampling is smaller.
+
+Hierarchical Softmax.
+
+As an alternative approximate training method, hierarchical softmax uses the binary tree, a data structure illustrated in section <num>, where each leaf node of the tree represents a word in dictionary <math>.
+
+Denote by <math> the number of nodes (including both ends) on the path from the root node to the leaf node representing word <math> in the binary tree. Let <math> be the <math> node on this path, with its context word vector being <math>. For example, <math> in section <num>. Hierarchical softmax approximates the conditional probability in <num> as.
+
+<math>.
+
+where function <math> is defined in <num>, and <math> is the left child node of node <math>: if <math> is true, <math>; otherwise <math>.
+
+To illustrate, let's calculate the conditional probability of generating word <math> given word <math> in section <num>. This requires dot products between the word vector <math> of <math> and non-leaf node vectors on the path (the path in bold in section <num>) from the root to <math>, which is traversed left, right, then left:
+
+<math>.
+
+Since <math>, it holds that the conditional probabilities of generating all the words in dictionary <math> based on any word <math> sum up to one:
+
+<math>.
+
+Fortunately, since <math> is on the order of <math> due to the binary tree structure, when the dictionary size <math> is huge, the computational cost for each training step using hierarchical softmax is significantly reduced compared with that without approximate training.
+
+Summary.
+
+Negative sampling constructs the loss function by considering mutually independent events that involve both positive and negative examples. The computational cost for training is linearly dependent on the number of noise words at each step.
+
+Hierarchical softmax constructs the loss function using the path from the root node to the leaf node in the binary tree. The computational cost for training is dependent on the logarithm of the dictionary size at each step.
+
+Exercises.
+
+How can we sample noise words in negative sampling?
+
+Verify that <num> holds.
+
+How to train the continuous bag of words model using negative sampling and hierarchical softmax, respectively?
+
+Discussions.

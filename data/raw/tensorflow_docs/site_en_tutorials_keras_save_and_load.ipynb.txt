@@ -1,0 +1,163 @@
+Save and load models.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Model progress can be saved during and after training. This means a model can resume where it left off and avoid long training times. Saving also means you can share your model and others can recreate your work. When publishing research models and techniques, most machine learning practitioners share:
+
+code to create the model, and.
+
+the trained weights, or parameters, for the model.
+
+Sharing this data helps others understand how the model works and try it themselves with new data.
+
+Caution: TensorFlow models are code and it is important to be careful with untrusted code. See Using TensorFlow Securely for details.
+
+Options.
+
+There are different ways to save TensorFlow models depending on the API you're using. This guide uses tf.keras—a high-level API to build and train models in TensorFlow. The new, high-level <code> format used in this tutorial is recommended for saving Keras objects, as it provides robust, efficient name-based saving that is often easier to debug than low-level or legacy formats. For more advanced saving or serialization workflows, especially those involving custom objects, please refer to the Save and load Keras models guide. For other approaches, refer to the Using the SavedModel format guide.
+
+Setup.
+
+Installs and imports.
+
+Install and import TensorFlow and dependencies:
+
+Get an example dataset.
+
+To demonstrate how to save and load weights, you'll use the MNIST dataset. To speed up these runs, use the first 1000 examples:
+
+Define a model.
+
+Start by building a simple sequential model:
+
+Save checkpoints during training.
+
+You can use a trained model without having to retrain it, or pick-up training where you left off in case the training process was interrupted. The <code> callback allows you to continually save the model both during and at the end of training.
+
+Checkpoint callback usage.
+
+Create a <code> callback that saves weights only during training:
+
+This creates a single collection of TensorFlow checkpoint files that are updated at the end of each epoch:
+
+As long as two models share the same architecture you can share weights between them. So, when restoring a model from weights-only, create a model with the same architecture as the original model and then set its weights.
+
+Now rebuild a fresh, untrained model and evaluate it on the test set. An untrained model will perform at chance levels (~10% accuracy):
+
+Then load the weights from the checkpoint and re-evaluate:
+
+Checkpoint callback options.
+
+The callback provides several options to provide unique names for checkpoints and adjust the checkpointing frequency.
+
+Train a new model, and save uniquely named checkpoints once every five epochs:
+
+Now, review the resulting checkpoints and choose the latest one:
+
+Note: The default TensorFlow format only saves the 5 most recent checkpoints.
+
+To test, reset the model, and load the latest checkpoint:
+
+What are these files?
+
+The above code stores the weights to a collection of checkpoint-formatted files that contain only the trained weights in a binary format. Checkpoints contain:
+
+One or more shards that contain your model's weights.
+
+An index file that indicates which weights are stored in which shard.
+
+If you are training a model on a single machine, you'll have one shard with the suffix: <code>.
+
+Manually save weights.
+
+To save weights manually, use <code>. You have to use .weights.h5 extension to save the weights. You can refer to the Save and load models guide.
+
+Save the entire model.
+
+Call <code> to save a model's architecture, weights, and training configuration in a single <code> zip archive.
+
+An entire model can be saved in three different file formats (the new <code> format and two legacy formats: <code>, and <code>). Saving a model as <code> automatically saves in the latest format.
+
+Note: For Keras objects it's recommended to use the new high-level <code> format for richer, name-based saving and reloading, which is easier to debug. The low-level SavedModel format and legacy H5 format continue to be supported for existing code.
+
+You can switch to the SavedModel format by:
+
+Passing <code> to <code>.
+
+Passing a filename without an extension.
+
+You can switch to the H5 format by:
+
+Passing <code> to <code>.
+
+Passing a filename that ends in <code>.
+
+Saving a fully-functional model is very useful—you can load them in TensorFlow.js (Saved Model, HDF5) and then train and run them in web browsers, or convert them to run on mobile devices using TensorFlow Lite (Saved Model, HDF5).
+
+\Custom objects (for example, subclassed models or layers) require special attention when saving and loading. Refer to the Saving custom objects section below.
+
+New high-level <code> format.
+
+The new Keras v3 saving format, marked by the <code> extension, is a more simple, efficient format that implements name-based saving, ensuring what you load is exactly what you saved, from Python's perspective. This makes debugging much easier, and it is the recommended format for Keras.
+
+The section below illustrates how to save and restore the model in the <code> format.
+
+Reload a fresh Keras model from the <code> zip archive:
+
+Try running evaluate and predict with the loaded model:
+
+SavedModel format.
+
+The SavedModel format is another way to serialize models. Models saved in this format can directly be used with TFLite/TFServing/etc for inferencing. The SavedModel guide goes into detail about how to <code> the SavedModel. The section below illustrates the steps to save and restore the model.
+
+The SavedModel format is a directory containing a protobuf binary and a TensorFlow checkpoint. Inspect the saved model directory:
+
+Reload the saved SavedModel file:
+
+HDF5 format.
+
+Keras provides a basic legacy high-level save format using the HDF5 standard.
+
+Now, recreate the model from that file:
+
+Check its accuracy:
+
+Keras saves models by inspecting their architectures. This technique saves everything:
+
+The weight values.
+
+The model's architecture.
+
+The model's training configuration (what you pass to the <code> method).
+
+The optimizer and its state, if any (this enables you to restart training where you left off).
+
+Keras is not able to save the <code> optimizers (from <code>) since they aren't compatible with checkpoints. For v1.x optimizers, you need to re-compile the model after loading—losing the state of the optimizer.
+
+Saving custom objects.
+
+If you are using the SavedModel format, you can skip this section. The key difference between high-level <code>/HDF5 formats and the low-level SavedModel format is that the <code>/HDF5 formats uses object configs to save the model architecture, while SavedModel saves the execution graph. Thus, SavedModels are able to save custom objects like subclassed models and custom layers without requiring the original code. However, debugging low-level SavedModels can be more difficult as a result, and the recommended approach is using the high-level <code> format instead due to its name-based, Keras built-in nature.
+
+To save custom objects to <code> and HDF5, you must do the following:
+
+Define a <code> method in your object, and optionally a <code> classmethod.
+
+<code> returns a JSON-serializable dictionary of parameters needed to recreate the object.
+
+<code> uses the returned config from <code> to create a new object. By default, this function will use the config as initialization kwargs (<code>).
+
+Pass the custom objects to the model in one of three ways:
+
+Register the custom object with the <code> decorator. (recommended).
+
+Directly pass the object to the <code> argument when loading the model. The argument must be a dictionary mapping the string class name to the Python class. E.g., <code>.
+
+Use a <code> with the object included in the <code> dictionary argument, and place a <code> call within the scope.
+
+Refer to the Writing layers and models from scratch tutorial for examples of custom objects and <code>.

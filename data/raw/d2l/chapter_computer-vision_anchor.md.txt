@@ -1,0 +1,137 @@
+Anchor Boxes.
+
+Object detection algorithms usually sample a large number of regions in the input image, determine whether these regions contain objects of interest, and adjust the boundaries of the regions so as to predict the ground-truth bounding boxes of the objects more accurately. Different models may adopt different region sampling schemes. Here we introduce one of such methods: it generates multiple bounding boxes with varying scales and aspect ratios centered on each pixel. These bounding boxes are called anchor boxes. We will design an object detection model based on anchor boxes in section <num>.
+
+First, let's modify the printing accuracy just for more concise outputs.
+
+Generating Multiple Anchor Boxes.
+
+Suppose that the input image has a height of <math> and width of <math>. We generate anchor boxes with different shapes centered on each pixel of the image. Let the scale be <math> and the aspect ratio (ratio of width to height) is <math>. Then [the width and height of the anchor box are <math> and <math>, respectively.] Note that when the center position is given, an anchor box with known width and height is determined.
+
+To generate multiple anchor boxes with different shapes, let's set a series of scales <math> and a series of aspect ratios <math>. When using all the combinations of these scales and aspect ratios with each pixel as the center, the input image will have a total of <math> anchor boxes. Although these anchor boxes may cover all the ground-truth bounding boxes, the computational complexity is easily too high. In practice, we can only (consider those combinations containing) <math> or <math>:
+
+( <math> ).
+
+That is to say, the number of anchor boxes centered on the same pixel is <math>. For the entire input image, we will generate a total of <math> anchor boxes.
+
+The above method of generating anchor boxes is implemented in the following <code> function. We specify the input image, a list of scales, and a list of aspect ratios, then this function will return all the anchor boxes.
+
+We can see that [the shape of the returned anchor box variable <code>] is (batch size, number of anchor boxes, 4).
+
+After changing the shape of the anchor box variable <code> to (image height, image width, number of anchor boxes centered on the same pixel, 4), we can obtain all the anchor boxes centered on a specified pixel position. In the following, we [access the first anchor box centered on (250, 250)]. It has four elements: the <math>-axis coordinates at the upper-left corner and the <math>-axis coordinates at the lower-right corner of the anchor box. The coordinate values of both axes are divided by the width and height of the image, respectively.
+
+In order to [show all the anchor boxes centered on one pixel in the image], we define the following <code> function to draw multiple bounding boxes on the image.
+
+As we just saw, the coordinate values of the <math> and <math> axes in the variable <code> have been divided by the width and height of the image, respectively. When drawing anchor boxes, we need to restore their original coordinate values; thus, we define variable <code> below. Now, we can draw all the anchor boxes centered on (250, 250) in the image. As you can see, the blue anchor box with a scale of 0.75 and an aspect ratio of 1 well surrounds the dog in the image.
+
+[Intersection over Union (IoU)].
+
+We just mentioned that an anchor box "well" surrounds the dog in the image. If the ground-truth bounding box of the object is known, how can "well" here be quantified? Intuitively, we can measure the similarity between the anchor box and the ground-truth bounding box. We know that the Jaccard index can measure the similarity between two sets. Given sets <math> and <math>, their Jaccard index is the size of their intersection divided by the size of their union:
+
+<math>.
+
+In fact, we can consider the pixel area of any bounding box as a set of pixels. In this way, we can measure the similarity of the two bounding boxes by the Jaccard index of their pixel sets. For two bounding boxes, we usually refer their Jaccard index as intersection over union (IoU), which is the ratio of their intersection area to their union area, as shown in section <num>. The range of an IoU is between 0 and 1: 0 means that two bounding boxes do not overlap at all, while 1 indicates that the two bounding boxes are equal.
+
+For the remainder of this section, we will use IoU to measure the similarity between anchor boxes and ground-truth bounding boxes, and between different anchor boxes. Given two lists of anchor or bounding boxes, the following <code> computes their pairwise IoU across these two lists.
+
+Labeling Anchor Boxes in Training Data.
+
+In a training dataset, we consider each anchor box as a training example. In order to train an object detection model, we need class and offset labels for each anchor box, where the former is the class of the object relevant to the anchor box and the latter is the offset of the ground-truth bounding box relative to the anchor box. During the prediction, for each image we generate multiple anchor boxes, predict classes and offsets for all the anchor boxes, adjust their positions according to the predicted offsets to obtain the predicted bounding boxes, and finally only output those predicted bounding boxes that satisfy certain criteria.
+
+As we know, an object detection training set comes with labels for locations of ground-truth bounding boxes and classes of their surrounded objects. To label any generated anchor box, we refer to the labeled location and class of its assigned ground-truth bounding box that is closest to the anchor box. In the following, we describe an algorithm for assigning closest ground-truth bounding boxes to anchor boxes.
+
+[Assigning Ground-Truth Bounding Boxes to Anchor Boxes].
+
+Given an image, suppose that the anchor boxes are <math> and the ground-truth bounding boxes are <math>, where <math>. Let's define a matrix <math>, whose element <math> in the <math> row and <math> column is the IoU of the anchor box <math> and the ground-truth bounding box <math>. The algorithm consists of the following steps:
+
+Find the largest element in matrix <math> and denote its row and column indices as <math> and <math>, respectively. Then the ground-truth bounding box <math> is assigned to the anchor box <math>. This is quite intuitive because <math> and <math> are the closest among all the pairs of anchor boxes and ground-truth bounding boxes. After the first assignment, discard all the elements in the <math> row and the <math> column in matrix <math>.
+
+Find the largest of the remaining elements in matrix <math> and denote its row and column indices as <math> and <math>, respectively. We assign ground-truth bounding box <math> to anchor box <math> and discard all the elements in the <math> row and the <math> column in matrix <math>.
+
+At this point, elements in two rows and two columns in matrix <math> have been discarded. We proceed until all elements in <math> columns in matrix <math> are discarded. At this time, we have assigned a ground-truth bounding box to each of <math> anchor boxes.
+
+Only traverse through the remaining <math> anchor boxes. For example, given any anchor box <math>, find the ground-truth bounding box <math> with the largest IoU with <math> throughout the <math> row of matrix <math>, and assign <math> to <math> only if this IoU is greater than a predefined threshold.
+
+Let's illustrate the above algorithm using a concrete example. As shown in section <num> (left), assuming that the maximum value in matrix <math> is <math>, we assign the ground-truth bounding box <math> to the anchor box <math>. Then, we discard all the elements in row 2 and column 3 of the matrix, find the largest <math> in the remaining elements (shaded area), and assign the ground-truth bounding box <math> to the anchor box <math>. Next, as shown in section <num> (middle), discard all the elements in row 7 and column 1 of the matrix, find the largest <math> in the remaining elements (shaded area), and assign the ground-truth bounding box <math> to the anchor box <math>. Finally, as shown in section <num> (right), discard all the elements in row 5 and column 4 of the matrix, find the largest <math> in the remaining elements (shaded area), and assign the ground-truth bounding box <math> to the anchor box <math>. After that, we only need to traverse through the remaining anchor boxes <math> and determine whether to assign them ground-truth bounding boxes according to the threshold.
+
+This algorithm is implemented in the following <code> function.
+
+Labeling Classes and Offsets.
+
+Now we can label the class and offset for each anchor box. Suppose that an anchor box <math> is assigned a ground-truth bounding box <math>. On the one hand, the class of the anchor box <math> will be labeled as that of <math>. On the other hand, the offset of the anchor box <math> will be labeled according to the relative position between the central coordinates of <math> and <math> together with the relative size between these two boxes. Given varying positions and sizes of different boxes in the dataset, we can apply transformations to those relative positions and sizes that may lead to more uniformly distributed offsets that are easier to fit. Here we describe a common transformation. [ Given the central coordinates of <math> and <math> as <math> and <math>, their widths as <math> and <math>, and their heights as <math> and <math>, respectively. We may label the offset of <math> as.
+
+<math> ] where default values of the constants are <math>, and <math>. This transformation is implemented below in the <code> function.
+
+If an anchor box is not assigned a ground-truth bounding box, we just label the class of the anchor box as "background". Anchor boxes whose classes are background are often referred to as negative anchor boxes, and the rest are called positive anchor boxes. We implement the following <code> function to [label classes and offsets for anchor boxes] (the <code> argument) using ground-truth bounding boxes (the <code> argument). This function sets the background class to zero and increments the integer index of a new class by one.
+
+An Example.
+
+Let's illustrate anchor box labeling via a concrete example. We define ground-truth bounding boxes for the dog and cat in the loaded image, where the first element is the class (0 for dog and 1 for cat) and the remaining four elements are the <math>-axis coordinates at the upper-left corner and the lower-right corner (range is between 0 and 1). We also construct five anchor boxes to be labeled using the coordinates of the upper-left corner and the lower-right corner: <math> (the index starts from 0). Then we [plot these ground-truth bounding boxes and anchor boxes in the image.].
+
+Using the <code> function defined above, we can [label classes and offsets of these anchor boxes based on the ground-truth bounding boxes] for the dog and cat. In this example, indices of the background, dog, and cat classes are 0, 1, and 2, respectively. Below we add an dimension for examples of anchor boxes and ground-truth bounding boxes.
+
+There are three items in the returned result, all of which are in the tensor format. The third item contains the labeled classes of the input anchor boxes.
+
+Let's analyze the returned class labels below based on anchor box and ground-truth bounding box positions in the image. First, among all the pairs of anchor boxes and ground-truth bounding boxes, the IoU of the anchor box <math> and the ground-truth bounding box of the cat is the largest. Thus, the class of <math> is labeled as the cat. Taking out pairs containing <math> or the ground-truth bounding box of the cat, among the rest the pair of the anchor box <math> and the ground-truth bounding box of the dog has the largest IoU. So the class of <math> is labeled as the dog. Next, we need to traverse through the remaining three unlabeled anchor boxes: <math>, <math>, and <math>. For <math>, the class of the ground-truth bounding box with the largest IoU is the dog, but the IoU is below the predefined threshold (0.5), so the class is labeled as background; for <math>, the class of the ground-truth bounding box with the largest IoU is the cat and the IoU exceeds the threshold, so the class is labeled as the cat; for <math>, the class of the ground-truth bounding box with the largest IoU is the cat, but the value is below the threshold, so the class is labeled as background.
+
+The second returned item is a mask variable of the shape (batch size, four times the number of anchor boxes). Every four elements in the mask variable correspond to the four offset values of each anchor box. Since we do not care about background detection, offsets of this negative class should not affect the objective function. Through elementwise multiplications, zeros in the mask variable will filter out negative class offsets before calculating the objective function.
+
+The first returned item contains the four offset values labeled for each anchor box. Note that the offsets of negative-class anchor boxes are labeled as zeros.
+
+Predicting Bounding Boxes with Non-Maximum Suppression.
+
+During prediction, we generate multiple anchor boxes for the image and predict classes and offsets for each of them. A predicted bounding box is thus obtained according to an anchor box with its predicted offset. Below we implement the <code> function that takes in anchors and offset predictions as inputs and [applies inverse offset transformations to return the predicted bounding box coordinates].
+
+When there are many anchor boxes, many similar (with significant overlap) predicted bounding boxes can be potentially output for surrounding the same object. To simplify the output, we can merge similar predicted bounding boxes that belong to the same object by using non-maximum suppression (NMS).
+
+Here is how non-maximum suppression works. For a predicted bounding box <math>, the object detection model calculates the predicted likelihood for each class. Denoting by <math> the largest predicted likelihood, the class corresponding to this probability is the predicted class for <math>. Specifically, we refer to <math> as the confidence (score) of the predicted bounding box <math>. On the same image, all the predicted non-background bounding boxes are sorted by confidence in descending order to generate a list <math>. Then we manipulate the sorted list <math> in the following steps:
+
+Select the predicted bounding box <math> with the highest confidence from <math> as a basis and remove all non-basis predicted bounding boxes whose IoU with <math> exceeds a predefined threshold <math> from <math>. At this point, <math> keeps the predicted bounding box with the highest confidence but drops others that are too similar to it. In a nutshell, those with non-maximum confidence scores are suppressed.
+
+Select the predicted bounding box <math> with the second highest confidence from <math> as another basis and remove all non-basis predicted bounding boxes whose IoU with <math> exceeds <math> from <math>.
+
+Repeat the above process until all the predicted bounding boxes in <math> have been used as a basis. At this time, the IoU of any pair of predicted bounding boxes in <math> is below the threshold <math>; thus, no pair is too similar with each other.
+
+Output all the predicted bounding boxes in the list <math>.
+
+[The following <code> function sorts confidence scores in descending order and returns their indices.].
+
+We define the following <code> to [apply non-maximum suppression to predicting bounding boxes]. Do not worry if you find the implementation a bit complicated: we will show how it works with a concrete example right after the implementation.
+
+Now let's [apply the above implementations to a concrete example with four anchor boxes]. For simplicity, we assume that the predicted offsets are all zeros. This means that the predicted bounding boxes are anchor boxes. For each class among the background, dog, and cat, we also define its predicted likelihood.
+
+We can [plot these predicted bounding boxes with their confidence on the image.].
+
+Now we can invoke the <code> function to perform non-maximum suppression, where the threshold is set to 0.5. Note that we add a dimension for examples in the tensor input.
+
+We can see that [the shape of the returned result] is (batch size, number of anchor boxes, 6). The six elements in the innermost dimension gives the output information for the same predicted bounding box. The first element is the predicted class index, which starts from 0 (0 is dog and 1 is cat). The value -1 indicates background or removal in non-maximum suppression. The second element is the confidence of the predicted bounding box. The remaining four elements are the <math>-axis coordinates of the upper-left corner and the lower-right corner of the predicted bounding box, respectively (range is between 0 and 1).
+
+After removing those predicted bounding boxes of class -1, we can [output the final predicted bounding box kept by non-maximum suppression].
+
+In practice, we can remove predicted bounding boxes with lower confidence even before performing non-maximum suppression, thereby reducing computation in this algorithm. We may also post-process the output of non-maximum suppression, for example, by only keeping results with higher confidence in the final output.
+
+Summary.
+
+We generate anchor boxes with different shapes centered on each pixel of the image.
+
+Intersection over union (IoU), also known as Jaccard index, measures the similarity of two bounding boxes. It is the ratio of their intersection area to their union area.
+
+In a training set, we need two types of labels for each anchor box. One is the class of the object relevant to the anchor box and the other is the offset of the ground-truth bounding box relative to the anchor box.
+
+During prediction, we can use non-maximum suppression (NMS) to remove similar predicted bounding boxes, thereby simplifying the output.
+
+Exercises.
+
+Change values of <code> and <code> in the <code> function. What are the changes to the generated anchor boxes?
+
+Construct and visualize two bounding boxes with an IoU of 0.5. How do they overlap with each other?
+
+Modify the variable <code> in section <num> and section <num>. How do the results change?
+
+Non-maximum suppression is a greedy algorithm that suppresses predicted bounding boxes by removing them. Is it possible that some of these removed ones are actually useful? How can this algorithm be modified to suppress softly? You may refer to Soft-NMS .
+
+Rather than being hand-crafted, can non-maximum suppression be learned?
+
+Discussions.
+
+Discussions.

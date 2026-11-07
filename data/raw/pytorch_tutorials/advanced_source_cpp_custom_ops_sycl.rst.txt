@@ -1,0 +1,35 @@
+Custom SYCL Operators.
+
+PyTorch offers a large library of operators that work on Tensors (e.g. torch.add, torch.sum, etc). However, you may wish to bring a new custom operator to PyTorch. This tutorial demonstrates the best path to authoring a custom operator written in SYCL. Tutorials for C++ and CUDA operators are available in the cpp-custom-ops-tutorial.
+
+Follow the structure to create a custom SYCL operator:
+
+Setting up the Build System.
+
+If you need to compile SYCL code (noting that the extension should be <code>), use torch.utils.cpp_extension.SyclExtension. The setup process is very similar to C++/CUDA, except the compilation arguments need to be adjusted for SYCL.
+
+Using <code> is as straightforward as writing the following <code>:
+
+Defining the custom op and adding backend implementations First, let's write a SYCL function that computes <code>:
+
+In order to use this from PyTorch’s Python frontend, we need to register it as a PyTorch operator using the <code> API. This will automatically bind the operator to Python.
+
+If you also have a SYCL implementation of <code>, you can also register it in a separate <code> block:
+
+Create a Python Interface.
+
+Create a Python interface for our operator in the <code> file:
+
+Initialize Package.
+
+Create <code> file to make the package importable:
+
+Testing SYCL extension operator.
+
+Use simple test to verify that the operator works correctly.
+
+This test checks the correctness of the custom operator by comparing its output against a reference implementation.
+
+Conclusion.
+
+In this tutorial, we demonstrated how to implement and compile custom SYCL operators for PyTorch. We specifically showcased an inference operation <code>. For adding backward support or enabling torch.compile compatibility, please refer to cpp-custom-ops-tutorial.

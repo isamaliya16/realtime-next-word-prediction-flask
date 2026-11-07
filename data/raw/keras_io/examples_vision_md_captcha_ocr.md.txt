@@ -1,0 +1,47 @@
+OCR model for reading Captchas.
+
+Introduction.
+
+This example demonstrates a simple OCR model built with the Functional API. Apart from combining CNN and RNN, it also illustrates how you can instantiate a new layer and use it as an "Endpoint layer" for implementing CTC loss. For a detailed guide to layer subclassing, please check out this page in the developer guides.
+
+Setup.
+
+Load the data: Captcha Images.
+
+Let's download the data.
+
+The dataset contains 1040 captcha files as <code> images. The label for each sample is a string, the name of the file (minus the file extension). We will map each character in the string to an integer for training the model. Similary, we will need to map the predictions of the model back to strings. For this purpose we will maintain two dictionaries, mapping characters to integers, and integers to characters, respectively.
+
+Preprocessing.
+
+Create <code> objects.
+
+Visualize the data.
+
+Model.
+
+Model: "ocrmodelv1".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩ │ image ( InputLayer ) │ ( None , 200 , 50 , │ 0 │ - │ │ │ 1 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ Conv1 ( Conv2D ) │ ( None , 200 , 50 , │ 320 │ image 0 │ │ │ 32 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ pool1 │ ( None , 100 , 25 , │ 0 │ Conv1 0 │ │ ( MaxPooling2D ) │ 32 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ Conv2 ( Conv2D ) │ ( None , 100 , 25 , │ 18,496 │ pool1 0 │ │ │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ pool2 │ ( None , 50 , 12 , │ 0 │ Conv2 0 │ │ ( MaxPooling2D ) │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ reshape ( Reshape ) │ ( None , 50 , 768 ) │ 0 │ pool2 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dense1 ( Dense ) │ ( None , 50 , 64 ) │ 49,216 │ reshape 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dropout ( Dropout ) │ ( None , 50 , 64 ) │ 0 │ dense1 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ bidirectional │ ( None , 50 , 256 ) │ 197,632 │ dropout 0 │ │ ( Bidirectional ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ bidirectional1 │ ( None , 50 , 128 ) │ 164,352 │ bidirectional 0 │ │ ( Bidirectional ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ label ( InputLayer ) │ ( None , None ) │ 0 │ - │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dense2 ( Dense ) │ ( None , 50 , 21 ) │ 2,709 │ bidirectional1 0 [ 0 ], │ │ │ │ │ dense2 0 │ └─────────────────────┴───────────────────┴─────────┴──────────────────────┘.
+
+Total params: 432,725 (1.65 MB).
+
+Trainable params: 432,725 (1.65 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Training.
+
+Inference.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ image ( InputLayer ) │ ( None , 200 , 50 , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ Conv1 ( Conv2D ) │ ( None , 200 , 50 , 32 ) │ 320 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ pool1 ( MaxPooling2D ) │ ( None , 100 , 25 , 32 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ Conv2 ( Conv2D ) │ ( None , 100 , 25 , 64 ) │ 18,496 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ pool2 ( MaxPooling2D ) │ ( None , 50 , 12 , 64 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ reshape ( Reshape ) │ ( None , 50 , 768 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense1 ( Dense ) │ ( None , 50 , 64 ) │ 49,216 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 50 , 64 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ bidirectional ( Bidirectional ) │ ( None , 50 , 256 ) │ 197,632 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ bidirectional_1 ( Bidirectional ) │ ( None , 50 , 128 ) │ 164,352 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense2 ( Dense ) │ ( None , 50 , 21 ) │ 2,709 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 432,725 (1.65 MB).
+
+Trainable params: 432,725 (1.65 MB).
+
+Non-trainable params: 0 (0.00 B).

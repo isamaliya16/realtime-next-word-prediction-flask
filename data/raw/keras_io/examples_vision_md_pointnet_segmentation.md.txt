@@ -1,0 +1,115 @@
+Point cloud segmentation with PointNet.
+
+Introduction.
+
+A "point cloud" is an important type of data structure for storing geometric shape data. Due to its irregular format, it's often transformed into regular 3D voxel grids or collections of images before being used in deep learning applications, a step which makes the data unnecessarily large. The PointNet family of models solves this problem by directly consuming point clouds, respecting the permutation-invariance property of the point data. The PointNet family of models provides a simple, unified architecture for applications ranging from object classification, part segmentation, to scene semantic parsing.
+
+In this example, we demonstrate the implementation of the PointNet architecture for shape segmentation.
+
+References.
+
+PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation.
+
+Point cloud classification with PointNet.
+
+Spatial Transformer Networks.
+
+Imports.
+
+Downloading Dataset.
+
+The ShapeNet dataset is an ongoing effort to establish a richly-annotated, large-scale dataset of 3D shapes. ShapeNetCore is a subset of the full ShapeNet dataset with clean single 3D models and manually verified category and alignment annotations. It covers 55 common object categories, with about 51,300 unique 3D models.
+
+For this example, we use one of the 12 object categories of PASCAL 3D+, included as part of the ShapenetCore dataset.
+
+Loading the dataset.
+
+We parse the dataset metadata in order to easily map model categories to their respective directories and segmentation classes to colors for the purpose of visualization.
+
+In this example, we train PointNet to segment the parts of an <code> model.
+
+Structuring the dataset.
+
+We generate the following in-memory data structures from the Airplane point clouds and their labels:
+
+<code> is a list of <code> objects that represent the point cloud data in the form of x, y and z coordinates. Axis 0 represents the number of points in the point cloud, while axis 1 represents the coordinates. <code> is the list that represents the label of each coordinate as a string (needed mainly for visualization purposes).
+
+<code> is in the same format as <code>, but doesn't have corresponding the labels of the point clouds.
+
+<code> is a list of <code> objects that represent the point cloud labels for each coordinate, corresponding to the <code> list.
+
+<code> is a list of <code> objects that represent the point cloud labels for each coordinate in one-hot encoded form, corresponding to the <code> list.
+
+Next, we take a look at some samples from the in-memory arrays we just generated:
+
+Now, let's visualize some of the point clouds along with their labels.
+
+Preprocessing.
+
+Note that all the point clouds that we have loaded consist of a variable number of points, which makes it difficult for us to batch them together. In order to overcome this problem, we randomly sample a fixed number of points from each point cloud. We also normalize the point clouds in order to make the data scale-invariant.
+
+Let's visualize the sampled and normalized point clouds along with their corresponding labels.
+
+Creating TensorFlow datasets.
+
+We create <code> objects for the training and validation data. We also augment the training point clouds by applying random jitter to them.
+
+PointNet model.
+
+The figure below depicts the internals of the PointNet model family:
+
+Given that PointNet is meant to consume an unordered set of coordinates as its input data, its architecture needs to match the following characteristic properties of point cloud data:
+
+Permutation invariance.
+
+Given the unstructured nature of point cloud data, a scan made up of <code> points has <code> permutations. The subsequent data processing must be invariant to the different representations. In order to make PointNet invariant to input permutations, we use a symmetric function (such as max-pooling) once the <code> input points are mapped to higher-dimensional space. The result is a global feature vector that aims to capture an aggregate signature of the <code> input points. The global feature vector is used alongside local point features for segmentation.
+
+Transformation invariance.
+
+Segmentation outputs should be unchanged if the object undergoes certain transformations, such as translation or scaling. For a given input point cloud, we apply an appropriate rigid or affine transformation to achieve pose normalization. Because each of the <code> input points are represented as a vector and are mapped to the embedding spaces independently, applying a geometric transformation simply amounts to matrix multiplying each point with a transformation matrix. This is motivated by the concept of Spatial Transformer Networks.
+
+The operations comprising the T-Net are motivated by the higher-level architecture of PointNet. MLPs (or fully-connected layers) are used to map the input points independently and identically to a higher-dimensional space; max-pooling is used to encode a global feature vector whose dimensionality is then reduced with fully-connected layers. The input-dependent features at the final fully-connected layer are then combined with globally trainable weights and biases, resulting in a 3-by-3 transformation matrix.
+
+Point interactions.
+
+The interaction between neighboring points often carries useful information (i.e., a single point should not be treated in isolation). Whereas classification need only make use of global features, segmentation must be able to leverage local point features along with global point features.
+
+Note: The figures presented in this section have been taken from the original paper.
+
+Now that we know the pieces that compose the PointNet model, we can implement the model. We start by implementing the basic blocks i.e., the convolutional block and the multi-layer perceptron block.
+
+We implement a regularizer (taken from this example) to enforce orthogonality in the feature space. This is needed to ensure that the magnitudes of the transformed features do not vary too much.
+
+The next piece is the transformation network which we explained earlier.
+
+Finally, we piece the above blocks together and implement the segmentation model.
+
+Instantiate the model.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩ │ inputlayer │ ( None , None , 3 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 64 ) │ 256 │ inputlayer 0 │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 64 ) │ 256 │ inputtransformatio… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 64 ) │ 0 │ inputtransformatio… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 128 ) │ 8,320 │ inputtransformatio… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 128 ) │ 512 │ inputtransformatio… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 128 ) │ 0 │ inputtransformatio… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , │ 132,096 │ inputtransformatio… │ │ ( Conv1D ) │ 1024 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , │ 4,096 │ inputtransformatio… │ │ ( BatchNormalizatio… │ 1024 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , │ 0 │ inputtransformatio… │ │ ( Activation ) │ 1024 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ globalmaxpooling… │ ( None , 1024 ) │ 0 │ inputtransformatio… │ │ ( GlobalMaxPooling1… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 512 ) │ 524,800 │ globalmaxpooling1… │ │ ( Dense ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 512 ) │ 2,048 │ inputtransformatio… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 512 ) │ 0 │ inputtransformatio… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 256 ) │ 131,328 │ inputtransformatio… │ │ ( Dense ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 256 ) │ 1,024 │ inputtransformatio… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 256 ) │ 0 │ inputtransformatio… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , 9 ) │ 2,313 │ inputtransformatio… │ │ ( Dense ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ reshape ( Reshape ) │ ( None , 3 , 3 ) │ 0 │ inputtransformatio… │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ inputtransformati… │ ( None , None , 3 ) │ 0 │ inputlayer 0 , │ │ ( Dot ) │ │ │ reshape 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features64conv │ ( None , None , 64 ) │ 256 │ inputtransformatio… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features64batch… │ ( None , None , 64 ) │ 256 │ features64conv[ 0 ]… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features64relu │ ( None , None , 64 ) │ 0 │ features64batchn… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features1281_conv │ ( None , None , 128 ) │ 8,320 │ features64relu[ 0 ]… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features1281_bat… │ ( None , None , 128 ) │ 512 │ features1281_conv… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features1281_relu │ ( None , None , 128 ) │ 0 │ features1281_batc… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features1282_conv │ ( None , None , 128 ) │ 16,512 │ features1281_relu… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features1282_bat… │ ( None , None , 128 ) │ 512 │ features1282_conv… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features1282_relu │ ( None , None , 128 ) │ 0 │ features1282_batc… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 64 ) │ 8,256 │ features1282relu… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 64 ) │ 256 │ transformedfeature… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 64 ) │ 0 │ transformedfeature… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 128 ) │ 8,320 │ transformedfeature… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 128 ) │ 512 │ transformedfeature… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 128 ) │ 0 │ transformedfeature… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , │ 132,096 │ transformedfeature… │ │ ( Conv1D ) │ 1024 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , │ 4,096 │ transformedfeature… │ │ ( BatchNormalizatio… │ 1024 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , │ 0 │ transformedfeature… │ │ ( Activation ) │ 1024 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ globalmaxpooling… │ ( None , 1024 ) │ 0 │ transformedfeature… │ │ ( GlobalMaxPooling1… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 512 ) │ 524,800 │ globalmaxpooling1… │ │ ( Dense ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 512 ) │ 2,048 │ transformedfeature… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 512 ) │ 0 │ transformedfeature… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 256 ) │ 131,328 │ transformedfeature… │ │ ( Dense ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 256 ) │ 1,024 │ transformedfeature… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 256 ) │ 0 │ transformedfeature… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , 16384 ) │ 4,210,… │ transformedfeature… │ │ ( Dense ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ reshape1 ( Reshape ) │ ( None , 128 , 128 ) │ 0 │ transformedfeature… │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformedfeatur… │ ( None , None , 128 ) │ 0 │ features1282relu… │ │ ( Dot ) │ │ │ reshape1 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features512conv │ ( None , None , 512 ) │ 66,048 │ transformedfeature… │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features512batch… │ ( None , None , 512 ) │ 2,048 │ features512conv 0 … │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ features512relu │ ( None , None , 512 ) │ 0 │ features512batch… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ premaxpoolblock… │ ( None , None , │ 1,050,… │ features512relu[ 0 … │ │ ( Conv1D ) │ 2048 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ premaxpoolblock… │ ( None , None , │ 8,192 │ premaxpoolblockc… │ │ ( BatchNormalizatio… │ 2048 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ premaxpoolblock… │ ( None , None , │ 0 │ premaxpoolblockb… │ │ ( Activation ) │ 2048 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ globalfeatures │ ( None , None , │ 0 │ premaxpoolblockr… │ │ ( MaxPooling1D ) │ 2048 ) │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ tile ( Tile ) │ ( None , None , │ 0 │ globalfeatures[ 0 … │ │ ( Concatenate ) │ 3008 ) │ │ features1281relu… │ │ │ │ │ features1282_relu… │ │ │ │ │ transformedfeature… │ │ │ │ │ features512relu 0 … │ │ │ │ │ tile[ 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ segmentationfeatu… │ ( None , None , 128 ) │ 385,152 │ segmentationinput … │ │ ( Conv1D ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ segmentationfeatu… │ ( None , None , 128 ) │ 512 │ segmentationfeatur… │ │ ( BatchNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ segmentationfeatu… │ ( None , None , 128 ) │ 0 │ segmentationfeatur… │ │ ( Activation ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ segmentationhead │ ( None , None , 5 ) │ 645 │ segmentationfeatur… │ │ ( Conv1D ) │ │ │ │ └─────────────────────┴───────────────────┴─────────┴──────────────────────┘.
+
+Total params: 7,370,062 (28.11 MB).
+
+Trainable params: 7,356,110 (28.06 MB).
+
+Non-trainable params: 13,952 (54.50 KB).
+
+Training.
+
+For the training the authors recommend using a learning rate schedule that decays the initial learning rate by half every 20 epochs. In this example, we use 5 epochs.
+
+Finally, we implement a utility for running our experiments and launch model training.
+
+Visualize the training landscape.
+
+Inference.
+
+Final notes.
+
+If you are interested in learning more about this topic, you may find [this repository useful.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 11: Image segmentation.

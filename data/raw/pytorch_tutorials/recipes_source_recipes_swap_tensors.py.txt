@@ -1,0 +1,55 @@
+Extension points in <code> for <code> and tensor subclasses Author: Mikayla Gawarecki.
+
+This recipe introduces a new utility function <code> as well as two new extension points where it has been integrated in <code>:
+
+<code> and related methods.
+
+<code>.
+
+<code> <code> (hereafter referred to as <code>) is a utility function that takes in two Python tensors and swaps them.
+
+More specifically, <code> swaps the Python <code>, <code> and <code> of the two tensors, as well as their associated <code>.
+
+Application to <code> This utility is pertinent to <code> when a Python object outside of the module holds a reference to parameters of the module. If an <code> modifies any of its parameters out of place, the object holding references to the parameters will not see the change. A classic example of this is the optimizer, which holds a reference to the parameters of the <code>. This leads to a silent correctness issue where the <code> will run without error but the weights of the <code> will not be updated.
+
+<code> and related methods This includes methods that change the device of the module (such as <code>), methods that change the <code> of the module (such as <code>) as well as methods that allow the module to be materialized (such as <code>).
+
+At first glance, it might be non-intuitive that these methods are able to modify the parameters of the module in-place. The existing approach has been to use a nasty hack dating back from the first days of PyTorch.
+
+Notably, the existing approach does not work in these cases:
+
+when using <code> subclasses.
+
+when <code> and <code> do not have the same Python <code>.
+
+For tensors with special C++ representations (such as sparse tensors and <code> tensors).
+
+In the following part of this recipe, we will define a toy <code> subclass <code> that represents quantized linear weights. This subclass will be used for illustration purposes throughout the rest of the tutorial. For brevity, we omit most of the <code> implementation.
+
+Let us create an <code> layer of <code> <code> where the weight is a <code> and try to convert it to <code>. Observe that the weight's <code> changes as expected. However, the <code> of the subclass' payload (<code>) does not change.
+
+To this end, we introduce a global config <code> that will use <code> to swap the parameters of the module while preserving references in place of <code> setting. When this config is set, <code> will be used during the conversion, which ensures that the <code> of the payload is properly converted.
+
+<code> Depending on the value of the <code> keyword argument passed to <code>, there are two ways to load the <code>:
+
+<code>: preserves the properties of <code> and only takes the values from <code>.
+
+<code>: preserves the properties and values of <code>.
+
+Previously, these were implemented with in-place <code> and <code> respectively. With the existing implementation, each approach had its own limitations -- <code> imposes the constraint that the type of the parameter in the <code> must be the same as the type of the parameter in the module while <code> imposes the constraint that anything that holds references to the module's parameters must be initialized after <code>.
+
+Now, we address both constraints by adding a <code> path to <code> and introducing a new extension point <code>. When the <code> path is enabled via the <code> mentioned above, we can use a <code> handler for <code> to apply a custom transformation to the value in the <code>. The result of this transformation will be swapped with the parameter in the module.
+
+In the following example, we will use the <code> subclass defined above to illustrate how we can use these features to apply a custom quantization scheme to the weights of a linear layer when loading the <code>.
+
+Recall that the <code> handler for <code> will be invoked if either <code> or <code> (in this case <code> or <code>) are <code> subclasses.
+
+Assume that we expect the <code> to contain plain tensors and the module to contain <code> parameters where we want the tensors in the <code> to be transformed into the subclass. Then we can define a <code> handler for <code> as such:
+
+First, let us create a skeleton of a model on the meta device to avoid materializing storages. We convert all weights in the modules to <code> subclasses while leaving biases intact.
+
+We can then load the <code>. Observe that we use <code> because for biases, we want to preserve the properties of the tensor in the <code> (for example, we do not want the bias to be on the <code> device after loading).
+
+The above is a toy example of how we can use the new extension point in <code>. One can also imagine alternate scenarios such as when we have tensor subclasses in the <code> and plain <code>/ tensors in the module or when both are tensor subclasses. Based on the use case, we can define the <code> handler for <code> to apply the transforms as needed.
+
+Conclusion In this recipe, we learned about <code>, the importance of preserving references for parameters in <code> as well as how to use the two new extension points that are gated by <code>.

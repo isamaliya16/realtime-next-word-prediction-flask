@@ -1,0 +1,85 @@
+Video Classification with a CNN-RNN Architecture.
+
+This example demonstrates video classification, an important use-case with applications in recommendations, security, and so on. We will be using the UCF101 dataset to build our video classifier. The dataset consists of videos categorized into different actions, like cricket shot, punching, biking, etc. This dataset is commonly used to build action recognizers, which are an application of video classification.
+
+A video consists of an ordered sequence of frames. Each frame contains spatial information, and the sequence of those frames contains temporal information. To model both of these aspects, we use a hybrid architecture that consists of convolutions (for spatial processing) as well as recurrent layers (for temporal processing). Specifically, we'll use a Convolutional Neural Network (CNN) and a Recurrent Neural Network (RNN) consisting of GRU layers. This kind of hybrid architecture is popularly known as a CNN-RNN.
+
+This example requires TensorFlow 2.5 or higher, as well as TensorFlow Docs, which can be installed using the following command:
+
+Data collection.
+
+In order to keep the runtime of this example relatively short, we will be using a subsampled version of the original UCF101 dataset. You can refer to this notebook to know how the subsampling was done.
+
+Setup.
+
+Define hyperparameters.
+
+Data preparation.
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+video_name tag.
+
+492 vTennisSwingg10_c03.avi TennisSwing.
+
+536 vTennisSwingg16_c05.avi TennisSwing.
+
+413 vShavingBeardg16_c05.avi ShavingBeard.
+
+268 vPunchg12_c04.avi Punch.
+
+288 vPunchg15_c03.avi Punch.
+
+30 vCricketShotg12_c03.avi CricketShot.
+
+449 vShavingBeardg21_c07.avi ShavingBeard.
+
+524 vTennisSwingg14_c07.avi TennisSwing.
+
+145 vPlayingCellog12_c01.avi PlayingCello.
+
+566 vTennisSwingg21_c03.avi TennisSwing.
+
+One of the many challenges of training video classifiers is figuring out a way to feed the videos to a network. This blog post discusses five such methods. Since a video is an ordered sequence of frames, we could just extract the frames and put them in a 3D tensor. But the number of frames may differ from video to video which would prevent us from stacking them into batches (unless we use padding). As an alternative, we can save video frames at a fixed interval until a maximum frame count is reached. In this example we will do the following:
+
+Capture the frames of a video.
+
+Extract frames from the videos until a maximum frame count is reached.
+
+In the case, where a video's frame count is lesser than the maximum frame count we will pad the video with zeros.
+
+Note that this workflow is identical to problems involving texts sequences. Videos of the UCF101 dataset is known to not contain extreme variations in objects and actions across frames. Because of this, it may be okay to only consider a few frames for the learning task. But this approach may not generalize well to other video classification problems. We will be using OpenCV's <code> method to read frames from videos.
+
+We can use a pre-trained network to extract meaningful features from the extracted frames. The <code> module provides a number of state-of-the-art models pre-trained on the ImageNet-1k dataset. We will be using the InceptionV3 model for this purpose.
+
+The labels of the videos are strings. Neural networks do not understand string values, so they must be converted to some numerical form before they are fed to the model. Here we will use the <code> layer encode the class labels as integers.
+
+Finally, we can put all the pieces together to create our data processing utility.
+
+The above code block will take ~20 minutes to execute depending on the machine it's being executed.
+
+The sequence model.
+
+Now, we can feed this data to a sequence model consisting of recurrent layers like <code>.
+
+Note: To keep the runtime of this example relatively short, we just used a few training examples. This number of training examples is low with respect to the sequence model being used that has 99,909 trainable parameters. You are encouraged to sample more data from the UCF101 dataset using the notebook mentioned above and train the same model.
+
+Inference.
+
+Next steps.
+
+In this example, we made use of transfer learning for extracting meaningful features from video frames. You could also fine-tune the pre-trained network to notice how that affects the end results.
+
+For speed-accuracy trade-offs, you can try out other models present inside <code>.
+
+Try different combinations of <code> to observe how that affects the performance.
+
+Train on a higher number of classes and see if you are able to get good performance.
+
+Following this tutorial, try a pre-trained action recognition model from DeepMind.
+
+Rolling-averaging can be useful technique for video classification and it can be combined with a standard image classification model to infer on videos. This tutorial will help understand how to use rolling-averaging with an image classifier.
+
+When there are variations in between the frames of a video not all the frames might be equally important to decide its category. In those situations, putting a self-attention layer in the sequence model will likely yield better results.
+
+Following this book chapter, you can implement Transformers-based models for processing videos.

@@ -1,0 +1,215 @@
+Probability and Statistics.
+
+One way or another, machine learning is all about uncertainty. In supervised learning, we want to predict something unknown (the target) given something known (the features). Depending on our objective, we might attempt to predict the most likely value of the target. Or we might predict the value with the smallest expected distance from the target. And sometimes we wish not only to predict a specific value but to quantify our uncertainty. For example, given some features describing a patient, we might want to know how likely they are to suffer a heart attack in the next year. In unsupervised learning, we often care about uncertainty. To determine whether a set of measurements are anomalous, it helps to know how likely one is to observe values in a population of interest. Furthermore, in reinforcement learning, we wish to develop agents that act intelligently in various environments. This requires reasoning about how an environment might be expected to change and what rewards one might expect to encounter in response to each of the available actions.
+
+Probability is the mathematical field concerned with reasoning under uncertainty. Given a probabilistic model of some process, we can reason about the likelihood of various events. The use of probabilities to describe the frequencies of repeatable events (like coin tosses) is fairly uncontroversial. In fact, frequentist scholars adhere to an interpretation of probability that applies only to such repeatable events. By contrast Bayesian scholars use the language of probability more broadly to formalize reasoning under uncertainty. Bayesian probability is characterized by two unique features: (i) assigning degrees of belief to non-repeatable events, e.g., what is the probability that a dam will collapse?; and (ii) subjectivity. While Bayesian probability provides unambiguous rules for how one should update their beliefs in light of new evidence, it allows for different individuals to start off with different prior beliefs. Statistics helps us to reason backwards, starting off with collection and organization of data and backing out to what inferences we might draw about the process that generated the data. Whenever we analyze a dataset, hunting for patterns that we hope might characterize a broader population, we are employing statistical thinking. Many courses, majors, theses, careers, departments, companies, and institutions have been devoted to the study of probability and statistics. While this section only scratches the surface, we will provide the foundation that you need to begin building models.
+
+A Simple Example: Tossing Coins.
+
+Imagine that we plan to toss a coin and want to quantify how likely we are to see heads (vs. tails). If the coin is fair, then both outcomes (heads and tails), are equally likely. Moreover if we plan to toss the coin <math> times then the fraction of heads that we expect to see should exactly match the expected fraction of tails. One intuitive way to see this is by symmetry: for every possible outcome with <math> heads and <math> tails, there is an equally likely outcome with <math> heads and <math> tails. Note that this is only possible if on average we expect to see <math> of tosses come up heads and <math> come up tails. Of course, if you conduct this experiment many times with <math> tosses each, you might never see a trial where <math> exactly.
+
+Formally, the quantity <math> is called a probability and here it captures the certainty with which any given toss will come up heads. Probabilities assign scores between <math> and <math> to outcomes of interest, called events. Here the event of interest is <math> and we denote the corresponding probability <math>. A probability of <math> indicates absolute certainty (imagine a trick coin where both sides were heads) and a probability of <math> indicates impossibility (e.g., if both sides were tails). The frequencies <math> and <math> are not probabilities but rather statistics. Probabilities are theoretical quantities that underly the data generating process. Here, the probability <math> is a property of the coin itself. By contrast, statistics are empirical quantities that are computed as functions of the observed data. Our interests in probabilistic and statistical quantities are inextricably intertwined. We often design special statistics called estimators that, given a dataset, produce estimates of model parameters such as probabilities. Moreover, when those estimators satisfy a nice property called consistency, our estimates will converge to the corresponding probability. In turn, these inferred probabilities tell about the likely statistical properties of data from the same population that we might encounter in the future.
+
+Suppose that we stumbled upon a real coin for which we did not know the true <math>. To investigate this quantity with statistical methods, we need to (i) collect some data; and (ii) design an estimator. Data acquisition here is easy; we can toss the coin many times and record all the outcomes. Formally, drawing realizations from some underlying random process is called sampling. As you might have guessed, one natural estimator is the ratio of the number of observed heads to the total number of tosses.
+
+Now, suppose that the coin was in fact fair, i.e., <math>. To simulate tosses of a fair coin, we can invoke any random number generator. There are some easy ways to draw samples of an event with probability <math>. For example Python's <code> yields numbers in the interval <math> where the probability of lying in any sub-interval <math> is equal to <math>. Thus we can get out <code> and <code> with probability <code> each by testing whether the returned float number is greater than <code>:
+
+More generally, we can simulate multiple draws from any variable with a finite number of possible outcomes (like the toss of a coin or roll of a die) by calling the multinomial function, setting the first argument to the number of draws and the second as a list of probabilities associated with each of the possible outcomes. To simulate ten tosses of a fair coin, we assign probability vector <code>, interpreting index 0 as heads and index 1 as tails. The function returns a vector with length equal to the number of possible outcomes (here, 2), where the first component tells us the number of occurrences of heads and the second component tells us the number of occurrences of tails.
+
+Each time you run this sampling process, you will receive a new random value that may differ from the previous outcome. Dividing by the number of tosses gives us the frequency of each outcome in our data. Note that these frequencies, just like the probabilities that they are intended to estimate, sum to <math>.
+
+Here, even though our simulated coin is fair (we ourselves set the probabilities <code>), the counts of heads and tails may not be identical. That is because we only drew a relatively small number of samples. If we did not implement the simulation ourselves, and only saw the outcome, how would we know if the coin were slightly unfair or if the possible deviation from <math> was just an artifact of the small sample size? Let's see what happens when we simulate 10,000 tosses.
+
+In general, for averages of repeated events (like coin tosses), as the number of repetitions grows, our estimates are guaranteed to converge to the true underlying probabilities. The mathematical formulation of this phenomenon is called the law of large numbers and the central limit theorem tells us that in many situations, as the sample size <math> grows, these errors should go down at a rate of <math>. Let's get some more intuition by studying how our estimate evolves as we grow the number of tosses from 1 to 10,000.
+
+Each solid curve corresponds to one of the two values of the coin and gives our estimated probability that the coin turns up that value after each group of experiments. The dashed black line gives the true underlying probability. As we get more data by conducting more experiments, the curves converge towards the true probability. You might already begin to see the shape of some of the more advanced questions that preoccupy statisticians: How quickly does this convergence happen? If we had already tested many coins manufactured at the same plant, how might we incorporate this information?
+
+A More Formal Treatment.
+
+We have already gotten pretty far: posing a probabilistic model, generating synthetic data, running a statistical estimator, empirically assessing convergence, and reporting error metrics (checking the deviation). However, to go much further, we will need to be more precise.
+
+When dealing with randomness, we denote the set of possible outcomes <math> and call it the sample space or outcome space. Here, each element is a distinct possible outcome. In the case of rolling a single coin, <math>. For a single die, <math>. When flipping two coins, possible outcomes are <math>. Events are subsets of the sample space. For instance, the event "the first coin toss comes up heads" corresponds to the set <math>. Whenever the outcome <math> of a random experiment satisfies <math>, then event <math> has occurred. For a single roll of a die, we could define the events "seeing a <math>" (<math>) and "seeing an odd number" (<math>). In this case, if the die came up <math>, we would say that both <math> and <math> occurred. On the other hand, if <math>, then <math> did not occur but <math> did.
+
+A probability function maps events onto real values <math>. The probability, denoted <math>, of an event <math> in the given sample space <math>, has the following properties:
+
+The probability of any event <math> is a nonnegative real number, i.e., <math>;
+
+The probability of the entire sample space is <math>, i.e., <math>;
+
+For any countable sequence of events <math> that are mutually exclusive (i.e., <math> for all <math>), the probability that any of them happens is equal to the sum of their individual probabilities, i.e., <math>.
+
+These axioms of probability theory, proposed by , can be applied to rapidly derive a number of important consequences. For instance, it follows immediately that the probability of any event <math> or its complement <math> occurring is 1 (because <math>). We can also prove that <math> because <math>. Consequently, the probability of any event <math> and its complement <math> occurring simultaneously is <math>. Informally, this tells us that impossible events have zero probability of occurring.
+
+Random Variables.
+
+When we spoke about events like the roll of a die coming up odds or the first coin toss coming up heads, we were invoking the idea of a random variable. Formally, random variables are mappings from an underlying sample space to a set of (possibly many) values. You might wonder how a random variable is different from the sample space, since both are collections of outcomes. Importantly, random variables can be much coarser than the raw sample space. We can define a binary random variable like "greater than 0.5" even when the underlying sample space is infinite, e.g., points on the line segment between <math> and <math>. Additionally, multiple random variables can share the same underlying sample space. For example "whether my home alarm goes off" and "whether my house was burgled" are both binary random variables that share an underlying sample space. Consequently, knowing the value taken by one random variable can tell us something about the likely value of another random variable. Knowing that the alarm went off, we might suspect that the house was likely burgled.
+
+Every value taken by a random variable corresponds to a subset of the underlying sample space. Thus the occurrence where the random variable <math> takes value <math>, denoted by <math>, is an event and <math> denotes its probability. Sometimes this notation can get clunky, and we can abuse notation when the context is clear. For example, we might use <math> to refer broadly to the distribution of <math>, i.e., the function that tells us the probability that <math> takes any given value. Other times we write expressions like <math>, as a shorthand to express a statement that is true for all of the values that the random variables <math> and <math> can take, i.e., for all <math> it holds that <math>. Other times, we abuse notation by writing <math> when the random variable is clear from the context. Since an event in probability theory is a set of outcomes from the sample space, we can specify a range of values for a random variable to take. For example, <math> denotes the probability of the event <math>.
+
+Note that there is a subtle difference between discrete random variables, like flips of a coin or tosses of a die, and continuous ones, like the weight and the height of a person sampled at random from the population. In this case we seldom really care about someone's exact height. Moreover, if we took precise enough measurements, we would find that no two people on the planet have the exact same height. In fact, with fine enough measurements, you would never have the same height when you wake up and when you go to sleep. There is little point in asking about the exact probability that someone is 1.801392782910287192 meters tall. Instead, we typically care more about being able to say whether someone's height falls into a given interval, say between 1.79 and 1.81 meters. In these cases we work with probability densities. The height of exactly 1.80 meters has no probability, but nonzero density. To work out the probability assigned to an interval, we must take an integral of the density over that interval.
+
+Multiple Random Variables.
+
+You might have noticed that we could not even make it through the previous section without making statements involving interactions among multiple random variables (recall that <math>). Most of machine learning is concerned with such relationships. Here, the sample space would be the population of interest, say customers who transact with a business, photographs on the Internet, or proteins known to biologists. Each random variable would represent the (unknown) value of a different attribute. Whenever we sample an individual from the population, we observe a realization of each of the random variables. Because the values taken by random variables correspond to subsets of the sample space that could be overlapping, partially overlapping, or entirely disjoint, knowing the value taken by one random variable can cause us to update our beliefs about which values of another random variable are likely. If a patient walks into a hospital and we observe that they are having trouble breathing and have lost their sense of smell, then we believe that they are more likely to have COVID-19 than we might if they had no trouble breathing and a perfectly ordinary sense of smell.
+
+When working with multiple random variables, we can construct events corresponding to every combination of values that the variables can jointly take. The probability function that assigns probabilities to each of these combinations (e.g. <math> and <math>) is called the joint probability function and simply returns the probability assigned to the intersection of the corresponding subsets of the sample space. The joint probability assigned to the event where random variables <math> and <math> take values <math> and <math>, respectively, is denoted <math>, where the comma indicates "and". Note that for any values <math> and <math>, it follows that.
+
+<math>.
+
+since for <math> and <math> to happen, <math> has to happen and <math> also has to happen. Interestingly, the joint probability tells us all that we can know about these random variables in a probabilistic sense, and can be used to derive many other useful quantities, including recovering the individual distributions <math> and <math>. To recover <math> we simply sum up <math> over all values <math> that the random variable <math> can take: <math>.
+
+The ratio <math> turns out to be extremely important. It is called the conditional probability, and is denoted via the "<math>" symbol:
+
+<math>.
+
+It tells us the new probability associated with the event <math>, once we condition on the fact <math> took place. We can think of this conditional probability as restricting attention only to the subset of the sample space associated with <math> and then renormalizing so that all probabilities sum to 1. Conditional probabilities are in fact just ordinary probabilities and thus respect all of the axioms, as long as we condition all terms on the same event and thus restrict attention to the same sample space. For instance, for disjoint events <math> and <math>, we have that <math>.
+
+Using the definition of conditional probabilities, we can derive the famous result called Bayes' theorem. By construction, we have that <math> and <math>. Combining both equations yields <math> and hence.
+
+<math>.
+
+This simple equation has profound implications because it allows us to reverse the order of conditioning. If we know how to estimate <math>, <math>, and <math>, then we can estimate <math>. We often find it easier to estimate one term directly but not the other and Bayes' theorem can come to the rescue here. For instance, if we know the prevalence of symptoms for a given disease, and the overall prevalences of the disease and symptoms, respectively, we can determine how likely someone is to have the disease based on their symptoms. In some cases we might not have direct access to <math>, such as the prevalence of symptoms. In this case a simplified version of Bayes' theorem comes in handy:
+
+<math>.
+
+Since we know that <math> must be normalized to <math>, i.e., <math>, we can use it to compute.
+
+<math>.
+
+In Bayesian statistics, we think of an observer as possessing some (subjective) prior beliefs about the plausibility of the available hypotheses encoded in the prior <math>, and a likelihood function that says how likely one is to observe any value of the collected evidence for each of the hypotheses in the class <math>. Bayes' theorem is then interpreted as telling us how to update the initial prior <math> in light of the available evidence <math> to produce posterior beliefs <math>. Informally, this can be stated as "posterior equals prior times likelihood, divided by the evidence". Now, because the evidence <math> is the same for all hypotheses, we can get away with simply normalizing over the hypotheses.
+
+Note that <math> also allows us to marginalize over random variables. That is, we can drop variables from a joint distribution such as <math>. After all, we have that.
+
+<math>.
+
+Independence is another fundamentally important concept that forms the backbone of many important ideas in statistics. In short, two variables are independent if conditioning on the value of <math> does not cause any change to the probability distribution associated with <math> and vice versa. More formally, independence, denoted <math>, requires that <math> and, consequently, that <math>. Independence is often an appropriate assumption. For example, if the random variable <math> represents the outcome from tossing one fair coin and the random variable <math> represents the outcome from tossing another, then knowing whether <math> came up heads should not influence the probability of <math> coming up heads.
+
+Independence is especially useful when it holds among the successive draws of our data from some underlying distribution (allowing us to make strong statistical conclusions) or when it holds among various variables in our data, allowing us to work with simpler models that encode this independence structure. On the other hand, estimating the dependencies among random variables is often the very aim of learning. We care to estimate the probability of disease given symptoms specifically because we believe that diseases and symptoms are not independent.
+
+Note that because conditional probabilities are proper probabilities, the concepts of independence and dependence also apply to them. Two random variables <math> and <math> are conditionally independent given a third variable <math> if and only if <math>. Interestingly, two variables can be independent in general but become dependent when conditioning on a third. This often occurs when the two random variables <math> and <math> correspond to causes of some third variable <math>. For example, broken bones and lung cancer might be independent in the general population but if we condition on being in the hospital then we might find that broken bones are negatively correlated with lung cancer. That is because the broken bone explains away why some person is in the hospital and thus lowers the probability that they are hospitalized because of having lung cancer.
+
+And conversely, two dependent random variables can become independent upon conditioning on a third. This often happens when two otherwise unrelated events have a common cause. Shoe size and reading level are highly correlated among elementary school students, but this correlation disappears if we condition on age.
+
+An Example.
+
+Let's put our skills to the test. Assume that a doctor administers an HIV test to a patient. This test is fairly accurate and fails only with 1% probability if the patient is healthy but reported as diseased, i.e., healthy patients test positive in 1% of cases. Moreover, it never fails to detect HIV if the patient actually has it. We use <math> to indicate the diagnosis (<math> if negative and <math> if positive) and <math> to denote the HIV status.
+
+Note that the column sums are all 1 (but the row sums do not), since they are conditional probabilities. Let's compute the probability of the patient having HIV if the test comes back positive, i.e., <math>. Intuitively this is going to depend on how common the disease is, since it affects the number of false alarms. Assume that the population is fairly free of the disease, e.g., <math>. To apply Bayes' theorem, we need to apply marginalization to determine.
+
+<math>.
+
+This leads us to.
+
+<math>.
+
+In other words, there is only a 13.06% chance that the patient actually has HIV, despite the test being pretty accurate. As we can see, probability can be counterintuitive. What should a patient do upon receiving such terrifying news? Likely, the patient would ask the physician to administer another test to get clarity. The second test has different characteristics and it is not as good as the first one.
+
+Unfortunately, the second test comes back positive, too. Let's calculate the requisite probabilities to invoke Bayes' theorem by assuming conditional independence:
+
+<math>.
+
+Now we can apply marginalization to obtain the probability that both tests come back positive:
+
+<math>.
+
+Finally, the probability of the patient having HIV given that both tests are positive is.
+
+<math>.
+
+That is, the second test allowed us to gain much higher confidence that not all is well. Despite the second test being considerably less accurate than the first one, it still significantly improved our estimate. The assumption of both tests being conditionally independent of each other was crucial for our ability to generate a more accurate estimate. Take the extreme case where we run the same test twice. In this situation we would expect the same outcome both times, hence no additional insight is gained from running the same test again. The astute reader might have noticed that the diagnosis behaved like a classifier hiding in plain sight where our ability to decide whether a patient is healthy increases as we obtain more features (test outcomes).
+
+Expectations.
+
+Often, making decisions requires not just looking at the probabilities assigned to individual events but composing them together into useful aggregates that can provide us with guidance. For example, when random variables take continuous scalar values, we often care about knowing what value to expect on average. This quantity is formally called an expectation. If we are making investments, the first quantity of interest might be the return we can expect, averaging over all the possible outcomes (and weighting by the appropriate probabilities). For instance, say that with 50% probability, an investment might fail altogether, with 40% probability it might provide a 2$\times$ return, and with 10% probability it might provide a 10$\times$ return 10$\times$. To calculate the expected return, we sum over all returns, multiplying each by the probability that they will occur. This yields the expectation <math>. Hence the expected return is 1.8$\times$.
+
+In general, the expectation (or average) of the random variable <math> is defined as.
+
+<math>.
+
+Likewise, for densities we obtain <math>. Sometimes we are interested in the expected value of some function of <math>. We can calculate these expectations as.
+
+<math>.
+
+for discrete probabilities and densities, respectively. Returning to the investment example from above, <math> might be the utility (happiness) associated with the return. Behavior economists have long noted that people associate greater disutility with losing money than the utility gained from earning one dollar relative to their baseline. Moreover, the value of money tends to be sub-linear. Possessing 100k dollars versus zero dollars can make the difference between paying the rent, eating well, and enjoying quality healthcare versus suffering through homelessness. On the other hand, the gains due to possessing 200k versus 100k are less dramatic. Reasoning like this motivates the cliché that "the utility of money is logarithmic".
+
+If the utility associated with a total loss were <math>, and the utilities associated with returns of <math>, <math>, and <math> were <math>, <math> and <math>, respectively, then the expected happiness of investing would be <math> (an expected loss of utility of 30%). If indeed this were your utility function, you might be best off keeping the money in the bank.
+
+For financial decisions, we might also want to measure how risky an investment is. Here, we care not just about the expected value but how much the actual values tend to vary relative to this value. Note that we cannot just take the expectation of the difference between the actual and expected values. This is because the expectation of a difference is the difference of the expectations, i.e., <math>. However, we can look at the expectation of any non-negative function of this difference. The variance of a random variable is calculated by looking at the expected value of the squared differences:
+
+<math>.
+
+Here the equality follows by expanding <math> and taking expectations for each term. The square root of the variance is another useful quantity called the standard deviation. While this and the variance convey the same information (either can be calculated from the other), the standard deviation has the nice property that it is expressed in the same units as the original quantity represented by the random variable.
+
+Lastly, the variance of a function of a random variable is defined analogously as.
+
+<math>.
+
+Returning to our investment example, we can now compute the variance of the investment. It is given by <math>. For all intents and purposes this is a risky investment. Note that by mathematical convention mean and variance are often referenced as <math> and <math>. This is particularly the case whenever we use it to parametrize a Gaussian distribution.
+
+In the same way as we introduced expectations and variance for scalar random variables, we can do so for vector-valued ones. Expectations are easy, since we can apply them elementwise. For instance, <math> has coordinates <math>. Covariances are more complicated. We define them by taking expectations of the outer product of the difference between random variables and their mean:
+
+<math>.
+
+This matrix <math> is referred to as the covariance matrix. An easy way to see its effect is to consider some vector <math> of the same size as <math>. It follows that.
+
+<math>.
+
+As such, <math> allows us to compute the variance for any linear function of <math> by a simple matrix multiplication. The off-diagonal elements tell us how correlated the coordinates are: a value of 0 means no correlation, where a larger positive value means that they are more strongly correlated.
+
+Discussion.
+
+In machine learning, there are many things to be uncertain about! We can be uncertain about the value of a label given an input. We can be uncertain about the estimated value of a parameter. We can even be uncertain about whether data arriving at deployment is even from the same distribution as the training data.
+
+By aleatoric uncertainty, we mean uncertainty that is intrinsic to the problem, and due to genuine randomness unaccounted for by the observed variables. By epistemic uncertainty, we mean uncertainty over a model's parameters, the sort of uncertainty that we can hope to reduce by collecting more data. We might have epistemic uncertainty concerning the probability that a coin turns up heads, but even once we know this probability, we are left with aleatoric uncertainty about the outcome of any future toss. No matter how long we watch someone tossing a fair coin, we will never be more or less than 50% certain that the next toss will come up heads. These terms come from mechanical modeling, (see e.g., for a review on this aspect of uncertainty quantification). It is worth noting, however, that these terms constitute a slight abuse of language. The term epistemic refers to anything concerning knowledge and thus, in the philosophical sense, all uncertainty is epistemic.
+
+We saw that sampling data from some unknown probability distribution can provide us with information that can be used to estimate the parameters of the data generating distribution. That said, the rate at which this is possible can be quite slow. In our coin tossing example (and many others) we can do no better than to design estimators that converge at a rate of <math>, where <math> is the sample size (e.g., the number of tosses). This means that by going from 10 to 1000 observations (usually a very achievable task) we see a tenfold reduction of uncertainty, whereas the next 1000 observations help comparatively little, offering only a 1.41 times reduction. This is a persistent feature of machine learning: while there are often easy gains, it takes a very large amount of data, and often with it an enormous amount of computation, to make further gains. For an empirical review of this fact for large scale language models see .
+
+We also sharpened our language and tools for statistical modeling. In the process of that we learned about conditional probabilities and about one of the most important equations in statistics---Bayes' theorem. It is an effective tool for decoupling information conveyed by data through a likelihood term <math> that addresses how well observations <math> match a choice of parameters <math>, and a prior probability <math> which governs how plausible a particular choice of <math> was in the first place. In particular, we saw how this rule can be applied to assign probabilities to diagnoses, based on the efficacy of the test and the prevalence of the disease itself (i.e., our prior).
+
+Lastly, we introduced a first set of nontrivial questions about the effect of a specific probability distribution, namely expectations and variances. While there are many more than just linear and quadratic expectations for a probability distribution, these two already provide a good deal of knowledge about the possible behavior of the distribution. For instance, Chebyshev's inequality states that <math>, where <math> is the expectation, <math> is the variance of the distribution, and <math> is a confidence parameter of our choosing. It tells us that draws from a distribution lie with at least 50% probability within a <math> interval centered on the expectation.
+
+Exercises.
+
+Give an example where observing more data can reduce the amount of uncertainty about the outcome to an arbitrarily low level.
+
+Give an example where observing more data will only reduce the amount of uncertainty up to a point and then no further. Explain why this is the case and where you expect this point to occur.
+
+We empirically demonstrated convergence to the mean for the toss of a coin. Calculate the variance of the estimate of the probability that we see a head after drawing <math> samples.
+
+How does the variance scale with the number of observations?
+
+Use Chebyshev's inequality to bound the deviation from the expectation.
+
+How does it relate to the central limit theorem?
+
+Assume that we draw <math> samples <math> from a probability distribution with zero mean and unit variance. Compute the averages <math>. Can we apply Chebyshev's inequality for every <math> independently? Why not?
+
+Given two events with probability <math> and <math>, compute upper and lower bounds on <math> and <math>. Hint: graph the situation using a Venn diagram.
+
+Assume that we have a sequence of random variables, say <math>, <math>, and <math>, where <math> only depends on <math>, and <math> only depends on <math>, can you simplify the joint probability <math>? Hint: this is a Markov chain.
+
+In section <num>, assume that the outcomes of the two tests are not independent. In particular assume that either test on its own has a false positive rate of 10% and a false negative rate of 1%. That is, assume that <math> and that <math>. Moreover, assume that for <math> (infected) the test outcomes are conditionally independent, i.e., that <math> but that for healthy patients the outcomes are coupled via <math>.
+
+Work out the joint probability table for <math> and <math>, given <math> based on the information you have so far.
+
+Derive the probability that the patient is diseased (<math>) after one test returns positive. You can assume the same baseline probability <math> as before.
+
+Derive the probability that the patient is diseased (<math>) after both tests return positive.
+
+Assume that you are an asset manager for an investment bank and you have a choice of stocks <math> to invest in. Your portfolio needs to add up to <math> with weights <math> for each stock. The stocks have an average return <math> and covariance <math>.
+
+Compute the expected return for a given portfolio <math>.
+
+If you wanted to maximize the return of the portfolio, how should you choose your investment?
+
+Compute the variance of the portfolio.
+
+Formulate an optimization problem of maximizing the return while keeping the variance constrained to an upper bound. This is the Nobel-Prize winning Markovitz portfolio . To solve it you will need a quadratic programming solver, something way beyond the scope of this book.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

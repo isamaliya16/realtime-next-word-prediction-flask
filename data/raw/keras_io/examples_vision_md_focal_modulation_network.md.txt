@@ -1,0 +1,201 @@
+Focal Modulation: A replacement for Self-Attention.
+
+Introduction.
+
+This tutorial aims to provide a comprehensive guide to the implementation of Focal Modulation Networks, as presented in Yang et al..
+
+This tutorial will provide a formal, minimalistic approach to implementing Focal Modulation Networks and explore its potential applications in the field of Deep Learning.
+
+Problem statement.
+
+The Transformer architecture (Vaswani et al.), which has become the de facto standard in most Natural Language Processing tasks, has also been applied to the field of computer vision, e.g. Vision Transformers (Dosovitskiy et al.). In Transformers, the self-attention (SA) is arguably the key to its success which enables input-dependent global interactions, in contrast to convolution operation which constraints interactions in a local region with a shared kernel.
+
+The Attention module is mathematically written as shown in Equation 1.
+
+Where:
+
+<code> is the query.
+
+<code> is the key.
+
+<code> is the value.
+
+<code> is the dimension of the key.
+
+With self-attention, the query, key, and value are all sourced from the input sequence. Let us rewrite the attention equation for self-attention as shown in Equation 2.
+
+Upon looking at the equation of self-attention, we see that it is a quadratic equation. Therefore, as the number of tokens increase, so does the computation time (cost too). To mitigate this problem and make Transformers more interpretable, Yang et al. have tried to replace the Self-Attention module with better components.
+
+The Solution.
+
+Yang et al. introduce the Focal Modulation layer to serve as a seamless replacement for the Self-Attention Layer. The layer boasts high interpretability, making it a valuable tool for Deep Learning practitioners.
+
+In this tutorial, we will delve into the practical application of this layer by training the entire model on the CIFAR-10 dataset and visually interpreting the layer's performance.
+
+Note: We try to align our implementation with the official implementation.
+
+Setup and Imports.
+
+Keras 3 allows this model to run on JAX, PyTorch, or TensorFlow. We use keras.ops for all mathematical operations to ensure the code remains backend-agnostic.
+
+Global Configuration.
+
+We do not have any strong rationale behind choosing these hyperparameters. Please feel free to change the configuration and train the model.
+
+Data Loading with PyDataset.
+
+Keras 3 introduces PyDataset as a standardized way to handle data. It works identically across all backends and avoids the "Symbolic Tensor" issues often found when using tf.data with JAX or PyTorch.
+
+Architecture.
+
+We pause here to take a quick look at the Architecture of the Focal Modulation Network. Figure 1 shows how every individual layer is compiled into a single model. This gives us a bird's eye view of the entire architecture.
+
+We dive deep into each of these layers in the following sections. This is the order we will follow:
+
+Patch Embedding Layer.
+
+Focal Modulation Block.
+
+Multi-Layer Perceptron.
+
+Focal Modulation Layer.
+
+Hierarchical Contextualization.
+
+Gated Aggregation.
+
+Building Focal Modulation Block.
+
+Building the Basic Layer.
+
+To better understand the architecture in a format we are well versed in, let us see how the Focal Modulation Network would look when drawn like a Transformer architecture.
+
+Figure 2 shows the encoder layer of a traditional Transformer architecture where Self Attention is replaced with the Focal Modulation layer.
+
+The blue blocks represent the Focal Modulation block. A stack of these blocks builds a single Basic Layer. The green blocks represent the Focal Modulation layer.
+
+Patch Embedding Layer.
+
+The patch embedding layer is used to patchify the input images and project them into a latent space. This layer is also used as the down-sampling layer in the architecture.
+
+Focal Modulation block.
+
+A Focal Modulation block can be considered as a single Transformer Block with the Self Attention (SA) module being replaced with Focal Modulation module, as we saw in Figure 2.
+
+Let us recall how a focal modulation block is supposed to look like with the aid of the Figure 3.
+
+The Focal Modulation Block consists of:
+
+Multilayer Perceptron.
+
+Focal Modulation layer.
+
+Multilayer Perceptron.
+
+Focal Modulation layer.
+
+In a typical Transformer architecture, for each visual token (query) <code> in an input feature map <code> a generic encoding process produces a feature representation <code>.
+
+The encoding process consists of interaction (with its surroundings for e.g. a dot product), and aggregation (over the contexts for e.g weighted mean).
+
+We will talk about two types of encoding here:
+
+Interaction and then Aggregation in Self-Attention.
+
+Aggregation and then Interaction in Focal Modulation.
+
+Self-Attention.
+
+As shown in Figure 4 the query and the key interact (in the interaction step) with each other to output the attention scores. The weighted aggregation of the value comes next, known as the aggregation step.
+
+Focal Modulation.
+
+Figure 5 depicts the Focal Modulation layer. <code> is the query projection function. It is a linear layer that projects the query into a latent space. <code> is the context aggregation function. Unlike self-attention, the aggregation step takes place in focal modulation before the interaction step.
+
+While <code> is pretty straightforward to understand, the context aggregation function <code> is more complex. Therefore, this section will focus on <code>.
+
+The context aggregation function <code> consists of two parts as shown in Figure 6:
+
+Hierarchical Contextualization.
+
+Gated Aggregation.
+
+Hierarchical Contextualization.
+
+In Figure 7, we see that the input is first projected linearly. This linear projection produces <code>. Where <code> can be expressed as follows:
+
+<code> is then passed on to a series of Depth-Wise (DWConv) Conv and GeLU layers. The authors term each block of DWConv and GeLU as levels denoted by <code>. In Figure 6 we have two levels. Mathematically this is represented as:
+
+where <code>.
+
+The final feature map goes through a Global Average Pooling Layer. This can be expressed as follows:
+
+Gated Aggregation.
+
+Now that we have <code> intermediate feature maps by virtue of the Hierarchical Contextualization step, we need a gating mechanism that lets some features pass and prohibits others. This can be implemented with the attention module. Later in the tutorial, we will visualize these gates to better understand their usefulness.
+
+First, we build the weights for aggregation. Here we apply a linear layer on the input feature map that projects it into <code> dimensions.
+
+Next we perform the weighted aggregation over the contexts.
+
+To enable communication across different channels, we use another linear layer <code> to obtain the modulator.
+
+To sum up the Focal Modulation layer we have:
+
+The Focal Modulation block.
+
+Finally, we have all the components we need to build the Focal Modulation block. Here we take the MLP and Focal Modulation layer together and build the Focal Modulation block.
+
+The Basic Layer.
+
+The basic layer consists of a collection of Focal Modulation blocks. This is illustrated in Figure 9.
+
+Notice how in Fig. 9 there are more than one focal modulation blocks denoted by <code>. This shows how the Basic Layer is a collection of Focal Modulation blocks.
+
+The Focal Modulation Network model.
+
+This is the model that ties everything together. It consists of a collection of Basic Layers with a classification head. For a recap of how this is structured refer to Figure 1.
+
+Train the model.
+
+Now with all the components in place and the architecture actually built, we are ready to put it to good use.
+
+In this section, we train our Focal Modulation model on the CIFAR-10 dataset.
+
+Visualization Callback.
+
+A key feature of the Focal Modulation Network is explicit input-dependency. This means the modulator is calculated by looking at the local features around the target location, so it depends on the input. In very simple terms, this makes interpretation easy. We can simply lay down the gating values and the original image, next to each other to see how the gating mechanism works.
+
+The authors of the paper visualize the gates and the modulator in order to focus on the interpretability of the Focal Modulation layer. Below is a visualization callback that shows the gates and modulator of a specific layer in the model while the model trains.
+
+We will notice later that as the model trains, the visualizations get better.
+
+The gates appear to selectively permit certain aspects of the input image to pass through, while gently disregarding others, ultimately leading to improved classification accuracy.
+
+Learning Rate scheduler.
+
+Initialize, compile and train the model.
+
+Plot loss and accuracy.
+
+Test visualizations.
+
+Let's test our model on some test images and see how the gates look like.
+
+Conclusion.
+
+The proposed architecture, the Focal Modulation Network architecture is a mechanism that allows different parts of an image to interact with each other in a way that depends on the image itself. It works by first gathering different levels of context information around each part of the image (the "query token"), then using a gate to decide which context information is most relevant, and finally combining the chosen information in a simple but effective way.
+
+This is meant as a replacement of Self-Attention mechanism from the Transformer architecture. The key feature that makes this research notable is not the conception of attention-less networks, but rather the introduction of a equally powerful architecture that is interpretable.
+
+The authors also mention that they created a series of Focal Modulation Networks (FocalNets) that significantly outperform Self-Attention counterparts and with a fraction of parameters and pretraining data.
+
+The FocalNets architecture has the potential to deliver impressive results and offers a simple implementation. Its promising performance and ease of use make it an attractive alternative to Self-Attention for researchers to explore in their own projects. It could potentially become widely adopted by the Deep Learning community in the near future.
+
+Acknowledgement.
+
+We would like to thank PyImageSearch for providing with a Colab Pro account, JarvisLabs.ai for GPU credits, and also Microsoft Research for providing an official implementation of their paper. We would also like to extend our gratitude to the first author of the paper Jianwei Yang who reviewed this tutorial extensively.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

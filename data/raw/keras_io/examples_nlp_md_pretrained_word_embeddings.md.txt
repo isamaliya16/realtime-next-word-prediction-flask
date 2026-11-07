@@ -1,0 +1,85 @@
+Using pre-trained word embeddings.
+
+Setup.
+
+Introduction.
+
+In this example, we show how to train a text classification model that uses pre-trained word embeddings.
+
+We'll work with the Newsgroup20 dataset, a set of 20,000 message board messages belonging to 20 different topic categories.
+
+For the pre-trained word embeddings, we'll use GloVe embeddings.
+
+Download the Newsgroup20 data.
+
+Let's take a look at the data.
+
+Here's a example of what one file contains:
+
+As you can see, there are header lines that are leaking the file's category, either explicitly (the first line is literally the category name), or implicitly, e.g. via the <code> filed. Let's get rid of the headers:
+
+There's actually one category that doesn't have the expected number of files, but the difference is small enough that the problem remains a balanced classification problem.
+
+Shuffle and split the data into training & validation sets.
+
+Create a vocabulary index.
+
+Let's use the <code> to index the vocabulary found in the dataset. Later, we'll use the same layer instance to vectorize the samples.
+
+Our layer will only consider the top 20,000 words, and will truncate or pad sequences to be actually 200 tokens long.
+
+You can retrieve the computed vocabulary used via <code>. Let's print the top 5 words:
+
+Let's vectorize a test sentence:
+
+As you can see, "the" gets represented as "2". Why not 0, given that "the" was the first word in the vocabulary? That's because index 0 is reserved for padding and index 1 is reserved for "out of vocabulary" tokens.
+
+Here's a dict mapping words to their indices:
+
+As you can see, we obtain the same encoding as above for our test sentence:
+
+Load pre-trained word embeddings.
+
+Let's download pre-trained GloVe embeddings (a 822M zip file).
+
+You'll need to run the following commands:
+
+The archive contains text-encoded vectors of various sizes: 50-dimensional, 100-dimensional, 200-dimensional, 300-dimensional. We'll use the 100D ones.
+
+Let's make a dict mapping words (strings) to their NumPy vector representation:
+
+Now, let's prepare a corresponding embedding matrix that we can use in a Keras <code> layer. It's a simple NumPy matrix where entry at index <code> is the pre-trained vector for the word of index <code> in our <code>'s vocabulary.
+
+Next, we load the pre-trained word embeddings matrix into an <code> layer.
+
+Note that we set <code> so as to keep the embeddings fixed (we don't want to update them during training).
+
+Build the model.
+
+A simple 1D convnet with global max pooling and a classifier at the end.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( None , None ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ embedding ( Embedding ) │ ( None , None , 100 ) │ 2,000,200 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv1d ( Conv1D ) │ ( None , None , 128 ) │ 64,128 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling1d ( MaxPooling1D ) │ ( None , None , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv1d1 ( Conv1D ) │ ( None , None , 128 ) │ 82,048 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling1d1 ( MaxPooling1D ) │ ( None , None , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv1d2 ( Conv1D ) │ ( None , None , 128 ) │ 82,048 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ globalmaxpooling1d │ ( None , 128 ) │ 0 │ │ ( GlobalMaxPooling1D ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 128 ) │ 16,512 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense_1 ( Dense ) │ ( None , 20 ) │ 2,580 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 2,247,516 (8.57 MB).
+
+Trainable params: 2,247,516 (8.57 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Train the model.
+
+First, convert our list-of-strings data to NumPy arrays of integer indices. The arrays are right-padded.
+
+We use categorical crossentropy as our loss since we're doing softmax classification. Moreover, we use <code> since our labels are integers.
+
+Export an end-to-end model.
+
+Now, we may want to export a <code> object that takes as input a string of arbitrary length, rather than a sequence of indices. It would make the model much more portable, since you wouldn't have to worry about the input preprocessing pipeline.
+
+Our <code> is actually a Keras layer, so it's simple:
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

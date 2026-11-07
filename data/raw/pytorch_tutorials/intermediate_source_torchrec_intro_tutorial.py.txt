@@ -1,0 +1,257 @@
+Introduction to TorchRec.
+
+TorchRec is a PyTorch library tailored for building scalable and efficient recommendation systems using embeddings. This tutorial guides you through the installation process, introduces the concept of embeddings, and highlights their importance in recommendation systems. It offers practical demonstrations on implementing embeddings with PyTorch and TorchRec, focusing on handling large embedding tables through distributed training and advanced optimizations.
+
+Install Dependencies.
+
+Before running this tutorial in Google Colab, make sure to install the following dependencies:
+
+Embeddings.
+
+When building recommendation systems, categorical features typically have massive cardinality, posts, users, ads, and so on.
+
+In order to represent these entities and model these relationships, embeddings are used. In machine learning, embeddings are a vectors of real numbers in a high-dimensional space used to represent meaning in complex data like words, images, or users.
+
+Embeddings in RecSys.
+
+Now you might wonder, how are these embeddings generated in the first place? Well, embeddings are represented as individual rows in an Embedding Table, also referred to as embedding weights. The reason for this is that embeddings or embedding table weights are trained just like all of the other weights of the model via gradient descent!
+
+Embedding tables are simply a large matrix for storing embeddings, with two dimensions (B, N), where:
+
+B is the number of embeddings stored by the table.
+
+N is the number of dimensions per embedding (N-dimensional embedding).
+
+The inputs to embedding tables represent embedding lookups to retrieve the embedding for a specific index or row. In recommendation systems, such as those used in many large systems, unique IDs are not only used for specific users, but also across entities like posts and ads to serve as lookup indices to respective embedding tables!
+
+Embeddings are trained in RecSys through the following process:
+
+Input/lookup indices are fed into the model, as unique IDs. IDs are hashed to the total size of the embedding table to prevent issues when the ID > number of rows.
+
+Embeddings are then retrieved and pooled, such as taking the sum or mean of the embeddings. This is required as there can be a variable number of embeddings per example while the model expects consistent shapes.
+
+The embeddings are used in conjunction with the rest of the model to produce a prediction, such as Click-Through Rate (CTR) for an ad.
+
+The loss is calculated with the prediction and the label for an example, and all weights of the model are updated through gradient descent and backpropagation, including the embedding weights that were associated with the example.
+
+These embeddings are crucial for representing categorical features, such as users, posts, and ads, in order to capture relationships and make good recommendations. The Deep learning recommendation model (DLRM) paper talks more about the technical details of using embedding tables in RecSys.
+
+This tutorial introduces the concept of embeddings, showcase TorchRec specific modules and data types, and depict how distributed training works with TorchRec.
+
+Embeddings in PyTorch.
+
+In PyTorch, we have the following types of embeddings:
+
+torch.nn.Embedding: An embedding table where forward pass returns the embeddings themselves as is.
+
+torch.nn.EmbeddingBag: Embedding table where forward pass returns embeddings that are then pooled, for example, sum or mean, otherwise known as Pooled Embeddings.
+
+In this section, we will go over a very brief introduction to performing embedding lookups by passing in indices into the table.
+
+Congratulations! Now you have a basic understanding of how to use embedding tables --- one of the foundations of modern recommendation systems! These tables represent entities and their relationships. For example, the relationship between a given user and the pages and posts they have liked.
+
+TorchRec Features Overview.
+
+In the section above we've learned how to use embedding tables, one of the foundations of modern recommendation systems! These tables represent entities and relationships, such as users, pages, posts, etc. Given that these entities are always increasing, a hash function is typically applied to make sure the IDs are within the bounds of a certain embedding table. However, in order to represent a vast amount of entities and reduce hash collisions, these tables can become quite massive (think about the number of ads for example). In fact, these tables can become so massive that they won't be able to fit on 1 GPU, even with 80G of memory.
+
+In order to train models with massive embedding tables, sharding these tables across GPUs is required, which then introduces a whole new set of problems and opportunities in parallelism and optimization. Luckily, we have the TorchRec library ` that has encountered, consolidated, and addressed many of these concerns. TorchRec serves as a library that provides primitives for large scale distributed embeddings.
+
+Next, we will explore the major features of the TorchRec library. We will start with <code> and will extend that to custom TorchRec modules, explore distributed training environment with generating a sharding plan for embeddings, look at inherent TorchRec optimizations, and extend the model to be ready for inference in C++. Below is a quick outline of what this section consists of:
+
+TorchRec Modules and Data Types.
+
+Distributed Training, Sharding, and Optimizations.
+
+Let's begin with importing TorchRec:
+
+TorchRec Modules and Data Types.
+
+This section goes over TorchRec Modules and data types including such entities as <code> and <code>, <code>, <code>, <code> and more.
+
+From <code> to <code>.
+
+We have already explored torch.nn.Embedding and torch.nn.EmbeddingBag. TorchRec extends these modules by creating collections of embeddings, in other words modules that can have multiple embedding tables, with <code> and <code> We will use <code> to represent a group of embedding bags.
+
+In the example code below, we create an <code> (EBC) with two embedding bags, 1 representing products and 1 representing users. Each table, <code> and <code>, is represented by a 64 dimension embedding of size 4096.
+
+Let’s inspect the forward method for <code> and the module’s inputs and outputs:
+
+TorchRec Input/Output Data Types.
+
+TorchRec has distinct data types for input and output of its modules: <code>, <code>, and <code>. Now you might ask, why create new data types to represent sparse features? To answer that question, we must understand how sparse features are represented in code.
+
+Sparse features are otherwise known as <code> and <code>, and are the IDs that will be used as indices to an embedding table to retrieve the embedding for that ID. To give a very simple example, imagine a single sparse feature being Ads that a user interacted with. The input itself would be a set of Ad IDs that a user interacted with, and the embeddings retrieved would be a semantic representation of those Ads. The tricky part of representing these features in code is that in each input example, the number of IDs is variable. One day a user might have interacted with only one ad while the next day they interact with three.
+
+A simple representation is shown below, where we have a <code> tensor denoting how many indices are in an example for a batch and a <code> tensor containing the indices themselves.
+
+Next, let's look at the offsets as well as what is contained in each batch.
+
+Congrats! You now understand TorchRec modules and data types. Give yourself a pat on the back for making it this far. Next, we will learn about distributed training and sharding.
+
+Distributed Training and Sharding.
+
+Now that we have a grasp on TorchRec modules and data types, it's time to take it to the next level.
+
+Remember, the main purpose of TorchRec is to provide primitives for distributed embeddings. So far, we've only worked with embedding tables on a single device. This has been possible given how small the embedding tables have been, but in a production setting this isn't generally the case. Embedding tables often get massive, where one table can't fit on a single GPU, creating the requirement for multiple devices and a distributed environment.
+
+In this section, we will explore setting up a distributed environment, exactly how actual production training is done, and explore sharding embedding tables, all with TorchRec.
+
+This section will also only use 1 GPU, though it will be treated in a distributed fashion. This is only a limitation for training, as training has a process per GPU. Inference does not run into this requirement.
+
+In the example code below, we set up our PyTorch distributed environment.
+
+Distributed Embeddings.
+
+We have already worked with the main TorchRec module: <code>. We have examined how it works along with how data is represented in TorchRec. However, we have not yet explored one of the main parts of TorchRec, which is distributed embeddings.
+
+GPUs are the most popular choice for ML workloads by far today, as they are able to do magnitudes more floating point operations/s (FLOPs) than CPU. However, GPUs come with the limitation of scarce fast memory (HBM which is analogous to RAM for CPU), typically, ~10s of GBs.
+
+A RecSys model can contain embedding tables that far exceed the memory limit for 1 GPU, hence the need for distribution of the embedding tables across multiple GPUs, otherwise known as model parallel. On the other hand, data parallel is where the entire model is replicated on each GPU, which each GPU taking in a distinct batch of data for training, syncing gradients on the backwards pass.
+
+Parts of the model that require less compute but more memory (embeddings) are distributed with model parallel while parts that require more compute and less memory (dense layers, MLP, etc.) are distributed with data parallel.
+
+Sharding.
+
+In order to distribute an embedding table, we split up the embedding table into parts and place those parts onto different devices, also known as “sharding”.
+
+There are many ways to shard embedding tables. The most common ways are:
+
+Table-Wise: the table is placed entirely onto one device.
+
+Column-Wise: columns of embedding tables are sharded.
+
+Row-Wise: rows of embedding tables are sharded.
+
+Sharded Modules.
+
+While all of this seems like a lot to deal with and implement, you're in luck. TorchRec provides all the primitives for easy distributed training and inference! In fact, TorchRec modules have two corresponding classes for working with any TorchRec module in a distributed environment:
+
+The module sharder: This class exposes a <code> API that handles sharding a TorchRec Module, producing a sharded module.
+
+For <code>, the sharder is <code>.
+
+Sharded module: This class is a sharded variant of a TorchRec module. It has the same input/output as a the regular TorchRec module, but much more optimized and works in a distributed environment.
+
+For <code>, the sharded variant is <code>.
+
+Every TorchRec module has an unsharded and sharded variant.
+
+The unsharded version is meant to be prototyped and experimented with.
+
+The sharded version is meant to be used in a distributed environment for distributed training and inference.
+
+The sharded versions of TorchRec modules, for example <code>, will handle everything that is needed for Model Parallelism, such as communication between GPUs for distributing embeddings to the correct GPUs.
+
+Refresher of our <code> module.
+
+Planner.
+
+Before we can show how sharding works, we must know about the planner, which helps us determine the best sharding configuration.
+
+Given a number of embedding tables and a number of ranks, there are many different sharding configurations that are possible. For example, given 2 embedding tables and 2 GPUs, you can:
+
+Place 1 table on each GPU.
+
+Place both tables on a single GPU and no tables on the other.
+
+Place certain rows and columns on each GPU.
+
+Given all of these possibilities, we typically want a sharding configuration that is optimal for performance.
+
+That is where the planner comes in. The planner is able to determine given the number of embedding tables and the number of GPUs, what is the optimal configuration. Turns out, this is incredibly difficult to do manually, with tons of factors that engineers have to consider to ensure an optimal sharding plan. Luckily, TorchRec provides an auto planner when the planner is used.
+
+The TorchRec planner:
+
+Assesses memory constraints of hardware.
+
+Estimates compute based on memory fetches as embedding lookups.
+
+Addresses data specific factors.
+
+Considers other hardware specifics like bandwidth to generate an optimal sharding plan.
+
+In order to take into consideration all these variables, The TorchRec planner can take in various amounts of data for embedding tables, constraints, hardware information, and topology to aid in generating the optimal sharding plan for a model, which is routinely provided across stacks.
+
+To learn more about sharding, see our sharding tutorial.
+
+Planner Result.
+
+As you can see above, when running the planner there is quite a bit of output. We can see a lot of stats being calculated along with where our tables end up being placed.
+
+The result of running the planner is a static plan, which can be reused for sharding! This allows sharding to be static for production models instead of determining a new sharding plan everytime. Below, we use the sharding plan to finally generate our <code>.
+
+GPU Training with <code>.
+
+Remember that TorchRec is a highly optimized library for distributed embeddings. A concept that TorchRec introduces to enable higher performance for training on GPU is a <code>. You will see <code> types as outputs of various sharded TorchRec modules. All a <code> type does is delay calculating some result as long as possible, and it does it by acting like an async type.
+
+Anatomy of Sharded TorchRec modules.
+
+We have now successfully sharded an <code> given a sharding plan that we generated! The sharded module has common APIs from TorchRec which abstract away distributed communication/compute amongst multiple GPUs. In fact, these APIs are highly optimized for performance in training and inference. Below are the three common APIs for distributed training/inference that are provided by TorchRec:
+
+<code>: Handles distributing inputs from GPU to GPU.
+
+<code>: Does the actual embedding lookup in an optimized, batched manner using FBGEMM TBE (more on this later).
+
+<code>: Handles distributing outputs from GPU to GPU.
+
+The distribution of inputs and outputs is done through NCCL Collectives, namely All-to-Alls, which is where all GPUs send and receive data to and from one another. TorchRec interfaces with PyTorch distributed for collectives and provides clean abstractions to the end users, removing the concern for the lower level details.
+
+The backwards pass does all of these collectives but in the reverse order for distribution of gradients. <code>, <code>, and <code> all depend on the sharding scheme. Since we sharded in a table-wise fashion, these APIs are modules that are constructed by <code>.
+
+Optimizing Embedding Lookups.
+
+In performing lookups for a collection of embedding tables, a trivial solution would be to iterate through all the <code> and do a lookup per table. This is exactly what the standard, unsharded <code> does. However, while this solution is simple, it is extremely slow.
+
+FBGEMM is a library that provides GPU operators (otherwise known as kernels) that are very optimized. One of these operators is known as Table Batched Embedding (TBE), provides two major optimizations:
+
+Table batching, which allows you to look up multiple embeddings with one kernel call.
+
+Optimizer Fusion, which allows the module to update itself given the canonical pytorch optimizers and arguments.
+
+The <code> uses the FBGEMM TBE as the lookup instead of traditional <code> for optimized embedding lookups.
+
+<code>.
+
+We have now explored sharding a single <code>! We were able to take the <code> and use the unsharded <code> to generate a <code> module. This workflow is fine, but typically when implementing model parallel, <code> (DMP) is used as the standard interface. When wrapping your model (in our case <code>), with DMP, the following will occur:
+
+Decide how to shard the model. DMP will collect the available sharders and come up with a plan of the optimal way to shard the embedding table(s) (for example, <code>).
+
+Actually shard the model. This includes allocating memory for each embedding table on the appropriate device(s).
+
+DMP takes in everything that we've just experimented with, like a static sharding plan, a list of sharders, etc. However, it also has some nice defaults to seamlessly shard a TorchRec model. In this toy example, since we have two embedding tables and one GPU, TorchRec will place both on the single GPU.
+
+Sharding Best Practices.
+
+Currently, our configuration is only sharding on 1 GPU (or rank), which is trivial: just place all the tables on 1 GPUs memory. However, in real production use cases, embedding tables are typically sharded on hundreds of GPUs, with different sharding methods such as table-wise, row-wise, and column-wise. It is incredibly important to determine a proper sharding configuration (to prevent out of memory issues) while keeping it balanced not only in terms of memory but also compute for optimal performance.
+
+Adding in the Optimizer.
+
+Remember that TorchRec modules are hyperoptimized for large scale distributed training. An important optimization is in regards to the optimizer.
+
+TorchRec modules provide a seamless API to fuse the backwards pass and optimize step in training, providing a significant optimization in performance and decreasing the memory used, alongside granularity in assigning distinct optimizers to distinct model parameters.
+
+Optimizer Classes.
+
+TorchRec uses <code>, which contains a collection of <code>. A <code> effectively makes it easy to handle multiple optimizers for various sub groups in the model. A <code> extends the <code> and is initialized through a dictionary of parameters exposes the parameters. Each <code> module in a <code> will have it's own <code> which combines into one <code>.
+
+Fused optimizer in TorchRec.
+
+Using <code>, the optimizer is fused, which means that the optimizer update is done in the backward. This is an optimization in TorchRec and FBGEMM, where the optimizer embedding gradients are not materialized and applied directly to the parameters. This brings significant memory savings as embedding gradients are typically size of the parameters themselves.
+
+You can, however, choose to make the optimizer <code> which does not apply this optimization and let's you inspect the embedding gradients or apply computations to it as you wish. A dense optimizer in this case would be your canonical PyTorch model training loop with optimizer.
+
+Once the optimizer is created through <code>, you still need to manage an optimizer for the other parameters not associated with TorchRec embedding modules. To find the other parameters, use <code>. Apply an optimizer to those parameters as you would a normal Torch optimizer and combine this and the <code> into one <code> that you can use in your training loop to <code> and <code> through.
+
+Adding an Optimizer to <code>.
+
+We will do this in two ways, which are equivalent, but give you options depending on your preferences:
+
+Passing optimizer kwargs through <code> in sharder.
+
+Through <code>, which converts the optimizer parameters to <code> to pass to the <code> in the <code> or <code>.
+
+Conclusion In this tutorial, you have done training a distributed RecSys model If you are interested in the inference the TorchRec repo has a full example of how to run the TorchRec in Inference mode.
+
+See Also.
+
+For more information, please see our dlrm example, which includes multinode training on the Criteo 1TB dataset using the methods described in Deep Learning Recommendation Model for Personalization and Recommendation Systems.

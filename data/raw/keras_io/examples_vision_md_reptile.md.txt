@@ -1,0 +1,19 @@
+Few-Shot learning with Reptile.
+
+Introduction.
+
+The Reptile algorithm was developed by OpenAI to perform model-agnostic meta-learning. Specifically, this algorithm was designed to quickly learn to perform new tasks with minimal training (few-shot learning). The algorithm works by performing Stochastic Gradient Descent using the difference between weights trained on a mini-batch of never-seen-before data and the model weights prior to training over a fixed number of meta-iterations.
+
+Define the Hyperparameters.
+
+Prepare the data.
+
+The Omniglot dataset is a dataset of 1,623 characters taken from 50 different alphabets, with 20 examples for each character. The 20 samples for each character were drawn online via Amazon's Mechanical Turk. For the few-shot learning task, <code> samples (or "shots") are drawn randomly from <code> randomly-chosen classes. These <code> numerical values are used to create a new set of temporary labels to use to test the model's ability to learn a new task given few examples. In other words, if you are training on 5 classes, your new class labels will be either 0, 1, 2, 3, or 4. Omniglot is a great dataset for this task since there are many different classes to draw from, with a reasonable number of samples for each class.
+
+Visualize some examples from the dataset.
+
+Build the model.
+
+Train the model.
+
+Visualize Results.

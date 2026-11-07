@@ -1,0 +1,41 @@
+Introduction \|\| What is DDP \|\| Single-Node Multi-GPU Training \|\| Fault Tolerance \|\| Multi-Node training \|\| minGPT Training.
+
+Multinode Training.
+
+Follow along with the video below or on youtube.
+
+Multinode training involves deploying a training job across several machines. There are two ways to do this:
+
+running a <code> command on each machine with identical rendezvous arguments, or.
+
+deploying it on a compute cluster using a workload manager (like SLURM).
+
+In this video we will go over the (minimal) code changes required to move from single-node multigpu to multinode training, and run our training script in both of the above ways.
+
+Note that multinode training is bottlenecked by inter-node communication latencies. Running a training job on 4 GPUs on a single node will be faster than running it on 4 nodes with 1 GPU each.
+
+Local and Global ranks In single-node settings, we were tracking the <code> of each device running our training process. <code> tracks this value in an environment variable <code> which uniquely identifies each GPU-process on a node. For a unique identifier across all the nodes, <code> provides another variable <code> which refers to the global rank of a process.
+
+Heteregeneous Scaling Torchrun supports heteregenous scaling i.e. each of your multinode machines can have different number of GPUs participating in the training job. In the video, I deployed the code on 2 machines where one machine has 4 GPUs and the other used only 2 GPUs.
+
+Troubleshooting.
+
+Ensure that your nodes are able to communicate with each other over TCP.
+
+Set env variable <code> to <code> (using <code>) to print verbose logs that can help diagnose the issue.
+
+Sometimes you might need to explicitly set the network interface for the distributed backend (<code>). Read more about this here.
+
+Further Reading.
+
+Training a GPT model with DDP (next tutorial in this series).
+
+Fault Tolerant distributed training (previous tutorial in this series).
+
+torchrun.
+
+Rendezvous arguments.
+
+Setting up a cluster on AWS.
+
+Slurm docs.

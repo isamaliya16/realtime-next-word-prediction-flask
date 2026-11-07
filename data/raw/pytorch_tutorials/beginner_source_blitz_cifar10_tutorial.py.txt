@@ -1,0 +1,121 @@
+Training a Classifier.
+
+This is it. You have seen how to define neural networks, compute loss and make updates to the weights of the network.
+
+Now you might be thinking.
+
+What about data?
+
+Generally, when you have to deal with image, text, audio or video data, you can use standard python packages that load data into a numpy array. Then you can convert this array into a <code>.
+
+For images, packages such as Pillow, OpenCV are useful.
+
+For audio, packages such as scipy and librosa.
+
+For text, either raw Python or Cython based loading, or NLTK and SpaCy are useful.
+
+Specifically for vision, we have created a package called <code>, that has data loaders for common datasets such as ImageNet, CIFAR10, MNIST, etc. and data transformers for images, viz., <code> and <code>.
+
+This provides a huge convenience and avoids writing boilerplate code.
+
+For this tutorial, we will use the CIFAR10 dataset. It has the classes: ‘airplane’, ‘automobile’, ‘bird’, ‘cat’, ‘deer’, ‘dog’, ‘frog’, ‘horse’, ‘ship’, ‘truck’. The images in CIFAR-10 are of size 3x32x32, i.e. 3-channel color images of 32x32 pixels in size.
+
+Training an image classifier.
+
+We will do the following steps in order:
+
+Load and normalize the CIFAR10 training and test datasets using <code>.
+
+Define a Convolutional Neural Network.
+
+Define a loss function.
+
+Train the network on the training data.
+
+Test the network on the test data.
+
+Load and normalize CIFAR10.
+
+Using <code>, it’s extremely easy to load CIFAR10.
+
+The output of torchvision datasets are PILImage images of range [0, 1]. We transform them to Tensors of normalized range [-1, 1].
+
+Let us show some of the training images, for fun.
+
+Define a Convolutional Neural Network Copy the neural network from the Neural Networks section before and modify it to take 3-channel images (instead of 1-channel images as it was defined).
+
+Define a Loss function and optimizer Let's use a Classification Cross-Entropy loss and SGD with momentum.
+
+Train the network.
+
+This is when things start to get interesting. We simply have to loop over our data iterator, and feed the inputs to the network and optimize.
+
+Let's quickly save our trained model:
+
+See here for more details on saving PyTorch models.
+
+Test the network on the test data.
+
+We have trained the network for 2 passes over the training dataset. But we need to check if the network has learnt anything at all.
+
+We will check this by predicting the class label that the neural network outputs, and checking it against the ground-truth. If the prediction is correct, we add the sample to the list of correct predictions.
+
+Okay, first step. Let us display an image from the test set to get familiar.
+
+Next, let's load back in our saved model (note: saving and re-loading the model wasn't necessary here, we only did it to illustrate how to do so):
+
+Okay, now let us see what the neural network thinks these examples above are:
+
+The outputs are energies for the 10 classes. The higher the energy for a class, the more the network thinks that the image is of the particular class. So, let's get the index of the highest energy:
+
+The results seem pretty good.
+
+Let us look at how the network performs on the whole dataset.
+
+That looks way better than chance, which is 10% accuracy (randomly picking a class out of 10 classes). Seems like the network learnt something.
+
+Hmmm, what are the classes that performed well, and the classes that did not perform well:
+
+Okay, so what next?
+
+How do we run these neural networks on the GPU?
+
+Training on GPU Just like how you transfer a Tensor onto the GPU, you transfer the neural net onto the GPU.
+
+Let's first define our device as the first visible cuda device if we have CUDA available:
+
+The rest of this section assumes that <code> is a CUDA device.
+
+Then these methods will recursively go over all modules and convert their parameters and buffers to CUDA tensors:
+
+Remember that you will have to send the inputs and targets at every step to the GPU too:
+
+Why don't I notice MASSIVE speedup compared to CPU? Because your network is really small.
+
+Exercise: Try increasing the width of your network (argument 2 of the first <code>, and argument 1 of the second <code> – they need to be the same number), see what kind of speedup you get.
+
+Goals achieved:
+
+Understanding PyTorch's Tensor library and neural networks at a high level.
+
+Train a small neural network to classify images.
+
+Training on multiple GPUs If you want to see even more MASSIVE speedup using all of your GPUs, please check out dataparalleltutorial.
+
+Where do I go next?
+
+Train neural nets to play video games.
+
+Train a state-of-the-art ResNet network on imagenet.
+
+Train a face generator using Generative Adversarial Networks.
+
+Train a word-level language model using Recurrent LSTM networks.
+
+More examples.
+
+More tutorials.
+
+Discuss PyTorch on the Forums.
+
+Chat with other users on Slack.

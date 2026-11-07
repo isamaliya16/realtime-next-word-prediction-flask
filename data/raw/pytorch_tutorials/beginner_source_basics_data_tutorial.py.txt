@@ -1,0 +1,59 @@
+Learn the Basics || Quickstart || Tensors || Datasets & DataLoaders || Transforms || Build Model || Autograd || Optimization || Save & Load Model.
+
+Datasets & DataLoaders.
+
+Code for processing data samples can get messy and hard to maintain; we ideally want our dataset code to be decoupled from our model training code for better readability and modularity. PyTorch provides two data primitives: <code> and <code> that allow you to use pre-loaded datasets as well as your own data. <code> stores the samples and their corresponding labels, and <code> wraps an iterable around the <code> to enable easy access to the samples.
+
+PyTorch domain libraries provide a number of pre-loaded datasets (such as FashionMNIST) that subclass <code> and implement functions specific to the particular data. They can be used to prototype and benchmark your model. You can find them here: Image Datasets, Text Datasets, and Audio Datasets.
+
+Loading a Dataset.
+
+Here is an example of how to load the Fashion-MNIST dataset from TorchVision. Fashion-MNIST is a dataset of Zalando’s article images consisting of 60,000 training examples and 10,000 test examples. Each example comprises a 28×28 grayscale image and an associated label from one of 10 classes.
+
+We load the FashionMNIST Dataset with the following parameters:
+
+<code> is the path where the train/test data is stored.
+
+<code> specifies training or test dataset.
+
+<code> downloads the data from the internet if it's not available at <code>.
+
+<code> and <code> specify the feature and label transformations.
+
+Iterating and Visualizing the Dataset.
+
+We can index <code> manually like a list: <code>. We use <code> to visualize some samples in our training data.
+
+Creating a Custom Dataset for your files.
+
+A custom Dataset class must implement three functions: <code>. Take a look at this implementation; the FashionMNIST images are stored in a directory <code>, and their labels are stored separately in a CSV file <code>.
+
+In the next sections, we'll break down what's happening in each of these functions.
+
+<code>.
+
+The init function is run once when instantiating the Dataset object. We initialize the directory containing the images, the annotations file, and both transforms (covered in more detail in the next section).
+
+The labels.csv file looks like::
+
+<code>.
+
+The len function returns the number of samples in our dataset.
+
+Example:
+
+<code>.
+
+The getitem function loads and returns a sample from the dataset at the given index <code>. Based on the index, it identifies the image's location on disk, converts that to a tensor using <code>, retrieves the corresponding label from the csv data in <code>, calls the transform functions on them (if applicable), and returns the tensor image and corresponding label in a tuple.
+
+Preparing your data for training with DataLoaders The <code> retrieves our dataset's features and labels one sample at a time. While training a model, we typically want to pass samples in "minibatches", reshuffle the data at every epoch to reduce model overfitting, and use Python's <code> to speed up data retrieval.
+
+<code> is an iterable that abstracts this complexity for us in an easy API.
+
+Iterate through the DataLoader.
+
+We have loaded that dataset into the <code> and can iterate through the dataset as needed. Each iteration below returns a batch of <code> and <code> (containing <code> features and labels respectively). Because we specified <code>, after we iterate over all batches the data is shuffled (for finer-grained control over the data loading order, take a look at Samplers).
+
+Further Reading.
+
+torch.utils.data API.

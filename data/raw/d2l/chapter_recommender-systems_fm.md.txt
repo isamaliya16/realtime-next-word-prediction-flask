@@ -1,0 +1,47 @@
+Factorization Machines.
+
+Factorization machines (FM), proposed by , is a supervised algorithm that can be used for classification, regression, and ranking tasks. It quickly took notice and became a popular and impactful method for making predictions and recommendations. Particularly, it is a generalization of the linear regression model and the matrix factorization model. Moreover, it is reminiscent of support vector machines with a polynomial kernel. The strengths of factorization machines over the linear regression and matrix factorization are: (1) it can model <math>-way variable interactions, where <math> is the number of polynomial order and is usually set to two. (2) A fast optimization algorithm associated with factorization machines can reduce the polynomial computation time to linear complexity, making it extremely efficient especially for high dimensional sparse inputs. For these reasons, factorization machines are widely employed in modern advertisement and products recommendations. The technical details and implementations are described below.
+
+2-Way Factorization Machines.
+
+Formally, let <math> denote the feature vectors of one sample, and <math> denote the corresponding label which can be real-valued label or class label such as binary class "click/non-click". The model for a factorization machine of degree two is defined as:
+
+<math>.
+
+where <math> is the global bias; <math> denotes the weights of the i-th variable; <math> represents the feature embeddings; <math> represents the <math> row of <math>; <math> is the dimensionality of latent factors; <math> is the dot product of two vectors. <math> model the interaction between the <math> and <math> feature. Some feature interactions can be easily understood so they can be designed by experts. However, most other feature interactions are hidden in data and difficult to identify. So modeling feature interactions automatically can greatly reduce the efforts in feature engineering. It is obvious that the first two terms correspond to the linear regression model and the last term is an extension of the matrix factorization model. If the feature <math> represents an item and the feature <math> represents a user, the third term is exactly the dot product between user and item embeddings. It is worth noting that FM can also generalize to higher orders (degree > 2). Nevertheless, the numerical stability might weaken the generalization.
+
+An Efficient Optimization Criterion.
+
+Optimizing the factorization machines in a straight forward method leads to a complexity of <math> as all pairwise interactions require to be computed. To solve this inefficiency problem, we can reorganize the third term of FM which could greatly reduce the computation cost, leading to a linear time complexity (<math>). The reformulation of the pairwise interaction term is as follows:
+
+<math>.
+
+With this reformulation, the model complexity are decreased greatly. Moreover, for sparse features, only non-zero elements needs to be computed so that the overall complexity is linear to the number of non-zero features.
+
+To learn the FM model, we can use the MSE loss for regression task, the cross-entropy loss for classification tasks, and the BPR loss for ranking task. Standard optimizers such as stochastic gradient descent and Adam are viable for optimization.
+
+Model Implementation.
+
+The following code implement the factorization machines. It is clear to see that FM consists a linear regression block and an efficient feature interaction block. We apply a sigmoid function over the final score since we treat the CTR prediction as a classification task.
+
+Load the Advertising Dataset.
+
+We use the CTR data wrapper from the last section to load the online advertising dataset.
+
+Train the Model.
+
+Afterwards, we train the model. The learning rate is set to 0.02 and the embedding size is set to 20 by default. The <code> optimizer and the <code> loss are used for model training.
+
+Summary.
+
+FM is a general framework that can be applied on a variety of tasks such as regression, classification, and ranking.
+
+Feature interaction/crossing is important for prediction tasks and the 2-way interaction can be efficiently modeled with FM.
+
+Exercises.
+
+Can you test FM on other dataset such as Avazu, MovieLens, and Criteo datasets?
+
+Vary the embedding size to check its impact on performance, can you observe a similar pattern as that of matrix factorization?
+
+Discussions.

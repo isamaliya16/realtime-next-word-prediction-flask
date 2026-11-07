@@ -1,0 +1,39 @@
+Text generation with a miniature GPT.
+
+Introduction.
+
+This example demonstrates how to implement an autoregressive language model using a miniature version of the GPT model. The model consists of a single Transformer block with causal masking in its attention layer. We use the text from the IMDB sentiment classification dataset for training and generate new movie reviews for a given prompt. When using this script with your own dataset, make sure it has at least 1 million words.
+
+References:
+
+GPT.
+
+GPT-2.
+
+GPT-3.
+
+Setup.
+
+Implement a Transformer block as a layer.
+
+Implement an embedding layer.
+
+Create two separate embedding layers: one for tokens and one for token index (positions).
+
+Implement the miniature GPT model.
+
+Prepare the data for word-level language modelling.
+
+Download the IMDB dataset and combine training and validation sets for a text generation task.
+
+Implement a Keras callback for generating text.
+
+Train the model.
+
+Note: This code should preferably be run on GPU.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.
+
+Chapter 16: Text generation.

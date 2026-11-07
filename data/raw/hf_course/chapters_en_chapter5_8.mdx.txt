@@ -1,0 +1,37 @@
+End-of-chapter quiz.
+
+This chapter covered a lot of ground! Don't worry if you didn't grasp all the details; the next chapters will help you understand how things work under the hood.
+
+Before moving on, though, let's test what you learned in this chapter.
+
+1. The <code> function in 🤗 Datasets allows you to load a dataset from which of the following locations?
+
+datafiles</code> argument of <code>loaddataset()</code> to load local datasets.", correct: true }, { text: "The Hugging Face Hub", explain: "Correct! You can load datasets on the Hub by providing the dataset ID, e.g. <code>loaddataset('emotion')</code>.", correct: true }, { text: "A remote server", explain: "Correct! You can pass URLs to the <code>datafiles</code> argument of <code>load_dataset()</code> to load remote files.", correct: true }, ]} />.
+
+2. Suppose you load one of the GLUE tasks as follows:
+
+Which of the following commands will produce a random sample of 50 elements from <code>?
+
+dataset.sample(50)</code>", explain: "This is incorrect -- there is no <code>Dataset.sample()</code> method." }, { text: "<code>dataset.shuffle().select(range(50))</code>", explain: "Correct! As you saw in this chapter, you first shuffle the dataset and then select the samples from it.", correct: true }, { text: "<code>dataset.select(range(50)).shuffle()</code>", explain: "This is incorrect -- although the code will run, it will only shuffle the first 50 elements in the dataset." } ]} />.
+
+3. Suppose you have a dataset about household pets called <code>, which has a <code> column that denotes the name of each pet. Which of the following approaches would allow you to filter the dataset for all pets whose names start with the letter "L"?
+
+petsdataset.filter(lambda x : x['name'].startswith('L'))</code>", explain: "Correct! Using a Python lambda function for these quick filters is a great idea. Can you think of another solution?", correct: true }, { text: "<code>petsdataset.filter(lambda x['name'].startswith('L'))</code>", explain: "This is incorrect -- a lambda function takes the general form <code>lambda arguments : expression</code>, so you need to provide arguments in this case." }, { text: "Create a function like <code>def filternames(x): return x['name'].startswith('L')</code> and run <code>petsdataset.filter(filter_names)</code>.", explain: "Correct! Just like with <code>Dataset.map()</code>, you can pass explicit functions to <code>Dataset.filter()</code>. This is useful when you have some complex logic that isn't suitable for a short lambda function. Which of the other solutions would work?", correct: true } ]} />.
+
+4. What is memory mapping?
+
+5. Which of the following are the main benefits of memory mapping?
+
+6. Why does the following code fail?
+
+IterableDataset</code>.", explain: "Correct! An <code>IterableDataset</code> is a generator, not a container, so you should access its elements using <code>next(iter(dataset))</code>.", correct: true }, { text: "The <code>allocine</code> dataset doesn't have a <code>train</code> split.", explain: "This is incorrect -- check out the [<code>allocine</code> dataset card on the Hub to see which splits it contains." } ]} />.
+
+7. Which of the following are the main benefits of creating a dataset card?
+
+8. What is semantic search?
+
+9. For asymmetric semantic search, you usually have:
+
+10. Can I use 🤗 Datasets to load data for use in other domains, like speech processing?
+
+MNIST dataset on the Hub for a computer vision example." }, { text: "Yes", explain: "Correct! Check out the exciting developments with speech and vision in the 🤗 Transformers library to see how 🤗 Datasets is used in these domains.", correct : true }, ]} />.

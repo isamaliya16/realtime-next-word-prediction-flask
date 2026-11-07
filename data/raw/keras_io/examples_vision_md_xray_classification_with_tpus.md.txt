@@ -1,0 +1,91 @@
+Pneumonia Classification on TPU.
+
+Introduction + Set-up.
+
+This tutorial will explain how to build an X-ray image classification model to predict whether an X-ray scan shows presence of pneumonia.
+
+We need a Google Cloud link to our data to load the data using a TPU. Below, we define key configuration parameters we'll use in this example. To run on TPU, this example must be on Colab with the TPU runtime selected.
+
+Load the data.
+
+The Chest X-ray data we are using from Cell30154-5) divides the data into training and test files. Let's first load in the training TFRecords.
+
+Let's count how many healthy/normal chest X-rays we have and how many pneumonia chest X-rays we have:
+
+Notice that there are way more images that are classified as pneumonia than normal. This shows that we have an imbalance in our data. We will correct for this imbalance later on in our notebook.
+
+We want to map each filename to the corresponding (image, label) pair. The following methods will help us do that.
+
+As we only have two labels, we will encode the label so that <code> or <code> indicates pneumonia and <code> or <code> indicates normal.
+
+Let's split the data into a training and validation datasets.
+
+Let's visualize the shape of an (image, label) pair.
+
+Load and format the test data as well.
+
+Visualize the dataset.
+
+First, let's use buffered prefetching so we can yield data from disk without having I/O become blocking.
+
+Please note that large image datasets should not be cached in memory. We do it here because the dataset is not very large and we want to train on TPU.
+
+Call the next batch iteration of the training data.
+
+Define the method to show the images in the batch.
+
+As the method takes in NumPy arrays as its parameters, call the numpy function on the batches to return the tensor in NumPy array form.
+
+Build the CNN.
+
+To make our model more modular and easier to understand, let's define some blocks. As we're building a convolution neural network, we'll create a convolution block and a dense layer block.
+
+The architecture for this CNN has been inspired by this article.
+
+The following method will define the function to build our model for us.
+
+The images originally have values that range from [0, 255]. CNNs work better with smaller numbers so we will scale this down for our input.
+
+The Dropout layers are important, as they reduce the likelikhood of the model overfitting. We want to end the model with a <code> layer with one node, as this will be the binary output that determines if an X-ray shows presence of pneumonia.
+
+Correct for data imbalance.
+
+We saw earlier in this example that the data was imbalanced, with more images classified as pneumonia than normal. We will correct for that by using class weighting:
+
+The weight for class <code> (Normal) is a lot higher than the weight for class <code> (Pneumonia). Because there are less normal images, each normal image will be weighted more to balance the data as the CNN works best when the training data is balanced.
+
+Train the model.
+
+Defining callbacks.
+
+The checkpoint callback saves the best weights of the model, so next time we want to use the model, we do not have to spend time training it. The early stopping callback stops the training process when the model starts becoming stagnant, or even worse, when the model starts overfitting.
+
+We also want to tune our learning rate. Too high of a learning rate will cause the model to diverge. Too small of a learning rate will cause the model to be too slow. We implement the exponential learning rate scheduling method below.
+
+Fit the model.
+
+For our metrics, we want to include precision and recall as they will provide use with a more informed picture of how good our model is. Accuracy tells us what fraction of the labels is correct. Since our data is not balanced, accuracy might give a skewed sense of a good model (i.e. a model that always predicts PNEUMONIA will be 74% accurate but is not a good model).
+
+Precision is the number of true positives (TP) over the sum of TP and false positives (FP). It shows what fraction of labeled positives are actually correct.
+
+Recall is the number of TP over the sum of TP and false negatves (FN). It shows what fraction of actual positives are correct.
+
+Since there are only two possible labels for the image, we will be using the binary crossentropy loss. When we fit the model, remember to specify the class weights, which we defined earlier. Because we are using a TPU, training will be quick - less than 2 minutes.
+
+Visualizing model performance.
+
+Let's plot the model accuracy and loss for the training and the validating set. Note that no random seed is specified for this notebook. For your notebook, there might be slight variance.
+
+We see that the accuracy for our model is around 95%.
+
+Predict and evaluate results.
+
+Let's evaluate the model on our test data!
+
+We see that our accuracy on our test data is lower than the accuracy for our validating set. This may indicate overfitting.
+
+Our recall is greater than our precision, indicating that almost all pneumonia images are correctly identified but some normal images are falsely identified. We should aim to increase our precision.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

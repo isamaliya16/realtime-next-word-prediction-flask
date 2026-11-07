@@ -1,0 +1,45 @@
+Timeseries classification from scratch.
+
+Introduction.
+
+This example shows how to do timeseries classification from scratch, starting from raw CSV timeseries files on disk. We demonstrate the workflow on the FordA dataset from the UCR/UEA archive.
+
+Setup.
+
+Load the data: the FordA dataset.
+
+Dataset description.
+
+The dataset we are using here is called FordA. The data comes from the UCR archive. The dataset contains 3601 training instances and another 1320 testing instances. Each timeseries corresponds to a measurement of engine noise captured by a motor sensor. For this task, the goal is to automatically detect the presence of a specific issue with the engine. The problem is a balanced binary classification task. The full description of this dataset can be found here.
+
+Read the TSV data.
+
+We will use the <code> file for training and the <code> file for testing. The simplicity of this dataset allows us to demonstrate effectively how to use ConvNets for timeseries classification. In this file, the first column corresponds to the label.
+
+Visualize the data.
+
+Here we visualize one timeseries example for each class in the dataset.
+
+Standardize the data.
+
+Our timeseries are already in a single length (500). However, their values are usually in various ranges. This is not ideal for a neural network; in general we should seek to make the input values normalized. For this specific dataset, the data is already z-normalized: each timeseries sample has a mean equal to zero and a standard deviation equal to one. This type of normalization is very common for timeseries classification problems, see Bagnall et al. (2016).
+
+Note that the timeseries data used here are univariate, meaning we only have one channel per timeseries example. We will therefore transform the timeseries into a multivariate one with one channel using a simple reshaping via numpy. This will allow us to construct a model that is easily applicable to multivariate time series.
+
+Finally, in order to use <code>, we will have to count the number of classes beforehand.
+
+Now we shuffle the training set because we will be using the <code> option later when training.
+
+Standardize the labels to positive integers. The expected labels will then be 0 and 1.
+
+Build a model.
+
+We build a Fully Convolutional Neural Network originally proposed in this paper. The implementation is based on the TF 2 version provided here. The following hyperparameters (kernel_size, filters, the usage of BatchNorm) were found via random search using KerasTuner.
+
+Train the model.
+
+Evaluate model on test data.
+
+Plot the model's training and validation loss.
+
+We can see how the training accuracy reaches almost 0.95 after 100 epochs. However, by observing the validation accuracy we can see how the network still needs training until it reaches almost 0.97 for both the validation and the training accuracy after 200 epochs. Beyond the 200th epoch, if we continue on training, the validation accuracy will start decreasing while the training accuracy will continue on increasing: the model starts overfitting.

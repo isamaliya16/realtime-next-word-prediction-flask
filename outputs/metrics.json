@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-10-26 22:47:03",
+  "note": "Validation accuracy measures exact next-word agreement with held-out documents. It is a classification metric, not a guarantee of fluent or correct language.",
+  "smoke_test": false,
+  "dataset": {
+    "documents": 818,
+    "words": 947374,
+    "vocabulary_size": 9007,
+    "train_sequences": 798391,
+    "validation_sequences": 91127,
+    "sequence_length": 12,
+    "train_documents": 724,
+    "val_documents": 94
+  },
+  "hyperparameters": {
+    "embedding_dim": 96,
+    "units": 128,
+    "dropout": 0.3,
+    "batch_size": 256,
+    "epochs_max": 10,
+    "patience": 2,
+    "learning_rate": 0.001,
+    "optimizer": "Adam (clipnorm=1.0) + ReduceLROnPlateau",
+    "loss": "sparse_categorical_crossentropy"
+  },
+  "models": {
+    "RNN": {
+      "val_loss": 4.76154956325547,
+      "val_accuracy": 0.21950684209948754,
+      "val_top5_accuracy": 0.4130608930393846,
+      "val_top5_accuracy_suggestable": 0.4130608930393846,
+      "perplexity": 116.92697133043654,
+      "train_loss": 4.52324914932251,
+      "train_accuracy": 0.22505389153957367,
+      "keras_val_loss_at_best_epoch": 4.761549472808838,
+      "epochs_run": 10,
+      "best_epoch": 10,
+      "train_seconds": 1097.7,
+      "parameters": 2055375,
+      "stopped_by_time_budget": false,
+      "inference_ms_per_prediction": 11.94
+    },
+    "LSTM": {
+      "val_loss": 4.7421034665648625,
+      "val_accuracy": 0.22660682344420424,
+      "val_top5_accuracy": 0.42110461224445006,
+      "val_top5_accuracy_suggestable": 0.42110461224445006,
+      "perplexity": 114.67516353602716,
+      "train_loss": 4.444762229919434,
+      "train_accuracy": 0.23208929598331451,
+      "keras_val_loss_at_best_epoch": 4.7427825927734375,
+      "epochs_run": 10,
+      "best_epoch": 10,
+      "train_seconds": 1976.6,
+      "parameters": 2141775,
+      "stopped_by_time_budget": false,
+      "inference_ms_per_prediction": 15.99
+    },
+    "GRU": {
+      "val_loss": 4.623359601225316,
+      "val_accuracy": 0.23143524970645363,
+      "val_top5_accuracy": 0.4303334906229767,
+      "val_top5_accuracy_suggestable": 0.4303334906229767,
+      "perplexity": 101.83558502375466,
+      "train_loss": 4.331971645355225,
+      "train_accuracy": 0.24026447534561157,
+      "keras_val_loss_at_best_epoch": 4.623359680175781,
+      "epochs_run": 10,
+      "best_epoch": 10,
+      "train_seconds": 1302.4,
+      "parameters": 2113359,
+      "stopped_by_time_budget": false,
+      "inference_ms_per_prediction": 21.47
+    }
+  },
+  "baseline_unigram": {
+    "val_loss": 6.515335271784517,
+    "val_accuracy": 0.07760597846960834,
+    "val_top5_accuracy": 0.1847202256191908,
+    "perplexity": 675.4203729601035
+  }
+}

@@ -1,0 +1,93 @@
+Autograd in C++ Frontend.
+
+The <code> package is crucial for building highly flexible and dynamic neural networks in PyTorch. Most of the autograd APIs in PyTorch Python frontend are also available in C++ frontend, allowing easy translation of autograd code from Python to C++.
+
+In this tutorial explore several examples of doing autograd in PyTorch C++ frontend. Note that this tutorial assumes that you already have a basic understanding of autograd in Python frontend. If that's not the case, please first read Autograd: Automatic Differentiation.
+
+Basic autograd operations.
+
+(Adapted from this tutorial).
+
+Create a tensor and set <code> to track computation with it.
+
+Out:
+
+Do a tensor operation:
+
+Out:
+
+<code> was created as a result of an operation, so it has a <code>.
+
+Out:
+
+Do more operations on <code>.
+
+Out:
+
+<code> changes an existing tensor's <code> flag in-place.
+
+Out:
+
+Let's backprop now. Because <code> contains a single scalar, <code> is equivalent to <code>.
+
+Print gradients d(out)/dx.
+
+Out:
+
+You should have got a matrix of <code>. For explanations on how we arrive at this value, please see the corresponding section in this tutorial.
+
+Now let's take a look at an example of vector-Jacobian product:
+
+Out:
+
+If we want the vector-Jacobian product, pass the vector to <code> as argument:
+
+Out:
+
+You can also stop autograd from tracking history on tensors that require gradients either by putting <code> in a code block.
+
+Out:
+
+Or by using <code> to get a new tensor with the same content but that does not require gradients:
+
+Out:
+
+For more information on C++ tensor autograd APIs such as <code> / <code> / <code> / <code> / <code> / <code> / <code> / <code>, please see the corresponding C++ API docs.
+
+Computing higher-order gradients in C++.
+
+One of the applications of higher-order gradients is calculating gradient penalty. Let's see an example of it using <code>:
+
+Out:
+
+Please see the documentation for <code> (link) and <code> (link) for more information on how to use them.
+
+Using custom autograd function in C++.
+
+(Adapted from this tutorial).
+
+Adding a new elementary operation to <code> requires implementing a new <code> subclass for each operation. <code> s are what <code> uses to compute the results and gradients, and encode the operation history. Every new function requires you to implement 2 methods: <code> and <code>, and please see this link for the detailed requirements.
+
+Below you can find code for a <code> function from <code>:
+
+Then, we can use the <code> in the following way:
+
+Out:
+
+Here, we give an additional example of a function that is parametrized by non-tensor arguments:
+
+Then, we can use the <code> in the following way:
+
+Out:
+
+For more information on <code>, please see its documentation.
+
+Translating autograd code from Python to C++.
+
+On a high level, the easiest way to use autograd in C++ is to have working autograd code in Python first, and then translate your autograd code from Python to C++ using the following table:
+
+After translation, most of your Python autograd code should just work in C++. If that's not the case, please file a bug report at GitHub issues and we will fix it as soon as possible.
+
+Conclusion.
+
+You should now have a good overview of PyTorch's C++ autograd API. You can find the code examples displayed in this note here. As always, if you run into any problems or have questions, you can use our forum or GitHub issues to get in touch.

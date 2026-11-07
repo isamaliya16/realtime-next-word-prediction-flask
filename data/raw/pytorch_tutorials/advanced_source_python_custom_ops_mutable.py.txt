@@ -1,0 +1,37 @@
+Mutable Python Custom Operators.
+
+Functional custom operators showed <code> as an operator that returns a fresh Tensor. This page shows the mutable version: a kernel that writes <code> into an existing output Tensor. Mutable operators have a different contract from functional operators.
+
+Before writing the operator, read the required schema and mutation/aliasing contract rules in python-custom-ops-schema-contract.
+
+Checklist:
+
+choose one mutation pattern and keep it stable;
+
+list every mutated Tensor argument in <code>;
+
+do not return mutated inputs unless you are using a tagged in-place or <code> operator (available starting in PyTorch 2.13);
+
+validate the operator with <code>.
+
+Choose one mutation contract Choose the mutation behavior before adding optional registrations. PyTorch needs this contract for functionalization in <code> and autograd.
+
+If the operator does not mutate any Tensor input, use the functional operator path instead.
+
+If the operator mutates the first positional Tensor and returns it, use a tagged in-place operator, starting in PyTorch 2.13.
+
+If the operator accepts write-only keyword-only <code> Tensor arguments and returns them, use a tagged <code> operator, starting in PyTorch 2.13.
+
+For other mutable operators, list every mutated argument in <code> and do not return mutated inputs or their aliases.
+
+Example: write NumPy sin into an output buffer Functions that mutate inputs are common because that is how many low-level kernels are written; for example, a kernel that computes <code> may take in the input and an output tensor and write <code> to the output tensor.
+
+This operator writes <code> into <code> and returns <code>.
+
+Because the operator doesn't return anything, there is no need to register a <code> kernel (meta kernel) to get it to work with <code>. If a mutable operator also returns a fresh Tensor, register a fake kernel for that output.
+
+PyTorch-style in-place and out= operators Starting in PyTorch 2.13, <code> supports tagged in-place and <code> custom operators. Tagged in-place operators return the same Tensor they mutate. Tagged <code> operators return their keyword-only output buffers in declaration order. This example uses <code> for a tagged in-place custom operator and <code> for a tagged <code> custom operator.
+
+Validate the operator And here's an <code> run telling us that we did indeed register the operator correctly. <code> would error out if we forgot to add <code> to <code>, for example.
+
+For autograd, <code>, or other subsystem behavior, continue to python-custom-ops-registrations.

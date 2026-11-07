@@ -1,0 +1,129 @@
+Backpropagation Through Time.
+
+If you completed the exercises in section <num>, you would have seen that gradient clipping is vital for preventing the occasional massive gradients from destabilizing training. We hinted that the exploding gradients stem from backpropagating across long sequences. Before introducing a slew of modern RNN architectures, let's take a closer look at how backpropagation works in sequence models in mathematical detail. Hopefully, this discussion will bring some precision to the notion of vanishing and exploding gradients. If you recall our discussion of forward and backward propagation through computational graphs when we introduced MLPs in section <num>, then forward propagation in RNNs should be relatively straightforward. Applying backpropagation in RNNs is called backpropagation through time . This procedure requires us to expand (or unroll) the computational graph of an RNN one time step at a time. The unrolled RNN is essentially a feedforward neural network with the special property that the same parameters are repeated throughout the unrolled network, appearing at each time step. Then, just as in any feedforward neural network, we can apply the chain rule, backpropagating gradients through the unrolled net. The gradient with respect to each parameter must be summed across all places that the parameter occurs in the unrolled net. Handling such weight tying should be familiar from our chapters on convolutional neural networks.
+
+Complications arise because sequences can be rather long. It is not unusual to work with text sequences consisting of over a thousand tokens. Note that this poses problems both from a computational (too much memory) and optimization (numerical instability) standpoint. Input from the first step passes through over 1000 matrix products before arriving at the output, and another 1000 matrix products are required to compute the gradient. We now analyze what can go wrong and how to address it in practice.
+
+Analysis of Gradients in RNNs.
+
+We start with a simplified model of how an RNN works. This model ignores details about the specifics of the hidden state and how it is updated. The mathematical notation here does not explicitly distinguish scalars, vectors, and matrices. We are just trying to develop some intuition. In this simplified model, we denote <math> as the hidden state, <math> as input, and <math> as output at time step <math>. Recall our discussions in section <num> that the input and the hidden state can be concatenated before being multiplied by one weight variable in the hidden layer. Thus, we use <math> and <math> to indicate the weights of the hidden layer and the output layer, respectively. As a result, the hidden states and outputs at each time step are.
+
+<math>.
+
+where <math> and <math> are transformations of the hidden layer and the output layer, respectively. Hence, we have a chain of values <math> that depend on each other via recurrent computation. The forward propagation is fairly straightforward. All we need is to loop through the <math> triples one time step at a time. The discrepancy between output <math> and the desired target <math> is then evaluated by an objective function across all the <math> time steps as.
+
+<math>.
+
+For backpropagation, matters are a bit trickier, especially when we compute the gradients with regard to the parameters <math> of the objective function <math>. To be specific, by the chain rule.
+
+<math>.
+
+The first and the second factors of the product in <num> are easy to compute. The third factor <math> is where things get tricky, since we need to recurrently compute the effect of the parameter <math> on <math>. According to the recurrent computation in <num>, <math> depends on both <math> and <math>, where computation of <math> also depends on <math>. Thus, evaluating the total derivate of <math> with respect to <math> using the chain rule yields.
+
+<math>.
+
+To derive the above gradient, assume that we have three sequences <math> satisfying <math> and <math> for <math>. Then for <math>, it is easy to show.
+
+<math>.
+
+By substituting <math>, <math>, and <math> according to.
+
+<math>.
+
+the gradient computation in <num> satisfies <math>. Thus, per <num>, we can remove the recurrent computation in <num> with.
+
+<math>.
+
+While we can use the chain rule to compute <math> recursively, this chain can get very long whenever <math> is large. Let's discuss a number of strategies for dealing with this problem.
+
+Full Computation.
+
+One idea might be to compute the full sum in <num>. However, this is very slow and gradients can blow up, since subtle changes in the initial conditions can potentially affect the outcome a lot. That is, we could see things similar to the butterfly effect, where minimal changes in the initial conditions lead to disproportionate changes in the outcome. This is generally undesirable. After all, we are looking for robust estimators that generalize well. Hence this strategy is almost never used in practice.
+
+Truncating Time Steps.
+
+Alternatively, we can truncate the sum in <num> after <math> steps. This is what we have been discussing so far. This leads to an approximation of the true gradient, simply by terminating the sum at <math>. In practice this works quite well. It is what is commonly referred to as truncated backpropgation through time . One of the consequences of this is that the model focuses primarily on short-term influence rather than long-term consequences. This is actually desirable, since it biases the estimate towards simpler and more stable models.
+
+Randomized Truncation.
+
+Last, we can replace <math> by a random variable which is correct in expectation but truncates the sequence. This is achieved by using a sequence of <math> with predefined <math>, where <math> and <math>, thus <math>. We use this to replace the gradient <math> in <num> with.
+
+<math>.
+
+It follows from the definition of <math> that <math>. Whenever <math> the recurrent computation terminates at that time step <math>. This leads to a weighted sum of sequences of varying lengths, where long sequences are rare but appropriately overweighted. This idea was proposed by .
+
+Comparing Strategies.
+
+section <num> illustrates the three strategies when analyzing the first few characters of The Time Machine using backpropagation through time for RNNs:
+
+The first row is the randomized truncation that partitions the text into segments of varying lengths.
+
+The second row is the regular truncation that breaks the text into subsequences of the same length. This is what we have been doing in RNN experiments.
+
+The third row is the full backpropagation through time that leads to a computationally infeasible expression.
+
+Unfortunately, while appealing in theory, randomized truncation does not work much better than regular truncation, most likely due to a number of factors. First, the effect of an observation after a number of backpropagation steps into the past is quite sufficient to capture dependencies in practice. Second, the increased variance counteracts the fact that the gradient is more accurate with more steps. Third, we actually want models that have only a short range of interactions. Hence, regularly truncated backpropagation through time has a slight regularizing effect that can be desirable.
+
+Backpropagation Through Time in Detail.
+
+After discussing the general principle, let's discuss backpropagation through time in detail. In contrast to the analysis in section <num>, in the following we will show how to compute the gradients of the objective function with respect to all the decomposed model parameters. To keep things simple, we consider an RNN without bias parameters, whose activation function in the hidden layer uses the identity mapping (<math>). For time step <math>, let the single example input and the target be <math> and <math>, respectively. The hidden state <math> and the output <math> are computed as.
+
+<math>.
+
+where <math>, <math>, and <math> are the weight parameters. Denote by <math> the loss at time step <math>. Our objective function, the loss over <math> time steps from the beginning of the sequence is thus.
+
+<math>.
+
+In order to visualize the dependencies among model variables and parameters during computation of the RNN, we can draw a computational graph for the model, as shown in section <num>. For example, the computation of the hidden states of time step 3, <math>, depends on the model parameters <math> and <math>, the hidden state of the previous time step <math>, and the input of the current time step <math>.
+
+As just mentioned, the model parameters in section <num> are <math>, <math>, and <math>. Generally, training this model requires gradient computation with respect to these parameters <math>, <math>, and <math>. According to the dependencies in section <num>, we can traverse in the opposite direction of the arrows to calculate and store the gradients in turn. To flexibly express the multiplication of matrices, vectors, and scalars of different shapes in the chain rule, we continue to use the <math> operator as described in section <num>.
+
+First of all, differentiating the objective function with respect to the model output at any time step <math> is fairly straightforward:
+
+<math>.
+
+Now we can calculate the gradient of the objective with respect to the parameter <math> in the output layer: <math>. Based on section <num>, the objective <math> depends on <math> via <math>. Using the chain rule yields.
+
+<math>.
+
+where <math> is given by <num>.
+
+Next, as shown in section <num>, at the final time step <math>, the objective function <math> depends on the hidden state <math> only via <math>. Therefore, we can easily find the gradient <math> using the chain rule:
+
+<math>.
+
+It gets trickier for any time step <math>, where the objective function <math> depends on <math> via <math> and <math>. According to the chain rule, the gradient of the hidden state <math> at any time step <math> can be recurrently computed as:
+
+<math>.
+
+For analysis, expanding the recurrent computation for any time step <math> gives.
+
+<math>.
+
+We can see from <num> that this simple linear example already exhibits some key problems of long sequence models: it involves potentially very large powers of <math>. In it, eigenvalues smaller than 1 vanish and eigenvalues larger than 1 diverge. This is numerically unstable, which manifests itself in the form of vanishing and exploding gradients. One way to address this is to truncate the time steps at a computationally convenient size as discussed in section <num>. In practice, this truncation can also be effected by detaching the gradient after a given number of time steps. Later on, we will see how more sophisticated sequence models such as long short-term memory can alleviate this further.
+
+Finally, section <num> shows that the objective function <math> depends on model parameters <math> and <math> in the hidden layer via hidden states <math>. To compute gradients with respect to such parameters <math> and <math>, we apply the chain rule giving.
+
+<math>.
+
+where <math> which is recurrently computed by <num> and <num> is the key quantity that affects the numerical stability.
+
+Since backpropagation through time is the application of backpropagation in RNNs, as we have explained in section <num>, training RNNs alternates forward propagation with backpropagation through time. Moreover, backpropagation through time computes and stores the above gradients in turn. Specifically, stored intermediate values are reused to avoid duplicate calculations, such as storing <math> to be used in computation of both <math> and <math>.
+
+Summary.
+
+Backpropagation through time is merely an application of backpropagation to sequence models with a hidden state. Truncation, such as regular or randomized, is needed for computational convenience and numerical stability. High powers of matrices can lead to divergent or vanishing eigenvalues. This manifests itself in the form of exploding or vanishing gradients. For efficient computation, intermediate values are cached during backpropagation through time.
+
+Exercises.
+
+Assume that we have a symmetric matrix <math> with eigenvalues <math> whose corresponding eigenvectors are <math> (<math>). Without loss of generality, assume that they are ordered in the order <math>.
+
+Show that <math> has eigenvalues <math>.
+
+Prove that for a random vector <math>, with high probability <math> will be very much aligned with the eigenvector <math> of <math>. Formalize this statement.
+
+What does the above result mean for gradients in RNNs?
+
+Besides gradient clipping, can you think of any other methods to cope with gradient explosion in recurrent neural networks?
+
+Discussions.

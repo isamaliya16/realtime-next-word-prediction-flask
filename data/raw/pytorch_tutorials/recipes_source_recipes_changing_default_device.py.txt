@@ -1,0 +1,9 @@
+Changing default device.
+
+It is common practice to write PyTorch code in a device-agnostic way, and then switch between CPU and CUDA depending on what hardware is available. Typically, to do this you might have used if-statements and <code> calls to do this:
+
+PyTorch now also has a context manager which can take care of the device transfer automatically. Here is an example:
+
+You can also set it globally like this:
+
+This function imposes a slight performance cost on every Python call to the torch API (not just factory functions). If this is causing problems for you, please comment on this issue.

@@ -1,0 +1,91 @@
+Training on Multiple GPUs.
+
+So far we discussed how to train models efficiently on CPUs and GPUs. We even showed how deep learning frameworks allow one to parallelize computation and communication automatically between them in section <num>. We also showed in section <num> how to list all the available GPUs on a computer using the <code> command. What we did not discuss is how to actually parallelize deep learning training. Instead, we implied in passing that one would somehow split the data across multiple devices and make it work. The present section fills in the details and shows how to train a network in parallel when starting from scratch. Details on how to take advantage of functionality in high-level APIs is relegated to section <num>. We assume that you are familiar with minibatch stochastic gradient descent algorithms such as the ones described in section <num>.
+
+Splitting the Problem.
+
+Let's start with a simple computer vision problem and a slightly archaic network, e.g., with multiple layers of convolutions, pooling, and possibly a few fully connected layers in the end. That is, let's start with a network that looks quite similar to LeNet or AlexNet . Given multiple GPUs (2 if it is a desktop server, 4 on an AWS g4dn.12xlarge instance, 8 on a p3.16xlarge, or 16 on a p2.16xlarge), we want to partition training in a manner as to achieve good speedup while simultaneously benefitting from simple and reproducible design choices. Multiple GPUs, after all, increase both memory and computation ability. In a nutshell, we have the following choices, given a minibatch of training data that we want to classify.
+
+First, we could partition the network across multiple GPUs. That is, each GPU takes as input the data flowing into a particular layer, processes data across a number of subsequent layers and then sends the data to the next GPU. This allows us to process data with larger networks when compared with what a single GPU could handle. Besides, memory footprint per GPU can be well controlled (it is a fraction of the total network footprint).
+
+However, the interface between layers (and thus GPUs) requires tight synchronization. This can be tricky, in particular if the computational workloads are not properly matched between layers. The problem is exacerbated for large numbers of GPUs. The interface between layers also requires large amounts of data transfer, such as activations and gradients. This may overwhelm the bandwidth of the GPU buses. Moreover, compute-intensive, yet sequential operations are nontrivial to partition. See e.g., for a best effort in this regard. It remains a difficult problem and it is unclear whether it is possible to achieve good (linear) scaling on nontrivial problems. We do not recommend it unless there is excellent framework or operating system support for chaining together multiple GPUs.
+
+Second, we could split the work layerwise. For instance, rather than computing 64 channels on a single GPU we could split up the problem across 4 GPUs, each of which generates data for 16 channels. Likewise, for a fully connected layer we could split the number of output units. section <num> (taken from ) illustrates this design, where this strategy was used to deal with GPUs that had a very small memory footprint (2 GB at the time). This allows for good scaling in terms of computation, provided that the number of channels (or units) is not too small. Besides, multiple GPUs can process increasingly larger networks since the available memory scales linearly.
+
+However, we need a very large number of synchronization or barrier operations since each layer depends on the results from all the other layers. Moreover, the amount of data that needs to be transferred is potentially even larger than when distributing layers across GPUs. Thus, we do not recommend this approach due to its bandwidth cost and complexity.
+
+Last, we could partition data across multiple GPUs. This way all GPUs perform the same type of work, albeit on different observations. Gradients are aggregated across GPUs after each minibatch of training data. This is the simplest approach and it can be applied in any situation. We only need to synchronize after each minibatch. That said, it is highly desirable to start exchanging gradients parameters already while others are still being computed. Moreover, larger numbers of GPUs lead to larger minibatch sizes, thus increasing training efficiency. However, adding more GPUs does not allow us to train larger models.
+
+A comparison of different ways of parallelization on multiple GPUs is depicted in section <num>. By and large, data parallelism is the most convenient way to proceed, provided that we have access to GPUs with sufficiently large memory. See also for a detailed description of partitioning for distributed training. GPU memory used to be a problem in the early days of deep learning. By now this issue has been resolved for all but the most unusual cases. We focus on data parallelism in what follows.
+
+Data Parallelism.
+
+Assume that there are <math> GPUs on a machine. Given the model to be trained, each GPU will maintain a complete set of model parameters independently though parameter values across the GPUs are identical and synchronized. As an example, section <num> illustrates training with data parallelism when <math>.
+
+In general, the training proceeds as follows:
+
+In any iteration of training, given a random minibatch, we split the examples in the batch into <math> portions and distribute them evenly across the GPUs.
+
+Each GPU calculates loss and gradient of the model parameters based on the minibatch subset it was assigned.
+
+The local gradients of each of the <math> GPUs are aggregated to obtain the current minibatch stochastic gradient.
+
+The aggregate gradient is re-distributed to each GPU.
+
+Each GPU uses this minibatch stochastic gradient to update the complete set of model parameters that it maintains.
+
+Note that in practice we increase the minibatch size <math>-fold when training on <math> GPUs such that each GPU has the same amount of work to do as if we were training on a single GPU only. On a 16-GPU server this can increase the minibatch size considerably and we may have to increase the learning rate accordingly. Also note that batch normalization in section <num> needs to be adjusted, e.g., by keeping a separate batch normalization coefficient per GPU. In what follows we will use a toy network to illustrate multi-GPU training.
+
+[A Toy Network].
+
+We use LeNet as introduced in section <num> (with slight modifications). We define it from scratch to illustrate parameter exchange and synchronization in detail.
+
+Data Synchronization.
+
+For efficient multi-GPU training we need two basic operations. First we need to have the ability to [distribute a list of parameters to multiple devices] and to attach gradients (<code>). Without parameters it is impossible to evaluate the network on a GPU. Second, we need the ability to sum parameters across multiple devices, i.e., we need an <code> function.
+
+Let's try it out by copying the model parameters to one GPU.
+
+Since we did not perform any computation yet, the gradient with regard to the bias parameter is still zero. Now let's assume that we have a vector distributed across multiple GPUs. The following [<code> function adds up all vectors and broadcasts the result back to all GPUs]. Note that for this to work we need to copy the data to the device accumulating the results.
+
+Let's test this by creating vectors with different values on different devices and aggregate them.
+
+Distributing Data.
+
+We need a simple utility function to [distribute a minibatch evenly across multiple GPUs]. For instance, on two GPUs we would like to have half of the data to be copied to either of the GPUs. Since it is more convenient and more concise, we use the built-in function from the deep learning framework to try it out on a <math> matrix.
+
+For later reuse we define a <code> function that splits both data and labels.
+
+Training.
+
+Now we can implement [multi-GPU training on a single minibatch]. Its implementation is primarily based on the data parallelism approach described in this section. We will use the auxiliary functions we just discussed, <code> and <code>, to synchronize the data among multiple GPUs. Note that we do not need to write any specific code to achieve parallelism. Since the computational graph does not have any dependencies across devices within a minibatch, it is executed in parallel automatically.
+
+Now, we can define [the training function]. It is slightly different from the ones used in the previous chapters: we need to allocate the GPUs and copy all the model parameters to all the devices. Obviously each batch is processed using the <code> function to deal with multiple GPUs. For convenience (and conciseness of code) we compute the accuracy on a single GPU, though this is inefficient since the other GPUs are idle.
+
+Let's see how well this works [on a single GPU]. We first use a batch size of 256 and a learning rate of 0.2.
+
+By keeping the batch size and learning rate unchanged and [increasing the number of GPUs to 2], we can see that the test accuracy roughly stays the same compared with the previous experiment. In terms of the optimization algorithms, they are identical. Unfortunately there is no meaningful speedup to be gained here: the model is simply too small; moreover we only have a small dataset, where our slightly unsophisticated approach to implementing multi-GPU training suffered from significant Python overhead. We will encounter more complex models and more sophisticated ways of parallelization going forward. Let's see what happens nonetheless for Fashion-MNIST.
+
+Summary.
+
+There are multiple ways to split deep network training over multiple GPUs. We could split them between layers, across layers, or across data. The former two require tightly choreographed data transfers. Data parallelism is the simplest strategy.
+
+Data parallel training is straightforward. However, it increases the effective minibatch size to be efficient.
+
+In data parallelism, data is split across multiple GPUs, where each GPU executes its own forward and backward operation and subsequently gradients are aggregated and results are broadcast back to the GPUs.
+
+We may use slightly increased learning rates for larger minibatches.
+
+Exercises.
+
+When training on <math> GPUs, change the minibatch size from <math> to <math>, i.e., scale it up by the number of GPUs.
+
+Compare accuracy for different learning rates. How does it scale with the number of GPUs?
+
+Implement a more efficient <code> function that aggregates different parameters on different GPUs? Why is it more efficient?
+
+Implement multi-GPU test accuracy computation.
+
+Discussions.
+
+Discussions.

@@ -1,0 +1,57 @@
+Graph attention network (GAT) for node classification.
+
+Introduction.
+
+Graph neural networks is the preferred neural network architecture for processing data structured as graphs (for example, social networks or molecule structures), yielding better results than fully-connected networks or convolutional networks.
+
+In this tutorial, we will implement a specific graph neural network known as a Graph Attention Network (GAT) to predict labels of scientific papers based on what type of papers cite them (using the Cora dataset).
+
+References.
+
+For more information on GAT, see the original paper Graph Attention Networks as well as DGL's Graph Attention Networks documentation.
+
+Import packages.
+
+Obtain the dataset.
+
+The preparation of the Cora dataset follows that of the Node classification with Graph Neural Networks tutorial. Refer to this tutorial for more details on the dataset and exploratory data analysis. In brief, the Cora dataset consists of two files: <code> which contains directed links (citations) between papers; and <code> which contains features of the corresponding papers and one of seven labels (the subject of the paper).
+
+Split the dataset.
+
+Prepare the graph data.
+
+Build the model.
+
+GAT takes as input a graph (namely an edge tensor and a node feature tensor) and outputs <math> node states. The node states are, for each target node, neighborhood aggregated information of N -hops (where N is decided by the number of layers of the GAT). Importantly, in contrast to the graph convolutional network (GCN) the GAT makes use of attention mechanisms to aggregate information from neighboring nodes (or source nodes). In other words, instead of simply averaging/summing node states from source nodes (source papers) to the target node (target papers), GAT first applies normalized attention scores to each source node state and then sums.
+
+(Multi-head) graph attention layer.
+
+The GAT model implements multi-head graph attention layers. The <code> layer is simply a concatenation (or averaging) of multiple graph attention layers (<code>), each with separate learnable weights <code>. The <code> layer does the following:
+
+Consider inputs node states <code> which are linearly transformed by <code>, resulting in <code>.
+
+For each target node:
+
+Computes pair-wise attention scores <code> for all <code>, resulting in <code> (for all <code>). <code> denotes a concatenation, <code> corresponds to the target node, and <code> corresponds to a given 1-hop neighbor/source node.
+
+Normalizes <code> via softmax, so as the sum of incoming edges' attention scores to the target node (<code>) will add up to 1.
+
+Applies attention scores <code> to <code> and adds it to the new target node state <code>, for all <code>.
+
+Implement the Graph Attention Network.
+
+The GAT model operates on the entire graph (both node_states and edges) during all phases. To maintain backend agnosticism and leverage Keras 3's built-in training optimizations, we store the graph data as internal tensors and design the call method to accept the target node indices as its primary input.
+
+Train and evaluate.
+
+Predict (probabilities).
+
+Conclusions.
+
+The results look OK! The GAT model seems to correctly predict the subjects of the papers, based on what they cite, about 80% of the time. Further improvements could be made by fine-tuning the hyper-parameters of the GAT. For instance, try changing the number of layers, the number of hidden units, or the optimizer/learning rate; add regularization (e.g., dropout); or modify the preprocessing step. We could also try to implement self-loops (i.e., paper X cites paper X) and/or make the graph undirected.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.
+
+Chapter 15: Language models and the Transformer.

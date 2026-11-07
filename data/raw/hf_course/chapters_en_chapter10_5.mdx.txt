@@ -1,0 +1,27 @@
+Use your annotated dataset.
+
+We will learn now how to export and use the annotated data that we have in Argilla.
+
+Load the dataset.
+
+First, we'll need to make sure that we're connected to our Argilla instance as in the previous steps:
+
+And now, we'll load the dataset that we'll be working with:
+
+Loading the dataset and calling its records with <code> is enough to start using your dataset and records for your own purposes and pipelines. However, we'll also learn how to do a few optional operations, like filtering the records and exporting your dataset to the Hugging Face Hub.
+
+Filter the dataset.
+
+Sometimes you only want to use the records that have been completed, so we will first filter the records in our dataset based on their status:
+
+⚠️ Note that the records with <code> status (i.e., records that meet the minimum submitted responses configured in the task distribution settings) could have more than one response and that each response can have any status from <code>, <code> or <code>.
+
+Learn more about querying and filtering records in the Argilla docs.
+
+Export to the Hub.
+
+We can now export our annotations to the Hugging Face Hub, so we can share them with others. To do this, we'll need to convert the records into a 🤗 Dataset and then push it to the Hub:
+
+Alternatively, we can export directly the complete Argilla dataset (including pending records) like this:
+
+This is an interesting choice in case others want to open the dataset in their Argilla instances, as the settings are automatically saved and they can simply import the full dataset using a single line of code:

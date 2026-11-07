@@ -1,0 +1,83 @@
+Adam.
+
+In the discussions leading up to this section we encountered a number of techniques for efficient optimization. Let's recap them in detail here:
+
+We saw that section <num> is more effective than Gradient Descent when solving optimization problems, e.g., due to its inherent resilience to redundant data.
+
+We saw that section <num> affords significant additional efficiency arising from vectorization, using larger sets of observations in one minibatch. This is the key to efficient multi-machine, multi-GPU and overall parallel processing.
+
+section <num> added a mechanism for aggregating a history of past gradients to accelerate convergence.
+
+section <num> used per-coordinate scaling to allow for a computationally efficient preconditioner.
+
+section <num> decoupled per-coordinate scaling from a learning rate adjustment.
+
+Adam combines all these techniques into one efficient learning algorithm. As expected, this is an algorithm that has become rather popular as one of the more robust and effective optimization algorithms to use in deep learning. It is not without issues, though. In particular, show that there are situations where Adam can diverge due to poor variance control. In a follow-up work proposed a hotfix to Adam, called Yogi which addresses these issues. More on this later. For now let's review the Adam algorithm.
+
+The Algorithm.
+
+One of the key components of Adam is that it uses exponential weighted moving averages (also known as leaky averaging) to obtain an estimate of both the momentum and also the second moment of the gradient. That is, it uses the state variables.
+
+<math>.
+
+Here <math> and <math> are nonnegative weighting parameters. Common choices for them are <math> and <math>. That is, the variance estimate moves much more slowly than the momentum term. Note that if we initialize <math> we have a significant amount of bias initially towards smaller values. This can be addressed by using the fact that <math> to re-normalize terms. Correspondingly the normalized state variables are given by.
+
+<math>.
+
+Armed with the proper estimates we can now write out the update equations. First, we rescale the gradient in a manner very much akin to that of RMSProp to obtain.
+
+<math>.
+
+Unlike RMSProp our update uses the momentum <math> rather than the gradient itself. Moreover, there is a slight cosmetic difference as the rescaling happens using <math> instead of <math>. The former works arguably slightly better in practice, hence the deviation from RMSProp. Typically we pick <math> for a good trade-off between numerical stability and fidelity.
+
+Now we have all the pieces in place to compute updates. This is slightly anticlimactic and we have a simple update of the form.
+
+<math>.
+
+Reviewing the design of Adam its inspiration is clear. Momentum and scale are clearly visible in the state variables. Their rather peculiar definition forces us to debias terms (this could be fixed by a slightly different initialization and update condition). Second, the combination of both terms is pretty straightforward, given RMSProp. Last, the explicit learning rate <math> allows us to control the step length to address issues of convergence.
+
+Implementation.
+
+Implementing Adam from scratch is not very daunting. For convenience we store the time step counter <math> in the <code> dictionary. Beyond that all is straightforward.
+
+We are ready to use Adam to train the model. We use a learning rate of <math>.
+
+A more concise implementation is straightforward since <code> is one of the algorithms provided as part of the Gluon <code> optimization library. Hence we only need to pass configuration parameters for an implementation in Gluon.
+
+Yogi.
+
+One of the problems of Adam is that it can fail to converge even in convex settings when the second moment estimate in <math> blows up. As a fix proposed a refined update (and initialization) for <math>. To understand what's going on, let's rewrite the Adam update as follows:
+
+<math>.
+
+Whenever <math> has high variance or updates are sparse, <math> might forget past values too quickly. A possible fix for this is to replace <math> by <math>. Now the magnitude of the update no longer depends on the amount of deviation. This yields the Yogi updates.
+
+<math>.
+
+The authors furthermore advise to initialize the momentum on a larger initial batch rather than just initial pointwise estimate. We omit the details since they are not material to the discussion and since even without this convergence remains pretty good.
+
+Summary.
+
+Adam combines features of many optimization algorithms into a fairly robust update rule.
+
+Created on the basis of RMSProp, Adam also uses EWMA on the minibatch stochastic gradient.
+
+Adam uses bias correction to adjust for a slow startup when estimating momentum and a second moment.
+
+For gradients with significant variance we may encounter issues with convergence. They can be amended by using larger minibatches or by switching to an improved estimate for <math>. Yogi offers such an alternative.
+
+Exercises.
+
+Adjust the learning rate and observe and analyze the experimental results.
+
+Can you rewrite momentum and second moment updates such that it does not require bias correction?
+
+Why do you need to reduce the learning rate <math> as we converge?
+
+Try to construct a case for which Adam diverges and Yogi converges?
+
+Discussions.
+
+Discussions.
+
+Discussions.

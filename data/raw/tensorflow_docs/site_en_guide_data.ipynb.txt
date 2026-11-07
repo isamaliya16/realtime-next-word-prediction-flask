@@ -1,0 +1,323 @@
+Licensed under the Apache License, Version 2.0 (the "License");
+
+tf.data: Build TensorFlow input pipelines.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+The <code> API enables you to build complex input pipelines from simple, reusable pieces. For example, the pipeline for an image model might aggregate data from files in a distributed file system, apply random perturbations to each image, and merge randomly selected images into a batch for training. The pipeline for a text model might involve extracting symbols from raw text data, converting them to embedding identifiers with a lookup table, and batching together sequences of different lengths. The <code> API makes it possible to handle large amounts of data, read from different data formats, and perform complex transformations.
+
+The <code> API introduces a <code> abstraction that represents a sequence of elements, in which each element consists of one or more components. For example, in an image pipeline, an element might be a single training example, with a pair of tensor components representing the image and its label.
+
+There are two distinct ways to create a dataset:
+
+A data source constructs a <code> from data stored in memory or in one or more files.
+
+A data transformation constructs a dataset from one or more <code> objects.
+
+Basic mechanics.
+
+To create an input pipeline, you must start with a data source. For example, to construct a <code> from data in memory, you can use <code> or <code>. Alternatively, if your input data is stored in a file in the recommended TFRecord format, you can use <code>.
+
+Once you have a <code> object, you can transform it into a new <code> by chaining method calls on the <code> object. For example, you can apply per-element transformations such as <code>, and multi-element transformations such as <code>. Refer to the documentation for <code> for a complete list of transformations.
+
+The <code> object is a Python iterable. This makes it possible to consume its elements using a for loop:
+
+Or by explicitly creating a Python iterator using <code> and consuming its elements using <code>:
+
+Alternatively, dataset elements can be consumed using the <code> transformation, which reduces all elements to produce a single result. The following example illustrates how to use the <code> transformation to compute the sum of a dataset of integers.
+
+Dataset structure.
+
+A dataset produces a sequence of elements, where each element is the same (nested) structure of components. Individual components of the structure can be of any type representable by <code>, including <code>, <code>, <code>, <code>, or <code>.
+
+The Python constructs that can be used to express the (nested) structure of elements include <code>, <code>, <code>, and <code>. In particular, <code> is not a valid construct for expressing the structure of dataset elements. This is because early <code> users felt strongly about <code> inputs (for example, when passed to <code>) being automatically packed as tensors and <code> outputs (for example, return values of user-defined functions) being coerced into a <code>. As a consequence, if you would like a <code> input to be treated as a structure, you need to convert it into <code> and if you would like a <code> output to be a single component, then you need to explicitly pack it using <code>.
+
+The <code> property allows you to inspect the type of each element component. The property returns a nested structure of <code> objects, matching the structure of the element, which may be a single component, a tuple of components, or a nested tuple of components. For example:
+
+The <code> transformations support datasets of any structure. When using the <code>, and <code> transformations, which apply a function to each element, the element structure determines the arguments of the function:
+
+Reading input data.
+
+Consuming NumPy arrays.
+
+Refer to the Loading NumPy arrays tutorial for more examples.
+
+If all of your input data fits in memory, the simplest way to create a <code> from them is to convert them to <code> objects and use <code>.
+
+Note: The above code snippet will embed the <code> and <code> arrays in your TensorFlow graph as <code> operations. This works well for a small dataset, but wastes memory---because the contents of the array will be copied multiple times---and can run into the 2GB limit for the <code> protocol buffer.
+
+Consuming Python generators.
+
+Another common data source that can easily be ingested as a <code> is the python generator.
+
+Caution: While this is a convenient approach it has limited portability and scalability. It must run in the same python process that created the generator, and is still subject to the Python GIL.
+
+The <code> constructor converts the python generator to a fully functional <code>.
+
+The constructor takes a callable as input, not an iterator. This allows it to restart the generator when it reaches the end. It takes an optional <code> argument, which is passed as the callable's arguments.
+
+The <code> argument is required because <code> builds a <code> internally, and graph edges require a <code>.
+
+The <code> argument is not required but is highly recommended as many TensorFlow operations do not support tensors with an unknown rank. If the length of a particular axis is unknown or variable, set it as <code> in the <code>.
+
+It's also important to note that the <code> and <code> follow the same nesting rules as other dataset methods.
+
+Here is an example generator that demonstrates both aspects: it returns tuples of arrays, where the second array is a vector with unknown length.
+
+The first output is an <code> the second is a <code>.
+
+The first item is a scalar, shape <code>, and the second is a vector of unknown length, shape <code>.
+
+Now it can be used like a regular <code>. Note that when batching a dataset with a variable shape, you need to use <code>.
+
+For a more realistic example, try wrapping <code> as a <code>.
+
+First download the data:
+
+Create the <code>.
+
+Consuming TFRecord data.
+
+Refer to the Loading TFRecords tutorial for an end-to-end example.
+
+The <code> API supports a variety of file formats so that you can process large datasets that do not fit in memory. For example, the TFRecord file format is a simple record-oriented binary format that many TensorFlow applications use for training data. The <code> class enables you to stream over the contents of one or more TFRecord files as part of an input pipeline.
+
+Here is an example using the test file from the French Street Name Signs (FSNS).
+
+The <code> argument to the <code> initializer can either be a string, a list of strings, or a <code> of strings. Therefore if you have two sets of files for training and validation purposes, you can create a factory method that produces the dataset, taking filenames as an input argument:
+
+Many TensorFlow projects use serialized <code> records in their TFRecord files. These need to be decoded before they can be inspected:
+
+Consuming text data.
+
+Refer to the Load text tutorial for an end-to-end example.
+
+Many datasets are distributed as one or more text files. The <code> provides an easy way to extract lines from one or more text files. Given one or more filenames, a <code> will produce one string-valued element per line of those files.
+
+Here are the first few lines of the first file:
+
+To alternate lines between files use <code>. This makes it easier to shuffle files together. Here are the first, second and third lines from each translation:
+
+By default, a <code> yields every line of each file, which may not be desirable, for example, if the file starts with a header line, or contains comments. These lines can be removed using the <code> or <code> transformations. Here, you skip the first line, then filter to find only survivors.
+
+Consuming CSV data.
+
+Refer to the Loading CSV Files and Loading Pandas DataFrames tutorials for more examples.
+
+The CSV file format is a popular format for storing tabular data in plain text.
+
+For example:
+
+If your data fits in memory the same <code> method works on dictionaries, allowing this data to be easily imported:
+
+A more scalable approach is to load from disk as necessary.
+
+The <code> module provides methods to extract records from one or more CSV files that comply with RFC 4180.
+
+The <code> function is the high-level interface for reading sets of CSV files. It supports column type inference and many other features, like batching and shuffling, to make usage simple.
+
+You can use the <code> argument if you only need a subset of columns.
+
+There is also a lower-level <code> class which provides finer grained control. It does not support column type inference. Instead you must specify the type of each column.
+
+If some columns are empty, this low-level interface allows you to provide default values instead of column types.
+
+By default, a <code> yields every column of every line of the file, which may not be desirable, for example if the file starts with a header line that should be ignored, or if some columns are not required in the input. These lines and fields can be removed with the <code> and <code> arguments respectively.
+
+Consuming sets of files.
+
+There are many datasets distributed as a set of files, where each file is an example.
+
+Note: these images are licensed CC-BY, see LICENSE.txt for details.
+
+The root directory contains a directory for each class:
+
+The files in each class directory are examples:
+
+Read the data using the <code> function and extract the label from the path, returning <code> pairs:
+
+Batching dataset elements.
+
+Simple batching.
+
+The simplest form of batching stacks <code> consecutive elements of a dataset into a single element. The <code> transformation does exactly this, with the same constraints as the <code> operator, applied to each component of the elements: i.e., for each component i, all elements must have a tensor of the exact same shape.
+
+While <code> tries to propagate shape information, the default settings of <code> result in an unknown batch size because the last batch may not be full. Note the <code>s in the shape:
+
+Use the <code> argument to ignore that last batch, and get full shape propagation:
+
+Batching tensors with padding.
+
+The above recipe works for tensors that all have the same size. However, many models (including sequence models) work with input data that can have varying size (for example, sequences of different lengths). To handle this case, the <code> transformation enables you to batch tensors of different shapes by specifying one or more dimensions in which they may be padded.
+
+The <code> transformation allows you to set different padding for each dimension of each component, and it may be variable-length (signified by <code> in the example above) or constant-length. It is also possible to override the padding value, which defaults to 0.
+
+Training workflows.
+
+Processing multiple epochs.
+
+The <code> API offers two main ways to process multiple epochs of the same data.
+
+The simplest way to iterate over a dataset in multiple epochs is to use the <code> transformation. First, create a dataset of titanic data:
+
+Applying the <code> transformation with no arguments will repeat the input indefinitely.
+
+The <code> transformation concatenates its arguments without signaling the end of one epoch and the beginning of the next epoch. Because of this a <code> applied after <code> will yield batches that straddle epoch boundaries:
+
+If you need clear epoch separation, put <code> before the repeat:
+
+If you would like to perform a custom computation (for example, to collect statistics) at the end of each epoch then it's simplest to restart the dataset iteration on each epoch:
+
+Randomly shuffling input data.
+
+The <code> transformation maintains a fixed-size buffer and chooses the next element uniformly at random from that buffer.
+
+Note: While large buffer_sizes shuffle more thoroughly, they can take a lot of memory, and significant time to fill. Consider using <code> across files if this becomes a problem.
+
+Add an index to the dataset so you can see the effect:
+
+Since the <code> is 100, and the batch size is 20, the first batch contains no elements with an index over 120.
+
+As with <code> the order relative to <code> matters.
+
+<code> doesn't signal the end of an epoch until the shuffle buffer is empty. So a shuffle placed before a repeat will show every element of one epoch before moving to the next:
+
+But a repeat before a shuffle mixes the epoch boundaries together:
+
+Preprocessing data.
+
+The <code> transformation produces a new dataset by applying a given function <code> to each element of the input dataset. It is based on the <code> function that is commonly applied to lists (and other structures) in functional programming languages. The function <code> takes the <code> objects that represent a single element in the input, and returns the <code> objects that will represent a single element in the new dataset. Its implementation uses standard TensorFlow operations to transform one element into another.
+
+This section covers common examples of how to use <code>.
+
+Decoding image data and resizing it.
+
+When training a neural network on real-world image data, it is often necessary to convert images of different sizes to a common size, so that they may be batched into a fixed size.
+
+Rebuild the flower filenames dataset:
+
+Write a function that manipulates the dataset elements.
+
+Test that it works.
+
+Map it over the dataset.
+
+Applying arbitrary Python logic.
+
+For performance reasons, use TensorFlow operations for preprocessing your data whenever possible. However, it is sometimes useful to call external Python libraries when parsing your input data. You can use the <code> operation in a <code> transformation.
+
+For example, if you want to apply a random rotation, the <code> module only has <code>, which is not very useful for image augmentation.
+
+Note: <code> has a TensorFlow compatible <code> in <code>.
+
+To demonstrate <code>, try using the <code> function instead:
+
+To use this function with <code> the same caveats apply as with <code>, you need to describe the return shapes and types when you apply the function:
+
+Parsing <code> protocol buffer messages.
+
+Many input pipelines extract <code> protocol buffer messages from a TFRecord format. Each <code> record contains one or more "features", and the input pipeline typically converts these features into tensors.
+
+You can work with <code> protos outside of a <code> to understand the data:
+
+Time series windowing.
+
+For an end-to-end time series example see: Time series forecasting.
+
+Time series data is often organized with the time axis intact.
+
+Use a simple <code> to demonstrate:
+
+Typically, models based on this sort of data will want a contiguous time slice.
+
+The simplest approach would be to batch the data:
+
+Using <code>.
+
+Or to make dense predictions one step into the future, you might shift the features and labels by one step relative to each other:
+
+To predict a whole window instead of a fixed offset you can split the batches into two parts:
+
+To allow some overlap between the features of one batch and the labels of another, use <code>:
+
+Using <code>.
+
+While using <code> works, there are situations where you may need finer control. The <code> method gives you complete control, but requires some care: it returns a <code> of <code>. Go to the Dataset structure section for details.
+
+The <code> method can take a dataset of datasets and flatten it into a single dataset:
+
+In nearly all cases, you will want to <code> the dataset first:
+
+Now, you can see that the <code> argument controls how much each window moves over.
+
+Putting this together you might write this function:
+
+Then it's easy to extract labels, as before:
+
+Resampling.
+
+When working with a dataset that is very class-imbalanced, you may want to resample the dataset. <code> provides two methods to do this. The credit card fraud dataset is a good example of this sort of problem.
+
+Note: Go to Classification on imbalanced data for a full tutorial.
+
+Now, check the distribution of classes, it is highly skewed:
+
+A common approach to training with an imbalanced dataset is to balance it. <code> includes a few methods which enable this workflow:
+
+Datasets sampling.
+
+One approach to resampling a dataset is to use <code>. This is more applicable when you have a separate <code> for each class.
+
+Here, just use filter to generate them from the credit card fraud data:
+
+To use <code> pass the datasets, and the weight for each:
+
+Now the dataset produces examples of each class with a 50/50 probability:
+
+Rejection resampling.
+
+One problem with the above <code> approach is that it needs a separate <code> per class. You could use <code> to create those two datasets, but that results in all the data being loaded twice.
+
+The <code> method can be applied to a dataset to rebalance it, while only loading it once. Elements will be dropped or repeated to achieve balance.
+
+The <code> method takes a <code> argument. This <code> is applied to each dataset element, and is used to determine which class an example belongs to for the purposes of balancing.
+
+The goal here is to balance the label distribution, and the elements of <code> are already <code> pairs. So the <code> just needs to return those labels:
+
+The resampling method deals with individual examples, so in this case you must <code> the dataset before applying that method.
+
+The method needs a target distribution, and optionally an initial distribution estimate as inputs.
+
+The <code> method returns <code> pairs where the <code> is the output of the <code>. In this case, the <code> was already a <code> pair, so use <code> to drop the extra copy of the labels:
+
+Now the dataset produces examples of each class with a 50/50 probability:
+
+Iterator Checkpointing.
+
+Tensorflow supports taking checkpoints so that when your training process restarts it can restore the latest checkpoint to recover most of its progress. In addition to checkpointing the model variables, you can also checkpoint the progress of the dataset iterator. This could be useful if you have a large dataset and don't want to start the dataset from the beginning on each restart. Note however that iterator checkpoints may be large, since transformations such as <code> and <code> require buffering elements within the iterator.
+
+To include your iterator in a checkpoint, pass the iterator to the <code> constructor.
+
+Note: It is not possible to checkpoint an iterator which relies on an external state, such as a <code>. Attempting to do so will raise an exception complaining about the external state.
+
+Using <code> with <code>.
+
+The <code> API simplifies many aspects of creating and executing machine learning models. Its <code> and <code> and <code> APIs support datasets as inputs. Here is a quick dataset and model setup:
+
+Passing a dataset of <code> pairs is all that's needed for <code> and <code>:
+
+If you pass an infinite dataset, for example by calling <code>, you just need to also pass the <code> argument:
+
+For evaluation you can pass the number of evaluation steps:
+
+For long datasets, set the number of steps to evaluate:
+
+The labels are not required when calling <code>.
+
+But the labels are ignored if you do pass a dataset containing them:

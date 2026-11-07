@@ -1,0 +1,97 @@
+Memory-efficient embeddings for recommendation systems.
+
+Introduction.
+
+This example demonstrates two techniques for building memory-efficient recommendation models by reducing the size of the embedding tables, without sacrificing model effectiveness:
+
+Quotient-remainder trick, by Hao-Jun Michael Shi et al., which reduces the number of embedding vectors to store, yet produces unique embedding vector for each item without explicit definition.
+
+Mixed Dimension embeddings, by Antonio Ginart et al., which stores embedding vectors with mixed dimensions, where less popular items have reduced dimension embeddings.
+
+We use the 1M version of the Movielens dataset. The dataset includes around 1 million ratings from 6,000 users on 4,000 movies.
+
+Setup.
+
+Prepare the data.
+
+Download and process data.
+
+Create train and eval data splits.
+
+Define dataset metadata and hyperparameters.
+
+Train and evaluate the model.
+
+Experiment 1: baseline collaborative filtering model.
+
+Implement embedding encoder.
+
+Implement the baseline model.
+
+Model: "baseline_model".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩ │ userid │ ( None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ movieid │ ( None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ userembedding │ ( None , 64 ) │ 386,560 │ userid 0 │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ movieembedding │ ( None , 64 ) │ 237,184 │ movieid 0 │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dotsimilarity │ ( None , 1 ) │ 0 │ userembedding 0 … │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ sigmoid ( Sigmoid ) │ ( None , 1 ) │ 0 │ dot_similarity[ 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ multiply ( Multiply ) │ ( None , 1 ) │ 0 │ sigmoid 0 │ └─────────────────────┴───────────────────┴─────────┴──────────────────────┘.
+
+Total params: 623,744 (2.38 MB).
+
+Trainable params: 623,744 (2.38 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Notice that the number of trainable parameters is 623,744.
+
+Experiment 2: memory-efficient model.
+
+Implement Quotient-Remainder embedding as a layer.
+
+The Quotient-Remainder technique works as follows. For a set of vocabulary and embedding size <code>, instead of creating a <code> embedding table, we create two <code> embedding tables, where <code> is much smaller than <code>. An embedding for a given item <code> is generated via the following steps:
+
+Compute the <code> as <code>.
+
+Compute the <code> as <code>.
+
+Lookup <code> from the first embedding table using <code>.
+
+Lookup <code> from the second embedding table using <code>.
+
+Return <code> <code>.
+
+This technique not only reduces the number of embedding vectors needs to be stored and trained, but also generates a unique embedding vector for each item of size <code>. Note that <code> and <code> can be combined using other operations, like <code> and <code>.
+
+Implement Mixed Dimension embedding as a layer.
+
+In the mixed dimension embedding technique, we train embedding vectors with full dimensions for the frequently queried items, while train embedding vectors with reduced dimensions for less frequent items, plus a projection weights matrix to bring low dimension embeddings to the full dimensions.
+
+More precisely, we define blocks of items of similar frequencies. For each block, a <code> embedding table and <code> projection weights matrix are created. Note that, if <code> equals <code>, the projection weights matrix becomes an identity matrix. Embeddings for a given batch of item <code> are generated via the following steps:
+
+For each block, lookup the <code> embedding vectors using <code>, and project them to the <code>.
+
+If an item index does not belong to a given block, an out-of-vocabulary embedding is returned. Each block will return a <code> tensor.
+
+A mask is applied to the embeddings returned from each block in order to convert the out-of-vocabulary embeddings to vector of zeros. That is, for each item in the batch, a single non-zero embedding vector is returned from the all block embeddings.
+
+Embeddings retrieved from the blocks are combined using sum to produce the final <code> tensor.
+
+Implement the memory-efficient model.
+
+In this experiment, we are going to use the Quotient-Remainder technique to reduce the size of the user embeddings, and the Mixed Dimension technique to reduce the size of the movie embeddings.
+
+While in the paper, an alpha-power rule is used to determined the dimensions of the embedding of each block, we simply set the number of blocks and the dimensions of embeddings of each block based on the histogram visualization of movies popularity.
+
+You can see that we can group the movies into three blocks, and assign them 64, 32, and 16 embedding dimensions, respectively. Feel free to experiment with different number of blocks and dimensions.
+
+Model: "baseline_model".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩ │ userid │ ( None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ movieid │ ( None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ userembedding │ ( None , 64 ) │ 15,360 │ userid 0 │ │ ( QREmbedding ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ movieembedding │ ( None , 64 ) │ 102,608 │ movieid 0 │ │ ( MDEmbedding ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dotsimilarity │ ( None , 1 ) │ 0 │ userembedding 0 … │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ sigmoid1 ( Sigmoid ) │ ( None , 1 ) │ 0 │ dotsimilarity[ 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ multiply1 │ ( None , 1 ) │ 0 │ sigmoid1 0 │ │ ( Multiply ) │ │ │ │ └─────────────────────┴───────────────────┴─────────┴──────────────────────┘.
+
+Total params: 117,968 (460.81 KB).
+
+Trainable params: 117,968 (460.81 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Notice that the number of trainable parameters is 117,968, which is more than 5x less than the number of parameters in the baseline model.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

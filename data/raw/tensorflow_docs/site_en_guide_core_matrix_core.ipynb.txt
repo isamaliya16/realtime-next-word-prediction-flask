@@ -1,0 +1,133 @@
+Matrix approximation with Core APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Introduction.
+
+This notebook uses the TensorFlow Core low-level APIs to showcase TensorFlow's capabilities as a high-performance scientific computing platform. Visit the Core APIs overview to learn more about TensorFlow Core and its intended use cases.
+
+This tutorial explores the technique of singular value decomposition (SVD) and its applications for low-rank approximation problems. The SVD is used to factorize real or complex matrices and has a variety of use cases in data science such as image compression. The images for this tutorial come from Google Brain's Imagen project.
+
+Setup.
+
+SVD fundamentals.
+
+The singular value decomposition of a matrix, <math>, is determined by the following factorization:
+
+<math>.
+
+where.
+
+<math>: input matrix where <math>.
+
+<math>: orthogonal matrix, <math>, with each column, <math>, denoting a left singular vector of <math>.
+
+<math>: diagonal matrix with each diagonal entry, <math>, denoting a singular value of <math>.
+
+<math>: orthogonal matrix, <math>, with each row, <math>, denoting a right singular vector of <math>.
+
+When <math>, <math> and <math> both have dimension <math>, and <math> has dimension <math>.
+
+TensorFlow's linear algebra package has a function, <code>, which can be used to compute the singular value decomposition of one or more matrices. Start by defining a simple matrix and computing its SVD factorization.
+
+The <code> function can be used to directly compute the matrix reconstruction from the outputs of <code>.
+
+Low rank approximation with the SVD.
+
+The rank of a matrix, <math>, is determined by the dimension of the vector space spanned by its columns. The SVD can be used to approximate a matrix with a lower rank, which ultimately decreases the dimensionality of data required to store the information represented by the matrix.
+
+The rank-r approximation of <math> in terms of the SVD is defined by the formula:
+
+<math>.
+
+where.
+
+<math>: matrix consisting of the first <math> columns of <math>.
+
+<math>: diagonal matrix consisting of the first <math> singular values in <math>.
+
+<math>: matrix consisting of the first <math> rows of <math>.
+
+Start by writing a function to compute the rank-r approximation of a given matrix. This low-rank approximation procedure is used for image compression; therefore, it is also helpful to compute the physical data sizes for each approximation. For simplicity, assume that data size for an rank-r approximated matrix is equal to the total number of elements required to compute the approximation. Next, write a function to visualize the original matrix, <math> its rank-r approximation, <math> and the error matrix, <math>.
+
+As expected, using lower ranks results in less-accurate approximations. However, the quality of these low-rank approximations are often good enough in real world scenarios. Also note that the main goal of low-rank approximation with SVD is to reduce the dimensionality of the data but not to reduce the disk space of the data itself. However, as the input matrices become higher-dimensional, many low-rank approximations also end up benefiting from reduced data size. This reduction benefit is why the process is applicable for image compression problems.
+
+Image loading.
+
+The following image is available on the Imagen home page. Imagen is a text-to-image diffusion model developed by Google Research's Brain team. An AI created this image based on the prompt: "A photo of a Corgi dog riding a bike in Times Square. It is wearing sunglasses and a beach hat." How cool is that! You can also change the url below to any .jpg link to load in a custom image of choice.
+
+Start by reading in and visualizing the image. After reading a JPEG file, Matplotlib outputs a matrix, <math>, of shape <math> which represents a 2-dimensional image with 3 color channels for red, green and blue respectively.
+
+The image compression algorithm.
+
+Now, use the SVD to compute low-rank approximations of the sample image. Recall that the image is of shape <math> and that the theory SVD only applies for 2-dimensional matrices. This means that the sample image has to be batched into 3 equal-size matrices that correspond to each of the 3 color channels. This can be done so by transposing the matrix to be of shape <math>. In order to clearly visualize the approximation error, rescale the RGB values of the image from <math> to <math>. Remember to clip the approximated values to fall within this interval before visualizing them. The <code> function is useful for this.
+
+Now, compute rank-r approximations for the following ranks : 100, 50, 10.
+
+Evaluating approximations.
+
+There are a variety of interesting methods to measure the effectiveness and have more control over matrix approximations.
+
+Compression factor vs rank.
+
+For each of the above approximations, observe how the data sizes change with the rank.
+
+Based on this plot, there is a linear relationship between an approximated image's compression factor and its rank. To explore this further, recall that the data size of an approximated matrix, <math>, is defined as the total number of elements required for its computation. The following equations can be used to find the relationship between compression factor and rank:
+
+<math>.
+
+<math>.
+
+where.
+
+<math>: size of <math>.
+
+<math>: size of <math>.
+
+<math>: compression factor.
+
+<math>: rank of the approximation.
+
+<math> and <math>: row and column dimensions of <math>.
+
+In order to find the rank, <math>, that is necessary to compress an image to a desired factor, <math>, the above equation can be rearranged to solve for <math>:
+
+<math>.
+
+Note that this formula is independent of the color channel dimension since each of the RGB approximations do not affect each other. Now, write a function to compress an input image given a desired compression factor.
+
+Compress an image to 15% of its original size.
+
+Cumulative sum of singular values.
+
+The cumulative sum of singular values can be a useful indicator for the amount of energy captured by a rank-r approximation. Visualize the RGB-averaged cumulative proportion of singular values in the sample image. The <code> function can be useful for this.
+
+It looks like over 90% of the energy in this image is captured within the first 100 singular values. Now, write a function to compress an input image given a desired energy retention factor.
+
+Compress an image to retain 75% of its energy.
+
+Error and singular values.
+
+There is also an interesting relationship between the approximation error and the singular values. It turns out that the squared Frobenius norm of the approximation is equal to the sum of the squares of its singular values that were left out:
+
+<math>.
+
+Test out this relationship with a rank-10 approximation of the example matrix in the beginning of this tutorial.
+
+Conclusion.
+
+This notebook introduced the process of implementing the singular value decomposition with TensorFlow and applying it to write an image compression algorithm. Here are a few more tips that may help:
+
+The TensorFlow Core APIs can be utilized for a variety of high-performance scientific computing use cases.
+
+To learn more about TensorFlow's linear algebra functionalities, visit the docs for the linalg module.
+
+The SVD can also be applied to build recommendation systems.
+
+For more examples of using the TensorFlow Core APIs, check out the guide. If you want learn more about loading and preparing data, see the tutorials on image data loading or CSV data loading.

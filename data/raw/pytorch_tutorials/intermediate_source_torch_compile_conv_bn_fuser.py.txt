@@ -1,0 +1,19 @@
+Building a Convolution/Batch Norm fuser with torch.compile.
+
+First, let's get some imports out of the way (we will be using all of these later in the code).
+
+For this tutorial, we are going to create a model consisting of convolutions and batch norms. Note that this model has some tricky components - some of the conv/batch norm patterns are hidden within Sequentials and one of the <code> is wrapped in another Module.
+
+Fusing Convolution with Batch Norm One of the primary challenges with trying to automatically fuse convolution and batch norm in PyTorch is that PyTorch does not provide an easy way of accessing the computational graph. torch.compile resolves this problem by capturing the computational graph during compilation, allowing us to apply pattern-based optimizations across the entire model, including operations nested within Sequential modules or wrapped in custom modules.
+
+torch.compile will capture a graph representation of our model. During compilation, modules hidden within Sequential containers and wrapped modules are all inlined into the graph, making them available for pattern matching and optimization.
+
+Fusing Convolution with Batch Norm Unlike some other fusions, fusion of convolution with batch norm does not require any new operators. Instead, as batch norm during inference consists of a pointwise add and multiply, these operations can be "baked" into the preceding convolution's weights. This allows us to remove the batch norm entirely from our model! Read for further details. The code here is copied from.
+
+clarity purposes.
+
+Pattern Matching with torch.compile Now that we have our fusion logic, we need to register a pattern that torch.compile's pattern matcher will recognize and replace during compilation.
+
+Testing out our Fusion Pass We can now run this fusion pass on our initial toy model and verify that our results are identical. In addition, we can print out the code for our fused model and verify that there are no more batch norms.
+
+Benchmarking our Fusion on ResNet18 We can test our fusion pass on a larger model like ResNet18 and see how much this pass improves inference performance.

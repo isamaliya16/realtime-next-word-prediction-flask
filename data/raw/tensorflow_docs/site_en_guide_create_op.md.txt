@@ -1,0 +1,395 @@
+Create an op.
+
+Note: To guarantee that your C++ custom ops are ABI compatible with TensorFlow's official pip packages, please follow the guide at Custom op repository. It has an end-to-end code example, as well as Docker images for building and distributing your custom ops.
+
+If you'd like to create an op that isn't covered by the existing TensorFlow library, we recommend that you first try writing the op in Python as a composition of existing Python ops or functions. If that isn't possible, you can create a custom C++ op. There are several reasons why you might want to create a custom C++ op:
+
+It's not easy or possible to express your operation as a composition of existing ops.
+
+It's not efficient to express your operation as a composition of existing primitives.
+
+You want to hand-fuse a composition of primitives that a future compiler would find difficult fusing.
+
+For example, imagine you want to implement something like "median pooling", similar to the "MaxPool" operator, but computing medians over sliding windows instead of maximum values. Doing this using a composition of operations may be possible (e.g., using ExtractImagePatches and TopK), but may not be as performance- or memory-efficient as a native operation where you can do something more clever in a single, fused operation. As always, it is typically first worth trying to express what you want using operator composition, only choosing to add a new operation if that proves to be difficult or inefficient.
+
+To incorporate your custom op you'll need to:
+
+Register the new op in a C++ file. Op registration defines an interface (specification) for the op's functionality, which is independent of the op's implementation. For example, op registration defines the op's name and the op's inputs and outputs. It also defines the shape function that is used for tensor shape inference.
+
+Implement the op in C++. The implementation of an op is known as a kernel, and it is the concrete implementation of the specification you registered in Step 1. There can be multiple kernels for different input / output types or architectures (for example, CPUs, GPUs).
+
+Create a Python wrapper (optional). This wrapper is the public API that's used to create the op in Python. A default wrapper is generated from the op registration, which can be used directly or added to.
+
+Write a function to compute gradients for the op (optional).
+
+Test the op. We usually do this in Python for convenience, but you can also test the op in C++. If you define gradients, you can verify them with the Python <code>. See <code> as an example that tests the forward functions of Relu-like operators and their gradients.
+
+Prerequisites.
+
+Some familiarity with C++.
+
+Must have installed the TensorFlow binary, or must have downloaded TensorFlow source, and be able to build it.
+
+Define the op interface.
+
+You define the interface of an op by registering it with the TensorFlow system. In the registration, you specify the name of your op, its inputs (types and names) and outputs (types and names), as well as docstrings and any attrs the op might require.
+
+To see how this works, suppose you'd like to create an op that takes a tensor of <code>s and outputs a copy of the tensor, with all but the first element set to zero. To do this, create a file named <code>. Then add a call to the <code> macro that defines the interface for your op:
+
+This <code> op takes one tensor <code> of 32-bit integers as input, and outputs a tensor <code> of 32-bit integers. The op also uses a shape function to ensure that the output tensor is the same shape as the input tensor. For example, if the input is a tensor of shape [10, 20], then this shape function specifies that the output shape is also [10, 20].
+
+Note: The op name must be in CamelCase and it must be unique among all other ops that are registered in the binary.
+
+Implement the kernel for the op.
+
+After you define the interface, provide one or more implementations of the op. To create one of these kernels, create a class that extends <code> and overrides the <code> method. The <code> method provides one <code> argument of type <code>, from which you can access useful things like the input and output tensors.
+
+Add your kernel to the file you created above. The kernel might look something like this:
+
+After implementing your kernel, you register it with the TensorFlow system. In the registration, you specify different constraints under which this kernel will run. For example, you might have one kernel made for CPUs, and a separate one for GPUs.
+
+To do this for the <code> op, add the following to <code>: Important: Instances of your OpKernel may be accessed concurrently. Your <code> method must be thread-safe. Guard any access to class members with a mutex. Or better yet, don't share state via class members! Consider using a <code> to keep track of op state.
+
+Multi-threaded CPU kernels.
+
+To write a multi-threaded CPU kernel, the Shard function in <code> can be used. This function shards a computation function across the threads configured to be used for intra-op threading (see intraopparallelism_threads in <code>).
+
+GPU kernels.
+
+A GPU kernel is implemented in two parts: the OpKernel and the CUDA kernel and its launch code.
+
+Sometimes the OpKernel implementation is common between a CPU and GPU kernel, such as around inspecting inputs and allocating outputs. In that case, a suggested implementation is to:
+
+Define the OpKernel templated on the Device and the primitive type of the tensor.
+
+To do the actual computation of the output, the Compute function calls a templated functor struct.
+
+The specialization of that functor for the CPUDevice is defined in the same file, but the specialization for the GPUDevice is defined in a .cu.cc file, since it will be compiled with the CUDA compiler.
+
+Here is an example implementation.
+
+Build the op library.
+
+Compile the op using your system compiler (TensorFlow binary installation).
+
+You should be able to compile <code> with a <code> compiler such as <code> or <code> available on your system. The binary PIP package installs the header files and the library that you need to compile your op in locations that are system specific. However, the TensorFlow python library provides the <code> function to get the header directory, and the <code> directory has a shared object to link against. Here are the outputs of these functions on an Ubuntu machine.
+
+Assuming you have <code> installed, here is the sequence of commands you can use to compile your op into a dynamic library.
+
+On macOS, the additional flag "-undefined dynamic_lookup" is required when building the <code> file. Note on <code> version <code>: gcc uses the new C++ ABI since version <code>. TensorFlow 2.8 and earlier were built with <code> that uses the older ABI. If you are using these versions of TensorFlow and are trying to compile your op library with <code>, add <code> to the command line to make the library compatible with the older ABI. TensorFlow 2.9+ packages are compatible with the newer ABI by default.
+
+Compile the op using bazel (TensorFlow source installation).
+
+If you have TensorFlow sources installed, you can make use of TensorFlow's build system to compile your op. Place a BUILD file with following Bazel build rule in the <code> directory.
+
+Run the following command to build <code>.
+
+For compiling the <code> operation, with the CUDA Kernel, you need to use the <code> parameter of <code>. Place a BUILD file with the following Bazel build rule in a new folder inside the <code> directory (e.g. "example_gpu").
+
+Run the following command to build <code>.
+
+Note: As explained above, if you are compiling with gcc>=5 add <code> to the Bazel command line arguments. Note: Although you can create a shared library (a <code> file) with the standard <code> rule, we strongly recommend that you use the <code> macro. It adds some required dependencies, and performs checks to ensure that the shared library is compatible with TensorFlow's plugin loading mechanism.
+
+Use the op in Python.
+
+TensorFlow Python API provides the <code> function to load the dynamic library and register the op with the TensorFlow framework. <code> returns a Python module that contains the Python wrappers for the op and the kernel. Thus, once you have built the op, you can do the following to run it from Python:
+
+Keep in mind, the generated function will be given a snake\_case name (to comply with PEP8). So, if your op is named <code> in the C++ files, the python function will be called <code>.
+
+To make the op available as a regular function <code>-able from a Python module, it maybe useful to have the <code> call in a Python source file as follows:
+
+Verify that the op works.
+
+A good way to verify that you've successfully implemented your op is to write a test for it. Create the file <code> with the contents:
+
+Then run your test (assuming you have tensorflow installed):
+
+Build advanced features into your op.
+
+Now that you know how to build a basic (and somewhat restricted) op and implementation, we'll look at some of the more complicated things you will typically need to build into your op. This includes:
+
+Conditional checks and validation.
+
+Op registration.
+
+Attrs.
+
+Attr types.
+
+Polymorphism.
+
+Inputs and outputs.
+
+Backwards compatibility.
+
+GPU support.
+
+Compiling the kernel for the GPU device.
+
+Implement the gradient in Python.
+
+Shape functions in C++.
+
+Conditional checks and validation.
+
+The example above assumed that the op applied to a tensor of any shape. What if it only applied to vectors? That means adding a check to the above OpKernel implementation.
+
+This asserts that the input is a vector, and returns having set the <code> status if it isn't. The <code> macro takes three arguments:
+
+The <code>, which can either be an <code> or <code> pointer (see <code>), for its <code> method.
+
+The condition. For example, there are functions for validating the shape of a tensor in <code>.
+
+The error itself, which is represented by a <code> object, see <code>. A <code> has both a type (frequently <code>, but see the list of types) and a message. Functions for constructing an error may be found in <code>.
+
+Alternatively, if you want to test whether a <code> object returned from some function is an error, and if so return it, use <code>. Both of these macros return from the function on error.
+
+Op registration.
+
+Attrs.
+
+Ops can have attrs, whose values are set when the op is added to a graph. These are used to configure the op, and their values can be accessed both within the kernel implementation and in the types of inputs and outputs in the op registration. Prefer using an input instead of an attr when possible, since inputs are more flexible. This is because attrs are constants and must be defined at graph construction time. In contrast, inputs are Tensors whose values can be dynamic; that is, inputs can change every step, be set using a feed, etc. Attrs are used for things that can't be done with inputs: any configuration that affects the signature (number or type of inputs or outputs) or that can't change from step-to-step.
+
+You define an attr when you register the op, by specifying its name and type using the <code> method, which expects a spec of the form:
+
+where <code> begins with a letter and can be composed of alphanumeric characters and underscores, and <code> is a type expression of the form described below.
+
+For example, if you'd like the <code> op to preserve a user-specified index, instead of only the 0th element, you can register the op like so:
+
+(Note that the set of attribute types is different from the <code> used for inputs and outputs.).
+
+Your kernel can then access this attr in its constructor via the <code> parameter:
+
+which can then be used in the <code> method:
+
+Attr types.
+
+The following types are supported in an attr:
+
+<code>: Any sequence of bytes (not required to be UTF8).
+
+<code>: A signed integer.
+
+<code>: A floating point number.
+
+<code>: True or false.
+
+<code>: One of the (non-ref) values of <code>.
+
+<code>: A <code>.
+
+<code>: A list of <code>, where <code> is one of the above types. Note that <code> is invalid.
+
+See also: <code> for a definitive list.
+
+Default values and constraints.
+
+Attrs may have default values, and some types of attrs can have constraints. To define an attr with constraints, you can use the following <code>s:
+
+<code>: The value must be a string that has either the value <code> or <code>. The name of the type, <code>, is implied when you use this syntax. This emulates an enum:
+
+<code>: The value is of type <code>, and must be one of <code> or <code>, where <code> and <code> are supported <code>. You don't specify that the type of the attr is <code>. This is implied when you have a list of types in <code>. For example, in this case the attr <code> is a type that must be an <code>, a <code>, or a <code>:
+
+There are shortcuts for common type constraints:
+
+<code>: Type <code> restricted to the numeric (non-string and non-bool) types.
+
+<code>: Like <code> without complex types.
+
+<code>: Like <code> but just the quantized number types.
+
+The specific lists of types allowed by these are defined by the functions (like <code>) in <code>. In this example the attr <code> must be one of the numeric types:
+
+For this op:
+
+Lists can be combined with other lists and single types. The following op allows attr <code> to be any of the numeric types, or the bool type:
+
+For this op:
+
+<code>: The value must be an int whose value is greater than or equal to <code>, where <code> is a natural number. For example, the following op registration specifies that the attr <code> must have a value that is at least <code>:
+
+<code>: A list of type <code> whose length is greater than or equal to <code>. For example, the following op registration specifies that the attr <code> is a list of types (either <code> or <code>), and that there must be at least 3 of them:
+
+To set a default value for an attr (making it optional in the generated code), add <code> to the end, as in:
+
+Additionally, both a constraint and a default value can be specified:
+
+The supported syntax of the default value is what would be used in the proto representation of the resulting GraphDef definition.
+
+Here are examples for how to specify a default for all types:
+
+Note in particular that the values of type <code> use <code>.
+
+Polymorphism.
+
+Type polymorphism.
+
+For ops that can take different types as input or produce different output types, you can specify an attr in an input or output type in the op registration. Typically you would then register an <code> for each supported type.
+
+For instance, if you'd like the <code> op to work on <code>s in addition to <code>s, your op registration might look like:
+
+Your op registration now specifies that the input's type must be <code>, or <code>, and that its output will be the same type, since both have type <code>.
+
+Naming.
+
+Inputs, outputs, and attrs generally should be given snake\_case names. The one exception is attrs that are used as the type of an input or in the type of an output. Those attrs can be inferred when the op is added to the graph and so don't appear in the op's function. For example, this last definition of ZeroOut will generate a Python function that looks like:
+
+If <code> is passed an <code> tensor, then <code> is automatically set to <code> (well, actually <code>). Those inferred attrs are given Capitalized or CamelCase names.
+
+Compare this with an op that has a type attr that determines the output type:
+
+In this case, the user has to specify the output type, as in the generated Python:
+
+Type polymorphism example.
+
+To preserve backwards compatibility, you should specify a default value when adding an attr to an existing op:
+
+Let's say you wanted to add more types, say <code>:
+
+Instead of writing another <code> with redundant code as above, often you will be able to use a C++ template instead. You will still have one kernel registration (<code> call) per overload.
+
+If you have more than a couple overloads, you can put the registration in a macro.
+
+Depending on the list of types you are registering the kernel for, you may be able to use a macro provided by <code>:
+
+List inputs and outputs.
+
+In addition to being able to accept or produce different types, ops can consume or produce a variable number of tensors.
+
+In the next example, the attr <code> holds a list of types, and is used as the type of both the input <code> and the output <code>. The input and output are lists of tensors of that type (and the number and types of tensors in the output are the same as the input, since both have type <code>).
+
+You can also place restrictions on what types can be specified in the list. In this next case, the input is a list of <code> and <code> tensors. The op accepts, for example, input types <code> and in that case the output type would also be <code>.
+
+If you want all the tensors in a list to be of the same type, you might do something like:
+
+This accepts a list of <code> tensors, and uses an <code> attr <code> to specify the length of the list.
+
+This can be made type polymorphic as well. In the next example, the input is a list of tensors (with length <code>) of the same (but unspecified) type (<code>), and the output is a single tensor of matching type:
+
+By default, tensor lists have a minimum length of 1. You can change that default using a <code> constraint on the corresponding attr. In this next example, the input is a list of at least 2 <code> tensors:
+
+The same syntax works with <code> attrs:
+
+Inputs and outputs.
+
+To summarize the above, an op registration can have multiple inputs and outputs:
+
+Each input or output spec is of the form:
+
+where <code> begins with a letter and can be composed of alphanumeric characters and underscores. <code> is one of the following type expressions:
+
+<code>, where <code> is a supported input type (e.g. <code>, <code>, <code>). This specifies a single tensor of the given type.
+
+See <code>.
+
+<code>, where <code> is the name of an Attr with type <code> or <code> (with a possible type restriction). This syntax allows for polymorphic ops.
+
+Referencing an attr of type <code> allows you to accept a sequence of tensors.
+
+Note that the number and types of tensors in the output <code> is the same as in the input <code>, since both are of type <code>.
+
+For a sequence of tensors with the same type: <code>, where <code> is the name of an Attr with type <code>. The <code> can either be a <code>, or the name of an attr with type <code>. As an example of the first, this op accepts a list of <code> tensors:
+
+Whereas this op accepts a list of tensors of any type, as long as they are all the same:
+
+For a reference to a tensor: <code>, where <code> is one of the previous types.
+
+Any attr used in the type of an input will be inferred. By convention those inferred attrs use capital names (like <code> or <code>). Otherwise inputs, outputs, and attrs have names like function parameters (e.g. <code>). For more details, see the earlier section on naming.
+
+For more details, see <code>.
+
+Backwards compatibility.
+
+Let's assume you have written a nice, custom op and shared it with others, so you have happy customers using your operation. However, you'd like to make changes to the op in some way.
+
+In general, changes to existing, checked-in specifications must be backwards-compatible: changing the specification of an op must not break prior serialized <code> protocol buffers constructed from older specifications. The details of <code> compatibility are described here.
+
+There are several ways to preserve backwards-compatibility.
+
+Any new attrs added to an operation must have default values defined, and with that default value the op must have the original behavior. To change an operation from not polymorphic to polymorphic, you must give a default value to the new type attr to preserve the original signature by default. For example, if your operation was:
+
+you can make it polymorphic in a backwards-compatible way using:
+
+You can safely make a constraint on an attr less restrictive. For example, you can change from <code> to <code> or <code>. Or you may change from <code> to `{"apple", "banana", "orange"}<code>string`.
+
+You can change single inputs / outputs into list inputs / outputs, as long as the default for the list type matches the old signature.
+
+You can add a new list input / output, if it defaults to empty.
+
+Namespace any new ops you create, by prefixing the op names with something unique to your project. This avoids having your op colliding with any ops that might be included in future versions of TensorFlow.
+
+Plan ahead! Try to anticipate future uses for the op. Some signature changes can't be done in a compatible way (for example, making a list of the same type into a list of varying types).
+
+The full list of safe and unsafe changes can be found in <code>. If you cannot make your change to an operation backwards compatible, then create a new operation with a new name with the new semantics.
+
+Also note that while these changes can maintain <code> compatibility, the generated Python code may change in a way that isn't compatible with old callers. The Python API may be kept compatible by careful changes in a hand-written Python wrapper, by keeping the old signature except possibly adding new optional arguments to the end. Generally incompatible changes may only be made when TensorFlow changes major versions, and must conform to the <code> version semantics.
+
+GPU support.
+
+You can implement different OpKernels and register one for CPU and another for GPU, just like you can register kernels for different types. There are several examples of kernels with GPU support in <code>. Notice some kernels have a CPU version in a <code> file, a GPU version in a file ending in <code>, and some code shared in common in a <code> file.
+
+For example, the <code> has everything but the GPU kernel in <code>. The GPU kernel is in <code>, and the shared code is a templated class defined in <code>. We organize the code this way for two reasons: it allows you to share common code among the CPU and GPU implementations, and it puts the GPU implementation into a separate file so that it can be compiled only by the GPU compiler.
+
+One thing to note, even when the GPU kernel version of <code> is used, it still needs its <code> input in CPU memory. To mark that inputs or outputs are kept on the CPU, add a <code> call to the kernel registration, e.g.:
+
+Compiling the kernel for the GPU device.
+
+Look at cudaopkernel.cu.cc for an example that uses a CUDA kernel to implement an op. The <code> accepts a <code> argument in which the list of source files containing the CUDA kernels (<code> files) can be specified. For use with a binary installation of TensorFlow, the CUDA kernels have to be compiled with NVIDIA's <code> compiler. Here is the sequence of commands you can use to compile the cudaopkernel.cu.cc and cudaopkernel.cc into a single dynamically loadable library:
+
+<code> produced above can be loaded as usual in Python, using the <code> function.
+
+Note that if your CUDA libraries are not installed in <code>, you'll need to specify the path explicitly in the second (g++) command above. For example, add <code> if your CUDA is installed in <code>.
+
+Note: In some Linux settings, additional options to <code> compiling step are needed. Add <code> to the <code> command line to avoid errors from <code>.
+
+Implement the gradient in Python.
+
+Given a graph of ops, TensorFlow uses automatic differentiation (backpropagation) to add new ops representing gradients with respect to the existing ops. To make automatic differentiation work for new ops, you must register a gradient function which computes gradients with respect to the ops' inputs given gradients with respect to the ops' outputs.
+
+Mathematically, if an op computes \<math> the registered gradient op converts gradients \<math> of loss \<math> with respect to \<math> into gradients \<math> with respect to \<math> via the chain rule:
+
+<math>.
+
+In the case of <code>, only one entry in the input affects the output, so the gradient with respect to the input is a sparse "one hot" tensor. This is expressed as follows:
+
+Details about registering gradient functions with <code>:
+
+For an op with one output, the gradient function will take an <code>, <code>, and a <code> <code> and build new ops out of the tensors <code>, <code>, and <code>. Information about any attrs can be found via <code>.
+
+If the op has multiple outputs, the gradient function will take <code> and <code>, where <code> is a list of gradients with respect to each output. The result of the gradient function must be a list of <code> objects representing the gradients with respect to each input.
+
+If there is no well-defined gradient for some input, such as for integer inputs used as indices, the corresponding returned gradient should be <code>. For example, for an op taking a floating point tensor <code> and an integer index <code>, the gradient function would <code>.
+
+If there is no meaningful gradient for the op at all, you often will not have to register any gradient, and as long as the op's gradient is never needed, you will be fine. In some cases, an op has no well-defined gradient but can be involved in the computation of the gradient. Here you can use <code> to automatically propagate zeros backwards.
+
+Note that at the time the gradient function is called, only the data flow graph of ops is available, not the tensor data itself. Thus, all computation must be performed using other tensorflow ops, to be run at graph execution time.
+
+Add type hints when registering the custom gradient for an op type to make the code more readable, debuggable, easier to maintain, and more robust through data validation. For example, when taking an <code> as a parameter in a function, specify that the gradient function will take an <code>tf.Operation</code> as its parameter type.
+
+Shape functions in C++.
+
+The TensorFlow API has a feature called "shape inference" that provides information about the shapes of tensors without having to execute the graph. Shape inference is supported by "shape functions" that are registered for each op type in the C++ <code> declaration, and perform two roles: asserting that the shapes of the inputs are compatible during graph construction, and specifying the shapes for the outputs.
+
+Shape functions are defined as operations on the <code> class. For example, in the shape function for ZeroOut:
+
+<code> declares that the first output's shape should be set to the first input's shape. If the output is selected by its index as in the above example, the second parameter of <code> should be a <code> object. You can create an empty <code> object by its default constructor. The <code> object for an input with index <code> can be obtained by <code>.
+
+There are a number of common shape functions that apply to many ops, such as <code> which can be found in commonshapefns.h and used as follows:
+
+A shape function can also constrain the shape of an input. For the version of <code> with a vector shape constraint, the shape function would be as follows:
+
+The <code> call validates that the input shape <code> has a shape with exactly one dimension (or if the input shape is unknown, the output shape will be a vector with one unknown dimension).
+
+If your op is polymorphic with multiple inputs, you can use members of <code> to determine the number of shapes to check, and <code> to validate that the shapes are all compatible (alternatively, access attributes that indicate the lengths, with <code>, which provides access to the attributes of the op).
+
+Since shape inference is an optional feature, and the shapes of tensors may vary dynamically, shape functions must be robust to incomplete shape information for any of the inputs. The <code> method in <code> allows the caller to assert that two shapes are the same, even if either or both of them do not have complete information. Shape functions are defined for all of the core TensorFlow ops and provide many different usage examples.
+
+The <code> class has a number of functions that can be used to define shape function manipulations. For example, you can validate that a particular dimension has a very specific value using <code> and <code>; you can specify that an output dimension is the sum / product of two input dimensions using <code> and <code>. See the <code> class for all of the various shape manipulations you can specify. The following example sets shape of the first output to (n, 3), where first input has shape (n, ...).
+
+If you have a complicated shape function, you should consider adding a test for validating that various input shape combinations produce the expected output shape combinations. You can see examples of how to write these tests in some our core ops tests. (The syntax of <code> and <code> are a little cryptic, but try to be compact in representing input and output shape specifications in tests. For now, see the surrounding comments in those tests to get a sense of the shape string specification).
+
+Build a pip package for your custom op.
+
+To build a <code> package for your op, see the tensorflow/custom-op example. This guide shows how to build custom ops from the TensorFlow pip package instead of building TensorFlow from source.
+
+[core-arrayops]: [python-userops]: [tf-kernels]: [userops]: [padop]: [standardops-py]: [standardops-cc]: [python-BUILD]: [validation-macros]: [opdefbuilder]: [register_types]: [FinalizeAttr]: [DataTypeString]: [python-BUILD]: [types-proto]: [TensorShapeProto]: [TensorProto]:

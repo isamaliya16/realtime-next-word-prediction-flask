@@ -1,0 +1,71 @@
+Backpropagation through time (BPTT) is a gradient-based technique for training certain types of recurrent neural networks, such as Elman networks. The algorithm was independently derived by numerous researchers.
+
+Algorithm.
+
+The training data for a recurrent neural network is an ordered sequence of.
+
+<math>.
+
+input-output pairs.
+
+<math>.
+
+. An initial value must be specified for the hidden state.
+
+<math>.
+
+, typically chosen to be a zero vector. BPTT begins by unfolding a recurrent neural network in time. The unfolded network contains.
+
+<math>.
+
+inputs and outputs, but every copy of the network shares the same parameters. Then, the backpropagation algorithm is used to find the gradient of the loss function with respect to all the network parameters. Consider an example of a neural network that contains a recurrent layer.
+
+<math>.
+
+and a feedforward layer.
+
+<math>.
+
+. There are different ways to define the training cost, but the aggregated cost is always the average of the costs of each of the time steps. The cost of each time step can be computed separately. The figure above shows how the cost at time.
+
+<math>.
+
+can be computed, by unfolding the recurrent layer.
+
+<math>.
+
+for three time steps and adding the feedforward layer.
+
+<math>.
+
+. Each instance of.
+
+<math>.
+
+in the unfolded network shares the same parameters. Thus, the weight updates in each instance (.
+
+<math>.
+
+) are summed together.
+
+Pseudocode.
+
+Below is pseudocode for a truncated version of BPTT, where the training data contains.
+
+<math>.
+
+input-output pairs, and the network is unfolded for.
+
+<math>.
+
+time steps:
+
+BackPropagationThrough_Time(a, y) // a[t] is the input at time t. y[t] is the output Unfold the network to contain k instances of f do until stopping criterion is met: x := the zero-magnitude vector // x is the current context for t from 0 to n − k do // t is time. n is the length of the training sequence Set the network inputs to x, a[t], a[t+1], ..., a[t+k−1] p := forward-propagate the inputs over the whole unfolded network e := y[t+k] − p; // error = target − prediction Back-propagate the error, e, back across the whole unfolded network Sum the weight changes in the k instances of f together. Update all the weights in f and g. x := f(x, a[t]); // compute the context for the next time-step.
+
+Advantages.
+
+BPTT tends to be significantly faster for training recurrent neural networks than general-purpose optimization techniques such as evolutionary optimization.
+
+Disadvantages.
+
+BPTT has difficulty with local optima. With recurrent neural networks, local optima are a much more significant problem than with feed-forward neural networks. The recurrent feedback in such networks tends to create chaotic responses in the error surface which cause local optima to occur frequently, and in poor locations on the error surface.

@@ -1,0 +1,55 @@
+Deep Recurrent Neural Networks.
+
+Up until now, we have focused on defining networks consisting of a sequence input, a single hidden RNN layer, and an output layer. Despite having just one hidden layer between the input at any time step and the corresponding output, there is a sense in which these networks are deep. Inputs from the first time step can influence the outputs at the final time step <math> (often 100s or 1000s of steps later). These inputs pass through <math> applications of the recurrent layer before reaching the final output. However, we often also wish to retain the ability to express complex relationships between the inputs at a given time step and the outputs at that same time step. Thus we often construct RNNs that are deep not only in the time direction but also in the input-to-output direction. This is precisely the notion of depth that we have already encountered in our development of MLPs and deep CNNs.
+
+The standard method for building this sort of deep RNN is strikingly simple: we stack the RNNs on top of each other. Given a sequence of length <math>, the first RNN produces a sequence of outputs, also of length <math>. These, in turn, constitute the inputs to the next RNN layer. In this short section, we illustrate this design pattern and present a simple example for how to code up such stacked RNNs. Below, in section <num>, we illustrate a deep RNN with <math> hidden layers. Each hidden state operates on a sequential input and produces a sequential output. Moreover, any RNN cell (white box in section <num>) at each time step depends on both the same layer's value at the previous time step and the previous layer's value at the same time step.
+
+Formally, suppose that we have a minibatch input <math> (number of examples <math>; number of inputs in each example <math>) at time step <math>. At the same time step, let the hidden state of the <math> hidden layer (<math>) be <math> (number of hidden units <math>) and the output layer variable be <math> (number of outputs: <math>). Setting <math>, the hidden state of the <math> hidden layer that uses the activation function <math> is calculated as follows:
+
+<math>.
+
+where the weights <math> and <math>, together with the bias <math>, are the model parameters of the <math> hidden layer.
+
+At the end, the calculation of the output layer is only based on the hidden state of the final <math> hidden layer:
+
+<math>.
+
+where the weight <math> and the bias <math> are the model parameters of the output layer.
+
+Just as with MLPs, the number of hidden layers <math> and the number of hidden units <math> are hyperparameters that we can tune. Common RNN layer widths (<math>) are in the range <math>, and common depths (<math>) are in the range <math>. In addition, we can easily get a deep-gated RNN by replacing the hidden state computation in <num> with that from an LSTM or a GRU.
+
+Implementation from Scratch.
+
+To implement a multilayer RNN from scratch, we can treat each layer as an <code> instance with its own learnable parameters.
+
+The multilayer forward computation simply performs forward computation layer by layer.
+
+As an example, we train a deep GRU model on The Time Machine dataset (same as in section <num>). To keep things simple we set the number of layers to 2.
+
+Concise Implementation.
+
+Fortunately many of the logistical details required to implement multiple layers of an RNN are readily available in high-level APIs. Our concise implementation will use such built-in functionalities. The code generalizes the one we used previously in section <num>, letting us specify the number of layers explicitly rather than picking the default of only one layer.
+
+Flax takes a minimalistic approach while implementing RNNs. Defining the number of layers in an RNN or combining it with dropout is not available out of the box. Our concise implementation will use all built-in functionalities and add <code> and <code> features on top. The code generalizes the one we used previously in section <num>, allowing specification of the number of layers explicitly rather than picking the default of a single layer.
+
+The architectural decisions such as choosing hyperparameters are very similar to those of section <num>. We pick the same number of inputs and outputs as we have distinct tokens, i.e., <code>. The number of hidden units is still 32. The only difference is that we now (select a nontrivial number of hidden layers by specifying the value of <code>.).
+
+Summary.
+
+In deep RNNs, the hidden state information is passed to the next time step of the current layer and the current time step of the next layer. There exist many different flavors of deep RNNs, such as LSTMs, GRUs, or vanilla RNNs. Conveniently, these models are all available as parts of the high-level APIs of deep learning frameworks. Initialization of models requires care. Overall, deep RNNs require considerable amount of work (such as learning rate and clipping) to ensure proper convergence.
+
+Exercises.
+
+Replace the GRU by an LSTM and compare the accuracy and training speed.
+
+Increase the training data to include multiple books. How low can you go on the perplexity scale?
+
+Would you want to combine sources of different authors when modeling text? Why is this a good idea? What could go wrong?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

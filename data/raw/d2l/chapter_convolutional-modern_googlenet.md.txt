@@ -1,0 +1,73 @@
+Multi-Branch Networks (GoogLeNet).
+
+In 2014, GoogLeNet won the ImageNet Challenge , using a structure that combined the strengths of NiN , repeated blocks , and a cocktail of convolution kernels. It was arguably also the first network that exhibited a clear distinction among the stem (data ingest), body (data processing), and head (prediction) in a CNN. This design pattern has persisted ever since in the design of deep networks: the stem is given by the first two or three convolutions that operate on the image. They extract low-level features from the underlying images. This is followed by a body of convolutional blocks. Finally, the head maps the features obtained so far to the required classification, segmentation, detection, or tracking problem at hand.
+
+The key contribution in GoogLeNet was the design of the network body. It solved the problem of selecting convolution kernels in an ingenious way. While other works tried to identify which convolution, ranging from <math> to <math> would be best, it simply concatenated multi-branch convolutions. In what follows we introduce a slightly simplified version of GoogLeNet: the original design included a number of tricks for stabilizing training through intermediate loss functions, applied to multiple layers of the network. They are no longer necessary due to the availability of improved training algorithms.
+
+(Inception Blocks).
+
+The basic convolutional block in GoogLeNet is called an Inception block, stemming from the meme "we need to go deeper" from the movie Inception.
+
+As depicted in section <num>, the inception block consists of four parallel branches. The first three branches use convolutional layers with window sizes of <math>, <math>, and <math> to extract information from different spatial sizes. The middle two branches also add a <math> convolution of the input to reduce the number of channels, reducing the model's complexity. The fourth branch uses a <math> max-pooling layer, followed by a <math> convolutional layer to change the number of channels. The four branches all use appropriate padding to give the input and output the same height and width. Finally, the outputs along each branch are concatenated along the channel dimension and comprise the block's output. The commonly-tuned hyperparameters of the Inception block are the number of output channels per layer, i.e., how to allocate capacity among convolutions of different size.
+
+To gain some intuition for why this network works so well, consider the combination of the filters. They explore the image in a variety of filter sizes. This means that details at different extents can be recognized efficiently by filters of different sizes. At the same time, we can allocate different amounts of parameters for different filters.
+
+[GoogLeNet Model].
+
+As shown in section <num>, GoogLeNet uses a stack of a total of 9 inception blocks, arranged into three groups with max-pooling in between, and global average pooling in its head to generate its estimates. Max-pooling between inception blocks reduces the dimensionality. At its stem, the first module is similar to AlexNet and LeNet.
+
+We can now implement GoogLeNet piece by piece. Let's begin with the stem. The first module uses a 64-channel <math> convolutional layer.
+
+The second module uses two convolutional layers: first, a 64-channel <math> convolutional layer, followed by a <math> convolutional layer that triples the number of channels. This corresponds to the second branch in the Inception block and concludes the design of the body. At this point we have 192 channels.
+
+The third module connects two complete Inception blocks in series. The number of output channels of the first Inception block is <math>. This amounts to a ratio of the number of output channels among the four branches of <math>. To achieve this, we first reduce the input dimensions by <math> and by <math> in the second and third branch respectively to arrive at <math> and <math> channels respectively.
+
+The number of output channels of the second Inception block is increased to <math>, yielding a ratio of <math>. As before, we need to reduce the number of intermediate dimensions in the second and third channel. A scale of <math> and <math> respectively suffices, yielding <math> and <math> channels respectively. This is captured by the arguments of the following <code> block constructors.
+
+The fourth module is more complicated. It connects five Inception blocks in series, and they have <math>, <math>, <math>, <math>, and <math> output channels, respectively. The number of channels assigned to these branches is similar to that in the third module: the second branch with the <math> convolutional layer outputs the largest number of channels, followed by the first branch with only the <math> convolutional layer, the third branch with the <math> convolutional layer, and the fourth branch with the <math> max-pooling layer. The second and third branches will first reduce the number of channels according to the ratio. These ratios are slightly different in different Inception blocks.
+
+The fifth module has two Inception blocks with <math> and <math> output channels. The number of channels assigned to each branch is the same as that in the third and fourth modules, but differs in specific values. It should be noted that the fifth block is followed by the output layer. This block uses the global average pooling layer to change the height and width of each channel to 1, just as in NiN. Finally, we turn the output into a two-dimensional array followed by a fully connected layer whose number of outputs is the number of label classes.
+
+Now that we defined all blocks <code> through <code>, it is just a matter of assembling them all into a full network.
+
+The GoogLeNet model is computationally complex. Note the large number of relatively arbitrary hyperparameters in terms of the number of channels chosen, the number of blocks prior to dimensionality reduction, the relative partitioning of capacity across channels, etc. Much of it is due to the fact that at the time when GoogLeNet was introduced, automatic tools for network definition or design exploration were not yet available. For instance, by now we take it for granted that a competent deep learning framework is capable of inferring dimensionalities of input tensors automatically. At the time, many such configurations had to be specified explicitly by the experimenter, thus often slowing down active experimentation. Moreover, the tools needed for automatic exploration were still in flux and initial experiments largely amounted to costly brute-force exploration, genetic algorithms, and similar strategies.
+
+For now the only modification we will carry out is to [reduce the input height and width from 224 to 96 to have a reasonable training time on Fashion-MNIST.] This simplifies the computation. Let's have a look at the changes in the shape of the output between the various modules.
+
+[Training].
+
+As before, we train our model using the Fashion-MNIST dataset. We transform it to <math> pixel resolution before invoking the training procedure.
+
+Discussion.
+
+A key feature of GoogLeNet is that it is actually cheaper to compute than its predecessors while simultaneously providing improved accuracy. This marks the beginning of a much more deliberate network design that trades off the cost of evaluating a network with a reduction in errors. It also marks the beginning of experimentation at a block level with network design hyperparameters, even though it was entirely manual at the time. We will revisit this topic in section <num> when discussing strategies for network structure exploration.
+
+Over the following sections we will encounter a number of design choices (e.g., batch normalization, residual connections, and channel grouping) that allow us to improve networks significantly. For now, you can be proud to have implemented what is arguably the first truly modern CNN.
+
+Exercises.
+
+GoogLeNet was so successful that it went through a number of iterations, progressively improving speed and accuracy. Try to implement and run some of them. They include the following:
+
+Add a batch normalization layer , as described later in section <num>.
+
+Make adjustments to the Inception block (width, choice and order of convolutions), as described in .
+
+Use label smoothing for model regularization, as described in .
+
+Make further adjustments to the Inception block by adding residual connection , as described later in section <num>.
+
+What is the minimum image size needed for GoogLeNet to work?
+
+Can you design a variant of GoogLeNet that works on Fashion-MNIST's native resolution of <math> pixels? How would you need to change the stem, the body, and the head of the network, if anything at all?
+
+Compare the model parameter sizes of AlexNet, VGG, NiN, and GoogLeNet. How do the latter two network architectures significantly reduce the model parameter size?
+
+Compare the amount of computation needed in GoogLeNet and AlexNet. How does this affect the design of an accelerator chip, e.g., in terms of memory size, memory bandwidth, cache size, the amount of computation, and the benefit of specialized operations?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

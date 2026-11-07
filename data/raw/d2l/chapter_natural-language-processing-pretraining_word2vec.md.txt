@@ -1,0 +1,109 @@
+Word Embedding (word2vec).
+
+Natural language is a complex system used to express meanings. In this system, words are the basic unit of the meaning. As the name implies, word vectors are vectors used to represent words, and can also be considered as feature vectors or representations of words. The technique of mapping words to real vectors is called word embedding. In recent years, word embedding has gradually become the basic knowledge of natural language processing.
+
+One-Hot Vectors Are a Bad Choice.
+
+We used one-hot vectors to represent words (characters are words) in section <num>. Suppose that the number of different words in the dictionary (the dictionary size) is <math>, and each word corresponds to a different integer (index) from <math> to <math>. To obtain the one-hot vector representation for any word with index <math>, we create a length-<math> vector with all 0s and set the element at position <math> to 1. In this way, each word is represented as a vector of length <math>, and it can be used directly by neural networks.
+
+Although one-hot word vectors are easy to construct, they are usually not a good choice. A main reason is that one-hot word vectors cannot accurately express the similarity between different words, such as the cosine similarity that we often use. For vectors <math>, their cosine similarity is the cosine of the angle between them:
+
+<math>.
+
+Since the cosine similarity between one-hot vectors of any two different words is 0, one-hot vectors cannot encode similarities among words.
+
+Self-Supervised word2vec.
+
+The word2vec tool was proposed to address the above issue. It maps each word to a fixed-length vector, and these vectors can better express the similarity and analogy relationship among different words. The word2vec tool contains two models, namely skip-gram and continuous bag of words (CBOW) . For semantically meaningful representations, their training relies on conditional probabilities that can be viewed as predicting some words using some of their surrounding words in corpora. Since supervision comes from the data without labels, both skip-gram and continuous bag of words are self-supervised models.
+
+In the following, we will introduce these two models and their training methods.
+
+The Skip-Gram Model.
+
+The skip-gram model assumes that a word can be used to generate its surrounding words in a text sequence. Take the text sequence "the", "man", "loves", "his", "son" as an example. Let's choose "loves" as the center word and set the context window size to 2. As shown in section <num>, given the center word "loves", the skip-gram model considers the conditional probability for generating the context words: "the", "man", "his", and "son", which are no more than 2 words away from the center word:
+
+<math>.
+
+Assume that the context words are independently generated given the center word (i.e., conditional independence). In this case, the above conditional probability can be rewritten as.
+
+<math>.
+
+In the skip-gram model, each word has two <math>-dimensional-vector representations for calculating conditional probabilities. More concretely, for any word with index <math> in the dictionary, denote by <math> and <math> its two vectors when used as a center word and a context word, respectively. The conditional probability of generating any context word <math> (with index <math> in the dictionary) given the center word <math> (with index <math> in the dictionary) can be modeled by a softmax operation on vector dot products:
+
+<math>.
+
+where the vocabulary index set <math>. Given a text sequence of length <math>, where the word at time step <math> is denoted as <math>. Assume that context words are independently generated given any center word. For context window size <math>, the likelihood function of the skip-gram model is the probability of generating all context words given any center word:
+
+<math>.
+
+where any time step that is less than <math> or greater than <math> can be omitted.
+
+Training.
+
+The skip-gram model parameters are the center word vector and context word vector for each word in the vocabulary. In training, we learn the model parameters by maximizing the likelihood function (i.e., maximum likelihood estimation). This is equivalent to minimizing the following loss function:
+
+<math>.
+
+When using stochastic gradient descent to minimize the loss, in each iteration we can randomly sample a shorter subsequence to calculate the (stochastic) gradient for this subsequence to update the model parameters. To calculate this (stochastic) gradient, we need to obtain the gradients of the log conditional probability with respect to the center word vector and the context word vector. In general, according to <num> the log conditional probability involving any pair of the center word <math> and the context word <math> is.
+
+<math>.
+
+Through differentiation, we can obtain its gradient with respect to the center word vector <math> as.
+
+<math>.
+
+Note that the calculation in <num> requires the conditional probabilities of all words in the dictionary with <math> as the center word. The gradients for the other word vectors can be obtained in the same way.
+
+After training, for any word with index <math> in the dictionary, we obtain both word vectors <math> (as the center word) and <math> (as the context word). In natural language processing applications, the center word vectors of the skip-gram model are typically used as the word representations.
+
+The Continuous Bag of Words (CBOW) Model.
+
+The continuous bag of words (CBOW) model is similar to the skip-gram model. The major difference from the skip-gram model is that the continuous bag of words model assumes that a center word is generated based on its surrounding context words in the text sequence. For example, in the same text sequence "the", "man", "loves", "his", and "son", with "loves" as the center word and the context window size being 2, the continuous bag of words model considers the conditional probability of generating the center word "loves" based on the context words "the", "man", "his" and "son" (as shown in section <num>), which is.
+
+<math>.
+
+Since there are multiple context words in the continuous bag of words model, these context word vectors are averaged in the calculation of the conditional probability. Specifically, for any word with index <math> in the dictionary, denote by <math> and <math> its two vectors when used as a context word and a center word (meanings are switched in the skip-gram model), respectively. The conditional probability of generating any center word <math> (with index <math> in the dictionary) given its surrounding context words <math> (with index <math> in the dictionary) can be modeled by.
+
+<math>.
+
+For brevity, let <math> and <math>. Then <num> can be simplified as.
+
+<math>.
+
+Given a text sequence of length <math>, where the word at time step <math> is denoted as <math>. For context window size <math>, the likelihood function of the continuous bag of words model is the probability of generating all center words given their context words:
+
+<math>.
+
+Training.
+
+Training continuous bag of words models is almost the same as training skip-gram models. The maximum likelihood estimation of the continuous bag of words model is equivalent to minimizing the following loss function:
+
+<math>.
+
+Notice that.
+
+<math>.
+
+Through differentiation, we can obtain its gradient with respect to any context word vector <math>(<math>) as.
+
+<math>.
+
+The gradients for the other word vectors can be obtained in the same way. Unlike the skip-gram model, the continuous bag of words model typically uses context word vectors as the word representations.
+
+Summary.
+
+Word vectors are vectors used to represent words, and can also be considered as feature vectors or representations of words. The technique of mapping words to real vectors is called word embedding.
+
+The word2vec tool contains both the skip-gram and continuous bag of words models.
+
+The skip-gram model assumes that a word can be used to generate its surrounding words in a text sequence; while the continuous bag of words model assumes that a center word is generated based on its surrounding context words.
+
+Exercises.
+
+What is the computational complexity for calculating each gradient? What could be the issue if the dictionary size is huge?
+
+Some fixed phrases in English consist of multiple words, such as "new york". How to train their word vectors? Hint: see Section 4 in the word2vec paper .
+
+Let's reflect on the word2vec design by taking the skip-gram model as an example. What is the relationship between the dot product of two word vectors in the skip-gram model and the cosine similarity? For a pair of words with similar semantics, why may the cosine similarity of their word vectors (trained by the skip-gram model) be high?
+
+Discussions.

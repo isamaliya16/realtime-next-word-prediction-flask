@@ -1,0 +1,109 @@
+Distributed Training with Uneven Inputs Using the Join Context Manager.
+
+Author\ : Andrew Gu.
+
+In this tutorial, you will see:
+
+An overview of the Join context manager.
+
+An example of how to use the context manager with <code>.
+
+An example of how to use the context manager with both <code> and <code>.
+
+An example of passing in keyword arguments to the context manager.
+
+A dive into how the Join context manager works.
+
+An example showing how to make a toy class compatible with the context manager.
+
+Requirements.
+
+PyTorch 1.10+.
+
+Getting Started with Distributed Data Parallel.
+
+Shard Optimizer States with ZeroRedundancyOptimizer.
+
+What is <code>? In Getting Started with Distributed Data Parallel - Basic Use Case, you saw the general skeleton for using DistributedDataParallel to perform data parallel training. This implicitly schedules all-reduces in each backward pass to synchronize gradients across ranks. Such collective communications require participation from all ranks in the process group, so if a rank has fewer inputs, then the other ranks will hang or error (depending on the backend). More generally, this problem persists for any class that performs per-iteration synchronous collective communications.
+
+<code> is a context manager to be used around your per-rank training loop to facilitate training with uneven inputs. The context manager allows the ranks that exhaust their inputs early (i.e. join early) to shadow the collective communications performed by those that have not yet joined. The ways in which the communications are shadowed are specified by hooks.
+
+Using <code> with <code> PyTorch's DistributedDataParallel works out-of-the-box with the <code> context manager. Here is an example usage:
+
+: This produces the following output (where the <code> s from rank 0 and rank 1 may be arbitrarily ordered):
+
+: Using <code> with <code> and <code> The <code> context manager works not only with a single class but also with multiple classes together. PyTorch's <code> is also compatible with the context manager, so here, we examine how to modify the previous example to use both <code> and <code>:
+
+: This will yield the same output as before. The notable change was additionally passing in the <code> instance into <code>.
+
+Passing Keyword Arguments Classes may provide keyword arguments that modify their behavior in the context manager at run time. For example, <code> provides an argument <code>, which determines if gradients are divided by the initial world size or by the effective world size (i.e. number of non-joined ranks). Such keyword arguments can be passed directly into the context manager.
+
+: How Does <code> Work? Now that we have seen some preliminary examples of how to use the <code> context manager, let us delve deeper into how it works. This will provide a greater insight into the full capability that it offers and prepare you to make your own custom classes compatible. Here, we will go over the <code> class as well as the supporting classes <code> and <code>.
+
+<code>.
+
+To begin, classes compatible with the <code> context manager must inherit from the abstract base class <code>. In particular, a <code> must implement:
+
+<code>.
+
+This returns the <code> instance for the <code>, determining how joined processes should shadow the per-iteration collective communications performed by the <code>.
+
+<code>.
+
+This returns a device to be used by the <code> context manager to perform collective communications, e.g. <code> or <code>.
+
+<code>.
+
+This returns the process group to be used by the <code> context manager to perform collective communications.
+
+In particular, the <code> and <code> are required attributes to ensure that the context manager can schedule collective communications between joined and non-joined processes. One usage is to count the number of non-joined processes on each iteration using an all-reduce. Another usage is for implementing the mechanism required for <code>, which we will explain later below.
+
+<code> and <code> already inherit from <code> and implement the above methods, which is why we could directly use them in the previous examples.
+
+<code> classes should make sure to call the <code> constructor since it initializes a <code> instance, which is used internally by the context manager to ensure correctness. This will be saved in each <code> as a field <code>.
+
+<code>.
+
+Next, let us break down the <code> class. A <code> provides two entry points into a context manager:
+
+<code>.
+
+This hook is called repeatedly by each joined rank while there exists a rank that has not yet joined. It is meant to shadow the collective communications performed by the <code> in each training iteration (e.g. in one forward pass, backward pass, and optimizer step).
+
+<code>.
+
+This hook is called once all ranks have joined. It is passed an additional <code> argument <code>, which indicates if the rank was one of the last to join. The argument may be useful for synchronization.
+
+To give concrete examples of what these hooks may look like, the provided <code> main hook performs an optimizer step per normal since the joined rank is still responsible for updating and synchronizing its shard of the parameters, and the provided <code> post-hook broadcasts the final updated model from one of the last joining ranks to ensure that it is the same across all ranks.
+
+<code>.
+
+Finally, let us examine how these fit into the <code> class itself.
+
+<code>.
+
+As we saw in the previous examples, the constructor takes in a list of the <code> s that participate in the training loop. These should be the classes that perform collective communications in each iteration.
+
+<code> is a <code> that can be set to <code> if you know that there will not be uneven inputs, in which case the context manager becomes vacuous similar to <code>. This also may disable join-related computation in the participating <code> s.
+
+<code> is a <code> that can be set to <code> to have each rank raise an exception the moment that uneven inputs are detected. This is useful for cases that do not conform to the context manager's requirements, which is most typically when there are collective communications from different classes that may be arbitrarily interleaved, such as when using <code> with a model that has <code> layers. In such cases, this argument should be set to <code> so that the application logic can catch the exception and determine how to proceed.
+
+The core logic occurs in the <code> method, which loops while there exists a non-joined rank, calling each <code> 's main hook, and then once all ranks have joined, calls their post hooks. Both the main hooks and post-hooks are iterated over in the order that the <code> s are passed in.
+
+The context manager requires a heartbeat from non-joined processes. As such, each <code> class should make a call to <code> before its per-iteration collective communications. The context manager will ensure that only the first <code> passed in actually sends the heartbeat.
+
+Making a Toy Class Work with <code> Since the previous section introduced several concepts, let us see them in practice with a toy example. Here, we will implement a class that counts the number of inputs that are seen across all ranks before its rank joins. This should provide a basic idea of how you may make your own class compatible with the <code> context manager.
+
+Specifically, the following code has each rank print out (1) the number of inputs across all ranks that seen before it joins and (2) the total number of inputs across all ranks.
+
+: Since rank 0 sees 5 inputs and rank 1 sees 6, this yields the output:
+
+: Some key points to highlight:
+
+A <code> instance performs a single all-reduce per iteration, so the main hook performs a single all-reduce as well to shadow it.
+
+The <code> class makes a call to <code> at the beginning of its <code> method since that is a place before its per- iteration collective communications (i.e. its all-reduce).
+
+The <code> argument is used to determine the broadcast source in the post-hooks.
+
+We pass in the <code> keyword argument to the context manager, which is then forwarded to <code> 's join hook.

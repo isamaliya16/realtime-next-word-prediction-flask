@@ -1,0 +1,101 @@
+Fast tokenizers' special powers.
+
+In this section we will take a closer look at the capabilities of the tokenizers in 🤗 Transformers. Up to now we have only used them to tokenize inputs or decode IDs back into text, but tokenizers -- especially those backed by the 🤗 Tokenizers library -- can do a lot more. To illustrate these additional features, we will explore how to reproduce the results of the <code> (that we called <code>) and <code> pipelines that we first encountered in Chapter 1.
+
+In the following discussion, we will often make the distinction between "slow" and "fast" tokenizers. Slow tokenizers are those written in Python inside the 🤗 Transformers library, while the fast versions are the ones provided by 🤗 Tokenizers, which are written in Rust. If you remember the table from Chapter 5 that reported how long it took a fast and a slow tokenizer to tokenize the Drug Review Dataset, you should have an idea of why we call them fast and slow:
+
+:--------------:|:--------------:|:-------------: <code> | 10.8s | 4min41s <code> | 59.2s | 5min3s.
+
+⚠️ When tokenizing a single sentence, you won't always see a difference in speed between the slow and fast versions of the same tokenizer. In fact, the fast version might actually be slower! It's only when tokenizing lots of texts in parallel at the same time that you will be able to clearly see the difference.
+
+Batch encoding.
+
+The output of a tokenizer isn't a simple Python dictionary; what we get is actually a special <code> object. It's a subclass of a dictionary (which is why we were able to index into that result without any problem before), but with additional methods that are mostly used by fast tokenizers.
+
+Besides their parallelization capabilities, the key functionality of fast tokenizers is that they always keep track of the original span of texts the final tokens come from -- a feature we call offset mapping. This in turn unlocks features like mapping each word to the tokens it generated or mapping each character of the original text to the token it's inside, and vice versa.
+
+Let's take a look at an example:
+
+As mentioned previously, we get a <code> object in the tokenizer's output:
+
+Since the <code> class picks a fast tokenizer by default, we can use the additional methods this <code> object provides. We have two ways to check if our tokenizer is a fast or a slow one. We can either check the attribute <code> of the <code>:
+
+or check the same attribute of our <code>:
+
+Let's see what a fast tokenizer enables us to do. First, we can access the tokens without having to convert the IDs back to tokens:
+
+In this case the token at index 5 is <code>, which is part of the word "Sylvain" in the original sentence. We can also use the <code> method to get the index of the word each token comes from:
+
+We can see that the tokenizer's special tokens <code> and <code> are mapped to <code>, and then each token is mapped to the word it originates from. This is especially useful to determine if a token is at the start of a word or if two tokens are in the same word. We could rely on the <code> prefix for that, but it only works for BERT-like tokenizers; this method works for any type of tokenizer as long as it's a fast one. In the next chapter, we'll see how we can use this capability to apply the labels we have for each word properly to the tokens in tasks like named entity recognition (NER) and part-of-speech (POS) tagging. We can also use it to mask all the tokens coming from the same word in masked language modeling (a technique called whole word masking).
+
+The notion of what a word is complicated. For instance, does "I'll" (a contraction of "I will") count as one or two words? It actually depends on the tokenizer and the pre-tokenization operation it applies. Some tokenizers just split on spaces, so they will consider this as one word. Others use punctuation on top of spaces, so will consider it two words. ✏️ Try it out! Create a tokenizer from the <code> and <code> checkpoints and tokenize "81s" with them. What do you observe? What are the word IDs?
+
+Similarly, there is a <code> method that we can use to map a token to the sentence it came from (though in this case, the <code> returned by the tokenizer can give us the same information).
+
+Lastly, we can map any word or token to characters in the original text, and vice versa, via the <code> or <code> and <code> or <code> methods. For instance, the <code> method told us that <code> is part of the word at index 3, but which word is it in the sentence? We can find out like this:
+
+As we mentioned previously, this is all powered by the fact the fast tokenizer keeps track of the span of text each token comes from in a list of offsets. To illustrate their use, next we'll show you how to replicate the results of the <code> pipeline manually.
+
+✏️ Try it out! Create your own example text and see if you can understand which tokens are associated with word ID, and also how to extract the character spans for a single word. For bonus points, try using two sentences as input and see if the sentence IDs make sense to you.
+
+Inside the <code> pipeline.
+
+In Chapter 1 we got our first taste of applying NER -- where the task is to identify which parts of the text correspond to entities like persons, locations, or organizations -- with the 🤗 Transformers <code> function. Then, in Chapter 2, we saw how a pipeline groups together the three stages necessary to get the predictions from a raw text: tokenization, passing the inputs through the model, and post-processing. The first two steps in the <code> pipeline are the same as in any other pipeline, but the post-processing is a little more complex -- let's see how!
+
+Getting the base results with the pipeline.
+
+First, let's grab a token classification pipeline so we can get some results to compare manually. The model used by default is <code>; it performs NER on sentences:
+
+The model properly identified each token generated by "Sylvain" as a person, each token generated by "Hugging Face" as an organization, and the token "Brooklyn" as a location. We can also ask the pipeline to group together the tokens that correspond to the same entity:
+
+The <code> picked will change the scores computed for each grouped entity. With <code> the score is just the mean of the scores of each token in the given entity: for instance, the score of "Sylvain" is the mean of the scores we saw in the previous example for the tokens <code>, <code>, <code>, and <code>. Other strategies available are:
+
+<code>, where the score of each entity is the score of the first token of that entity (so for "Sylvain" it would be 0.993828, the score of the token <code>).
+
+<code>, where the score of each entity is the maximum score of the tokens in that entity (so for "Hugging Face" it would be 0.98879766, the score of "Face").
+
+<code>, where the score of each entity is the average of the scores of the words composing that entity (so for "Sylvain" there would be no difference from the <code> strategy, but "Hugging Face" would have a score of 0.9819, the average of the scores for "Hugging", 0.975, and "Face", 0.98879).
+
+Now let's see how to obtain these results without using the <code> function!
+
+From inputs to predictions.
+
+First we need to tokenize our input and pass it through the model. This is done exactly as in Chapter 2; we instantiate the tokenizer and the model using the <code> classes and then use them on our example:
+
+Since we're using <code> here, we get one set of logits for each token in the input sequence:
+
+First we need to tokenize our input and pass it through the model. This is done exactly as in Chapter 2; we instantiate the tokenizer and the model using the <code> classes and then use them on our example:
+
+Since we're using <code> here, we get one set of logits for each token in the input sequence:
+
+We have a batch with 1 sequence of 19 tokens and the model has 9 different labels, so the output of the model has a shape of 1 x 19 x 9. Like for the text classification pipeline, we use a softmax function to convert those logits to probabilities, and we take the argmax to get predictions (note that we can take the argmax on the logits because the softmax does not change the order):
+
+The <code> attribute contains the mapping of indexes to labels that we can use to make sense of the predictions:
+
+As we saw earlier, there are 9 labels: <code> is the label for the tokens that are not in any named entity (it stands for "outside"), and we then have two labels for each type of entity (miscellaneous, person, organization, and location). The label <code> indicates the token is at the beginning of an entity <code> and the label <code> indicates the token is inside the entity <code>. For instance, in the current example we would expect our model to classify the token <code> as <code> (beginning of a person entity) and the tokens <code>, <code> and <code> as <code> (inside a person entity).
+
+You might think the model was wrong in this case as it gave the label <code> to all four of these tokens, but that's not entirely true. There are actually two formats for those <code> and <code> labels: IOB1 and IOB2. The IOB2 format (in pink below), is the one we introduced whereas in the IOB1 format (in blue), the labels beginning with <code> are only ever used to separate two adjacent entities of the same type. The model we are using was fine-tuned on a dataset using that format, which is why it assigns the label <code> to the <code> token.
+
+With this map, we are ready to reproduce (almost entirely) the results of the first pipeline -- we can just grab the score and label of each token that was not classified as <code>:
+
+This is very similar to what we had before, with one exception: the pipeline also gave us information about the <code> and <code> of each entity in the original sentence. This is where our offset mapping will come into play. To get the offsets, we just have to set <code> when we apply the tokenizer to our inputs:
+
+Each tuple is the span of text corresponding to each token, where <code> is reserved for the special tokens. We saw before that the token at index 5 is <code>, which has <code> as offsets here. If we grab the corresponding slice in our example:
+
+we get the proper span of text without the <code>:
+
+Using this, we can now complete the previous results:
+
+This is the same as what we got from the first pipeline!
+
+Grouping entities.
+
+Using the offsets to determine the start and end keys for each entity is handy, but that information isn't strictly necessary. When we want to group the entities together, however, the offsets will save us a lot of messy code. For example, if we wanted to group together the tokens <code>, <code>, and <code>, we could make special rules that say the first two should be attached while removing the <code>, and the <code> should be added with a space since it does not begin with <code> -- but that would only work for this particular type of tokenizer. We would have to write another set of rules for a SentencePiece or a Byte-Pair-Encoding tokenizer (discussed later in this chapter).
+
+With the offsets, all that custom code goes away: we just can take the span in the original text that begins with the first token and ends with the last token. So, in the case of the tokens <code>, <code>, and <code>, we should start at character 33 (the beginning of <code>) and end before character 45 (the end of <code>):
+
+To write the code that post-processes the predictions while grouping entities, we will group together entities that are consecutive and labeled with <code>, except for the first one, which can be labeled as <code> or <code> (so, we stop grouping an entity when we get a <code>, a new type of entity, or a <code> that tells us an entity of the same type is starting):
+
+And we get the same results as with our second pipeline!
+
+Another example of a task where these offsets are extremely useful is question answering. Diving into that pipeline, which we'll do in the next section, will also enable us to take a look at one last feature of the tokenizers in the 🤗 Transformers library: dealing with overflowing tokens when we truncate an input to a given length.

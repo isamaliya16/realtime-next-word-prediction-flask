@@ -1,0 +1,99 @@
+Denoising Diffusion Probabilistic Model.
+
+Introduction.
+
+Generative modeling experienced tremendous growth in the last five years. Models like VAEs, GANs, and flow-based models proved to be a great success in generating high-quality content, especially images. Diffusion models are a new type of generative model that has proven to be better than previous approaches.
+
+Diffusion models are inspired by non-equilibrium thermodynamics, and they learn to generate by denoising. Learning by denoising consists of two processes, each of which is a Markov Chain. These are:
+
+The forward process: In the forward process, we slowly add random noise to the data in a series of time steps <code>. Samples at the current time step are drawn from a Gaussian distribution where the mean of the distribution is conditioned on the sample at the previous time step, and the variance of the distribution follows a fixed schedule. At the end of the forward process, the samples end up with a pure noise distribution.
+
+The reverse process: During the reverse process, we try to undo the added noise at every time step. We start with the pure noise distribution (the last step of the forward process) and try to denoise the samples in the backward direction <code>.
+
+We implement the Denoising Diffusion Probabilistic Models paper or DDPMs for short in this code example. It was the first paper demonstrating the use of diffusion models for generating high-quality images. The authors proved that a certain parameterization of diffusion models reveals an equivalence with denoising score matching over multiple noise levels during training and with annealed Langevin dynamics during sampling that generates the best quality results.
+
+This paper replicates both the Markov chains (forward process and reverse process) involved in the diffusion process but for images. The forward process is fixed and gradually adds Gaussian noise to the images according to a fixed variance schedule denoted by beta in the paper. This is what the diffusion process looks like in case of images: (image -> noise::noise -> image).
+
+The paper describes two algorithms, one for training the model, and the other for sampling from the trained model. Training is performed by optimizing the usual variational bound on negative log-likelihood. The objective function is further simplified, and the network is treated as a noise prediction network. Once optimized, we can sample from the network to generate new images from noise samples. Here is an overview of both algorithms as presented in the paper:
+
+Note: DDPM is just one way of implementing a diffusion model. Also, the sampling algorithm in the DDPM replicates the complete Markov chain. Hence, it's slow in generating new samples compared to other generative models like GANs. Lots of research efforts have been made to address this issue. One such example is Denoising Diffusion Implicit Models, or DDIM for short, where the authors replaced the Markov chain with a non-Markovian process to sample faster. You can find the code example for DDIM here.
+
+Implementing a DDPM model is simple. We define a model that takes two inputs: Images and the randomly sampled time steps. At each training step, we perform the following operations to train our model:
+
+Sample random noise to be added to the inputs.
+
+Apply the forward process to diffuse the inputs with the sampled noise.
+
+Your model takes these noisy samples as inputs and outputs the noise prediction for each time step.
+
+Given true noise and predicted noise, we calculate the loss values.
+
+We then calculate the gradients and update the model weights.
+
+Given that our model knows how to denoise a noisy sample at a given time step, we can leverage this idea to generate new samples, starting from a pure noise distribution.
+
+Setup.
+
+Hyperparameters.
+
+Dataset.
+
+We use the Oxford Flowers 102 dataset for generating images of flowers. In terms of preprocessing, we use center cropping for resizing the images to the desired image size, and we rescale the pixel values in the range <code>. This is in line with the range of the pixel values that was applied by the authors of the DDPMs paper. For augmenting training data, we randomly flip the images left/right.
+
+Gaussian diffusion utilities.
+
+We define the forward process and the reverse process as a separate utility. Most of the code in this utility has been borrowed from the original implementation with some slight modifications.
+
+Network architecture.
+
+U-Net, originally developed for semantic segmentation, is an architecture that is widely used for implementing diffusion models but with some slight modifications:
+
+The network accepts two inputs: Image and time step.
+
+Self-attention between the convolution blocks once we reach a specific resolution (16x16 in the paper).
+
+Group Normalization instead of weight normalization.
+
+We implement most of the things as used in the original paper. We use the <code> activation function throughout the network. We use the variance scaling kernel initializer.
+
+The only difference here is the number of groups used for the <code> layer. For the flowers dataset, we found that a value of <code> produces better results compared to the default value of <code>. Dropout is optional and should be used where chances of over fitting is high. In the paper, the authors used dropout only when training on CIFAR10.
+
+Training.
+
+We follow the same setup for training the diffusion model as described in the paper. We use <code> optimizer with a learning rate of <code>. We use EMA on model parameters with a decay factor of 0.999. We treat our model as noise prediction network i.e. at every training step, we input a batch of images and corresponding time steps to our UNet, and the network outputs the noise as predictions.
+
+The only difference is that we aren't using the Kernel Inception Distance (KID) or Frechet Inception Distance (FID) for evaluating the quality of generated samples during training. This is because both these metrics are compute heavy and are skipped for the brevity of implementation.
+
+Note: We are using mean squared error as the loss function which is aligned with the paper, and theoretically makes sense. In practice, though, it is also common to use mean absolute error or Huber loss as the loss function.
+
+Results.
+
+We trained this model for 800 epochs on a V100 GPU, and each epoch took almost 8 seconds to finish. We load those weights here, and we generate a few samples starting from pure noise.
+
+Conclusion.
+
+We successfully implemented and trained a diffusion model exactly in the same fashion as implemented by the authors of the DDPMs paper. You can find the original implementation here.
+
+There are a few things that you can try to improve the model:
+
+Increasing the width of each block. A bigger model can learn to denoise in fewer epochs, though you may have to take care of overfitting.
+
+We implemented the linear schedule for variance scheduling. You can implement other schemes like cosine scheduling and compare the performance.
+
+References.
+
+Denoising Diffusion Probabilistic Models.
+
+Author's implementation.
+
+A deep dive into DDPMs.
+
+Denoising Diffusion Implicit Models.
+
+Annotated Diffusion Model.
+
+AIAIART.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

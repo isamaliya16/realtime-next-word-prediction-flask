@@ -1,0 +1,79 @@
+DistributedEmbedding using TPU SparseCore and JAX.
+
+Introduction.
+
+In the basic ranking tutorial, we showed how to build a ranking model for the MovieLens dataset to suggest movies to users.
+
+This tutorial implements the same model trained on the same dataset but with the use of <code>, which makes use of SparseCore on TPU. This is the JAX version of the tutorial. It needs to be run on TPU v5p or v6e.
+
+Let's begin by choosing JAX as the backend and importing all the necessary libraries.
+
+Dataset distribution.
+
+While the model is replicated and the embedding tables are sharded across SparseCores, the dataset is distributed by sharding each batch across the TPUs. We need to make sure the batch size is a multiple of the number of TPUs.
+
+Preparing the dataset.
+
+We're going to use the same MovieLens data. The ratings are the objectives we are trying to predict.
+
+We need to know the number of users as we're using the user ID directly as an index in the user embedding table.
+
+We also need do know the number of movies as we're using the movie ID directly as an index in the movie embedding table.
+
+The inputs to the model are the user IDs and movie IDs and the labels are the ratings.
+
+We'll split the data by putting 80% of the ratings in the train set, and 20% in the test set.
+
+Configuring DistributedEmbedding.
+
+The <code> handles multiple features and multiple embedding tables. This is to enable the sharing of tables between features and allow some optimizations that come from combining multiple embedding lookups into a single invocation. In this section, we'll describe how to configure these.
+
+Configuring tables.
+
+Tables are configured using <code>, which has:
+
+A name.
+
+A vocabulary size (input size).
+
+an embedding dimension (output size).
+
+A combiner to specify how to reduce multiple embeddings into a single one in the case when we embed a sequence. Note that this doesn't apply to our example because we're getting a single embedding for each user and each movie.
+
+A placement to tell whether to put the table on the SparseCore chips or not. In this case, we want the <code> placement.
+
+An optimizer to specify how to apply gradients when training. Each table has its own optimizer and the one passed to <code> is not used for the embedding tables.
+
+Configuring features.
+
+Features are configured using <code>, which has:
+
+A name.
+
+A table, the embedding table to use.
+
+An input shape (batch size is for all TPUs).
+
+An output shape (batch size is for all TPUs).
+
+We can organize features in any structure we want, which can be nested. A dict is often a good choice to have names for the inputs and outputs.
+
+Defining the Model.
+
+We're now ready to create a <code> inside a model. Once we have the configuration, we simply pass it the constructor of <code>. Then, within the model <code> method, <code> is the first layer we call.
+
+The ouputs have the exact same structure as the inputs. In our example, we concatenate the embeddings we got as outputs and run them through a tower of dense layers.
+
+Let's now instantiate the model. We then use <code> to configure the loss, metrics and optimizer. Again, this Adagrad optimizer will only apply to the dense layers and not the embedding tables.
+
+With the JAX backend, we need to preprocess the inputs to convert them to a hardware-dependent format required for use with SparseCores. We'll do this by wrapping the datasets into generator functions.
+
+Fitting and evaluating.
+
+We can use the standard Keras <code> to train the model. Keras will automatically use the <code> to distribute the model and the data.
+
+Same for <code>.
+
+That's it.
+
+This example shows that after configuring the <code> and setting up the required preprocessing, you can use the standard Keras workflows.

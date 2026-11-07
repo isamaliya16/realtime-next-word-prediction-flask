@@ -1,0 +1,31 @@
+Migrate TensorBoard: TensorFlow's visualization toolkit.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+TensorBoard is a built-in tool for providing measurements and visualizations in TensorFlow. Common machine learning experiment metrics, such as accuracy and loss, can be tracked and displayed in TensorBoard. TensorBoard is compatible with TensorFlow 1 and 2 code.
+
+In TensorFlow 1, <code> saves summaries for TensorBoard by default. In comparison, in TensorFlow 2, summaries can be saved using a <code> callback .
+
+This guide demonstrates how to use TensorBoard, first, in TensorFlow 1 with Estimators, and then, how to carry out the equivalent process in TensorFlow 2.
+
+Setup.
+
+TensorFlow 1: TensorBoard with tf.estimator.
+
+In this TensorFlow 1 example, you instantiate a <code>, train and evaluate it on the MNIST dataset, and use TensorBoard to display the metrics:
+
+TensorFlow 2: TensorBoard with a Keras callback and Model.fit.
+
+In this TensorFlow 2 example, you create and store logs with the <code> callback, and train the model. The callback tracks the accuracy and loss per epoch. It is passed to <code> in the <code> list.
+
+Next steps.
+
+Learn more about TensorBoard in the Get started guide.
+
+For lower level APIs, refer to the tf.summary migration to TensorFlow 2 guide.

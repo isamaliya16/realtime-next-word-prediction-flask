@@ -1,0 +1,81 @@
+WGAN-GP with R-GCN for the generation of small molecular graphs.
+
+Introduction.
+
+In this tutorial, we implement a generative model for graphs and use it to generate novel molecules.
+
+Motivation: The development of new drugs (molecules) can be extremely time-consuming and costly. The use of deep learning models can alleviate the search for good candidate drugs, by predicting properties of known molecules (e.g., solubility, toxicity, affinity to target protein, etc.). As the number of possible molecules is astronomical, the space in which we search for/explore molecules is just a fraction of the entire space. Therefore, it's arguably desirable to implement generative models that can learn to generate novel molecules (which would otherwise have never been explored).
+
+References (implementation).
+
+The implementation in this tutorial is based on/inspired by the MolGAN paper and DeepChem's Basic MolGAN.
+
+Further reading (generative models).
+
+Recent implementations of generative models for molecular graphs also include Mol-CycleGAN, GraphVAE and JT-VAE. For more information on generative adverserial networks, see GAN, WGAN and WGAN-GP.
+
+Setup.
+
+Install RDKit.
+
+RDKit is a collection of cheminformatics and machine-learning software written in C++ and Python. In this tutorial, RDKit is used to conveniently and efficiently transform SMILES to molecule objects, and then from those obtain sets of atoms and bonds.
+
+SMILES expresses the structure of a given molecule in the form of an ASCII string. The SMILES string is a compact encoding which, for smaller molecules, is relatively human-readable. Encoding molecules as a string both alleviates and facilitates database and/or web searching of a given molecule. RDKit uses algorithms to accurately transform a given SMILES to a molecule object, which can then be used to compute a great number of molecular properties/features.
+
+Notice, RDKit is commonly installed via Conda. However, thanks to rdkitplatformwheels, rdkit can now (for the sake of this tutorial) be installed easily via pip, as follows:
+
+And to allow easy visualization of a molecule objects, Pillow needs to be installed:
+
+Import packages.
+
+Dataset.
+
+The dataset used in this tutorial is a quantum mechanics dataset (QM9), obtained from MoleculeNet. Although many feature and label columns come with the dataset, we'll only focus on the SMILES column. The QM9 dataset is a good first dataset to work with for generating graphs, as the maximum number of heavy (non-hydrogen) atoms found in a molecule is only nine.
+
+Define helper functions.
+
+These helper functions will help convert SMILES to graphs and graphs to molecule objects.
+
+Representing a molecular graph. Molecules can naturally be expressed as undirected graphs <code>, where <code> is a set of vertices (atoms), and <code> a set of edges (bonds). As for this implementation, each graph (molecule) will be represented as an adjacency tensor <code>, which encodes existence/non-existence of atom-pairs with their one-hot encoded bond types stretching an extra dimension, and a feature tensor <code>, which for each atom, one-hot encodes its atom type. Notice, as hydrogen atoms can be inferred by RDKit, hydrogen atoms are excluded from <code> and <code> for easier modeling.
+
+Generate training set.
+
+To save training time, we'll only use a tenth of the QM9 dataset.
+
+Model.
+
+The idea is to implement a generator network and a discriminator network via WGAN-GP, that will result in a generator network that can generate small novel molecules (small graphs).
+
+The generator network needs to be able to map (for each example in the batch) a vector <code> to a 3-D adjacency tensor (<code>) and 2-D feature tensor (<code>). For this, <code> will first be passed through a fully-connected network, for which the output will be further passed through two separate fully-connected networks. Each of these two fully-connected networks will then output (for each example in the batch) a tanh-activated vector followed by a reshape and softmax to match that of a multi-dimensional adjacency/feature tensor.
+
+As the discriminator network will receives as input a graph (<code>, <code>) from either the generator or from the training set, we'll need to implement graph convolutional layers, which allows us to operate on graphs. This means that input to the discriminator network will first pass through graph convolutional layers, then an average-pooling layer, and finally a few fully-connected layers. The final output should be a scalar (for each example in the batch) which indicates the "realness" of the associated input (in this case a "fake" or "real" molecule).
+
+Graph generator.
+
+Graph discriminator.
+
+Graph convolutional layer. The relational graph convolutional layers implements non-linearly transformed neighborhood aggregations. We can define these layers as follows:
+
+<code>.
+
+Where <code> denotes the non-linear transformation (commonly a ReLU activation), <code> the adjacency tensor, <code> the feature tensor at the <code> layer, <code> the inverse diagonal degree tensor of <code>, and <code> the trainable weight tensor at the <code> layer. Specifically, for each bond type (relation), the degree tensor expresses, in the diagonal, the number of bonds attached to each atom. Notice, in this tutorial <code> is omitted, for two reasons: (1) it's not obvious how to apply this normalization on the continuous adjacency tensors (generated by the generator), and (2) the performance of the WGAN without normalization seems to work just fine. Furthermore, in contrast to the original paper, no self-loop is defined, as we don't want to train the generator to predict "self-bonding".
+
+WGAN-GP.
+
+Train the model.
+
+To save time (if run on a CPU), we'll only train the model for 10 epochs.
+
+Sample novel molecules with the generator.
+
+Concluding thoughts.
+
+Inspecting the results. Ten epochs of training seemed enough to generate some decent looking molecules! Notice, in contrast to the MolGAN paper, the uniqueness of the generated molecules in this tutorial seems really high, which is great!
+
+What we've learned, and prospects. In this tutorial, a generative model for molecular graphs was successfully implemented, which allowed us to generate novel molecules. In the future, it would be interesting to implement generative models that can modify existing molecules (for instance, to optimize solubility or protein-binding of an existing molecule). For that however, a reconstruction loss would likely be needed, which is tricky to implement as there's no easy and obvious way to compute similarity between two molecular graphs.
+
+Example available on HuggingFace.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

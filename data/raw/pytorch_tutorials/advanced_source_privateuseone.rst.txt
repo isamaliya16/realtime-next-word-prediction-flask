@@ -1,0 +1,141 @@
+Facilitating New Backend Integration by PrivateUse1.
+
+In this tutorial we will walk through some necessary steps to integrate a new backend living outside <code> repo by <code>. Note that this tutorial assumes that you already have a basic understanding of PyTorch.
+
+What is PrivateUse1?
+
+Prior to Pytorch 2.0, PyTorch provided three reserved dispatch keys (and their corresponding Autograd keys) for prototyping out-of-tree backend extensions, the three dispatch keys are as follows:
+
+<code>.
+
+<code>.
+
+<code>.
+
+After the prototype verification is passed, you can apply for a private key for the new backend, such as CUDA, XLA, MPS, and so on.
+
+However, with the rapid development of PyTorch, more and more hardware manufacturers are trying to integrate their backends into PyTorch, which might cause the following problems:
+
+Every new backend integration involves a lot of file modification.
+
+There is currently a hard limit on the number of Dispatch Keys (<code> 64-bit limit).
+
+In view of the above reasons, the community began to recommend new backend to be integrated into the PyTorch via <code>.
+
+However, the previous <code> mechanism is not fully capable of integrating with the new backend, because it lacks some related support in certain modules, such as Storage, AMP, Distributed, and so on.
+
+With the arrival of Pytorch 2.1.0, a series of optimizations and enhancements have been made for <code> in terms of new backend integration, and it is now possible to support the integration of new devices rapidly and efficiently.
+
+How to integrate new backend via PrivateUse1.
+
+In this section, we will discuss the details of integrating the new backend into Pytorch via <code>, which mainly consists of the following parts:
+
+Register kernels for the new backend.
+
+Register generator for the new backend.
+
+Register device guard for the new backend.
+
+Register serialization and deserialization functions for new backend metadata.
+
+Other Modules.
+
+Register kernels for the new backend.
+
+The new backend may have some high-performance implementations of operator, which can be registered to the dispatcher by <code> API described in Registering a Dispatched Operator in C++. This involves several situations:
+
+Register all the forward operators supported by the new backend to the dispatcher, and register the fallback at the same time, so that when the new backend does not support some operators, these operators can fall back to the CPU for execution to ensure the availability of functions.
+
+Register kernels from <code> to the dispatcher by <code>, if it is necessary for new backend to override <code>, the dispatcher and autograd system will automatically call the forward and backward implementations of these operators.
+
+Register kernels which want to support automatic mixed precision (AMP) and fallback mechanism to the dispatcher by <code>, the autocast system will automatically call these kernels when needed.
+
+What needs to be added is that if you want to support AMP in a new backend, you need to register a new <code> by <code>, and the <code> needs to have the following APIs:
+
+<code> get the supported dtypes on the new backend in AMP, which might support one more <code>.
+
+<code> check the AMP is enabled or not on the new backend.
+
+<code> get the supported <code> on the new backend in AMP, which is set by <code> or the default <code>, and the default <code> is <code>.
+
+<code> enable or disable AMP on the new backend.
+
+<code> set the supported <code> on the new backend in AMP, and the <code> be contained in the <code> got from <code>.
+
+Register generator for the new backend.
+
+It is necessary to support generators corresponding to new devices. Currently, <code> can dynamically register custom generators, which are mainly divided into the following steps.
+
+Inherit the <code> class to implement the generator class corresponding to the new backend, and implement various general methods.
+
+Define a new backend <code> with a single parameter: <code>.
+
+Call <code> macro to complete dynamic registration.
+
+Register device guard for the new backend.
+
+PyTorch provides functionalities related to device, stream, and event switching via <code>. This function is also applicable to <code> Key.
+
+Inherit the <code> class to implement the various general methods corresponding to the new backend.
+
+Call <code> macro to complete dynamic registration.
+
+Register serialization and deserialization functions for new backend metadata.
+
+PyTorch is currently able to dynamically register serialization/deserialization functions to support the serialization and deserialization of new backend additional metadata named <code> in class <code>. You can refer to the following steps:
+
+Inherit the <code> class to implement <code> corresponding to the new backend and various fields of the new backend can be customized in the class.
+
+Implement the serialization and deserialization functions of the new backend, the function signatures are <code>.
+
+Call the <code> macro to complete dynamic registration.
+
+Other Modules.
+
+In addition to the above-mentioned parts, there are some other modules that can be expanded through <code>, such as <code>, <code>, and others, which will be added in the future. One example about <code> integration is Ascend NPU.
+
+How to Improve User Experience with Privateuse1.
+
+The primary goal of integrating new devices through <code> is to meet the basic functional requirements, and the next thing to do is to improve usability, which mainly involves the following aspects.
+
+Register new backend module to Pytorch.
+
+Rename PrivateUse1 to a custom name for the new backend.
+
+Generate methods and properties related to the new backend.
+
+Register new backend module to Pytorch.
+
+Some CUDA-related interfaces in PyTorch can be called through the following form: <code>. Therefore, in order to comply with user habits, the new backend implemented through the <code> mechanism should also provide similar interfaces.
+
+For example, using <code>:
+
+After doing the above operations, users can call some exclusive APIs of <code> through <code>.
+
+Rename PrivateUse1 to a custom name for the new backend.
+
+<code> Key is the internal mechanism of the new backend integrated into PyTorch. For users, compared with <code>, the custom name strongly related to the new backend should be more friendly.
+
+Taking the <code> as an example, the first usage will be more user-friendly.
+
+Now, PyTorch provides a new C++/Python API for the self-named <code> backend, which is very simple to use.
+
+Generate methods and properties related to the new backend.
+
+After renaming <code> to a custome name, automatically generate properties and methods related to the new backend name in the <code> modules for the new backend.
+
+Here is an example for <code>:
+
+Then, you can use the following methods and properties:
+
+Future Work.
+
+The improvement of the <code> mechanism is still in progress, so the integration method of <code> of the new module will be added in turn. Here are a few items that we are actively working on:
+
+Add the integration method of <code>.
+
+Add the integration method of <code>.
+
+Conclusion.
+
+This tutorial walked you through the process of integrating new backends into PyTorch via <code>, including but not limited to operator registration, generator registration, device guard registration, and so on. At the same time, some methods are introduced to improve the user experience.

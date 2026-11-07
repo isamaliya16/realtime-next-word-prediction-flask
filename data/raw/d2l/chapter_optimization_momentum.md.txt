@@ -1,0 +1,145 @@
+Momentum.
+
+In section <num> we reviewed what happens when performing stochastic gradient descent, i.e., when performing optimization where only a noisy variant of the gradient is available. In particular, we noticed that for noisy gradients we need to be extra cautious when it comes to choosing the learning rate in the face of noise. If we decrease it too rapidly, convergence stalls. If we are too lenient, we fail to converge to a good enough solution since noise keeps on driving us away from optimality.
+
+Basics.
+
+In this section, we will explore more effective optimization algorithms, especially for certain types of optimization problems that are common in practice.
+
+Leaky Averages.
+
+The previous section saw us discussing minibatch SGD as a means for accelerating computation. It also had the nice side-effect that averaging gradients reduced the amount of variance. The minibatch stochastic gradient descent can be calculated by:
+
+<math>.
+
+To keep the notation simple, here we used <math> as the stochastic gradient descent for sample <math> using the weights updated at time <math>. It would be nice if we could benefit from the effect of variance reduction even beyond averaging gradients on a minibatch. One option to accomplish this task is to replace the gradient computation by a "leaky average":
+
+<math>.
+
+for some <math>. This effectively replaces the instantaneous gradient by one that is been averaged over multiple past gradients. <math> is called velocity. It accumulates past gradients similar to how a heavy ball rolling down the objective function landscape integrates over past forces. To see what is happening in more detail let's expand <math> recursively into.
+
+<math>.
+
+Large <math> amounts to a long-range average, whereas small <math> amounts to only a slight correction relative to a gradient method. The new gradient replacement no longer points into the direction of steepest descent on a particular instance any longer but rather in the direction of a weighted average of past gradients. This allows us to realize most of the benefits of averaging over a batch without the cost of actually computing the gradients on it. We will revisit this averaging procedure in more detail later.
+
+The above reasoning formed the basis for what is now known as accelerated gradient methods, such as gradients with momentum. They enjoy the additional benefit of being much more effective in cases where the optimization problem is ill-conditioned (i.e., where there are some directions where progress is much slower than in others, resembling a narrow canyon). Furthermore, they allow us to average over subsequent gradients to obtain more stable directions of descent. Indeed, the aspect of acceleration even for noise-free convex problems is one of the key reasons why momentum works and why it works so well.
+
+As one would expect, due to its efficacy momentum is a well-studied subject in optimization for deep learning and beyond. See e.g., the beautiful expository article by for an in-depth analysis and interactive animation. It was proposed by . has a detailed theoretical discussion in the context of convex optimization. Momentum in deep learning has been known to be beneficial for a long time. See e.g., the discussion by for details.
+
+An Ill-conditioned Problem.
+
+To get a better understanding of the geometric properties of the momentum method we revisit gradient descent, albeit with a significantly less pleasant objective function. Recall that in section <num> we used <math>, i.e., a moderately distorted ellipsoid objective. We distort this function further by stretching it out in the <math> direction via.
+
+<math>.
+
+As before <math> has its minimum at <math>. This function is very flat in the direction of <math>. Let's see what happens when we perform gradient descent as before on this new function. We pick a learning rate of <math>.
+
+By construction, the gradient in the <math> direction is much higher and changes much more rapidly than in the horizontal <math> direction. Thus we are stuck between two undesirable choices: if we pick a small learning rate we ensure that the solution does not diverge in the <math> direction but we are saddled with slow convergence in the <math> direction. Conversely, with a large learning rate we progress rapidly in the <math> direction but diverge in <math>. The example below illustrates what happens even after a slight increase in learning rate from <math> to <math>. Convergence in the <math> direction improves but the overall solution quality is much worse.
+
+The Momentum Method.
+
+The momentum method allows us to solve the gradient descent problem described above. Looking at the optimization trace above we might intuit that averaging gradients over the past would work well. After all, in the <math> direction this will aggregate well-aligned gradients, thus increasing the distance we cover with every step. Conversely, in the <math> direction where gradients oscillate, an aggregate gradient will reduce step size due to oscillations that cancel each other out. Using <math> instead of the gradient <math> yields the following update equations:
+
+<math>.
+
+Note that for <math> we recover regular gradient descent. Before delving deeper into the mathematical properties let's have a quick look at how the algorithm behaves in practice.
+
+As we can see, even with the same learning rate that we used before, momentum still converges well. Let's see what happens when we decrease the momentum parameter. Halving it to <math> leads to a trajectory that barely converges at all. Nonetheless, it is a lot better than without momentum (when the solution diverges).
+
+Note that we can combine momentum with stochastic gradient descent and in particular, minibatch stochastic gradient descent. The only change is that in that case we replace the gradients <math> with <math>. Last, for convenience we initialize <math> at time <math>. Let's look at what leaky averaging actually does to the updates.
+
+Effective Sample Weight.
+
+Recall that <math>. In the limit the terms add up to <math>. In other words, rather than taking a step of size <math> in gradient descent or stochastic gradient descent we take a step of size <math> while at the same time, dealing with a potentially much better behaved descent direction. These are two benefits in one. To illustrate how weighting behaves for different choices of <math> consider the diagram below.
+
+Practical Experiments.
+
+Let's see how momentum works in practice, i.e., when used within the context of a proper optimizer. For this we need a somewhat more scalable implementation.
+
+Implementation from Scratch.
+
+Compared with (minibatch) stochastic gradient descent the momentum method needs to maintain a set of auxiliary variables, i.e., velocity. It has the same shape as the gradients (and variables of the optimization problem). In the implementation below we call these variables <code>.
+
+Let's see how this works in practice.
+
+When we increase the momentum hyperparameter <code> to 0.9, it amounts to a significantly larger effective sample size of <math>. We reduce the learning rate slightly to <math> to keep matters under control.
+
+Reducing the learning rate further addresses any issue of non-smooth optimization problems. Setting it to <math> yields good convergence properties.
+
+Concise Implementation.
+
+There is very little to do in Gluon since the standard <code> solver already had momentum built in. Setting matching parameters yields a very similar trajectory.
+
+Theoretical Analysis.
+
+So far the 2D example of <math> seemed rather contrived. We will now see that this is actually quite representative of the types of problem one might encounter, at least in the case of minimizing convex quadratic objective functions.
+
+Quadratic Convex Functions.
+
+Consider the function.
+
+<math>.
+
+This is a general quadratic function. For positive definite matrices <math>, i.e., for matrices with positive eigenvalues this has a minimizer at <math> with minimum value <math>. Hence we can rewrite <math> as.
+
+<math>.
+
+The gradient is given by <math>. That is, it is given by the distance between <math> and the minimizer, multiplied by <math>. Consequently also the velocity is a linear combination of terms <math>.
+
+Since <math> is positive definite it can be decomposed into its eigensystem via <math> for an orthogonal (rotation) matrix <math> and a diagonal matrix <math> of positive eigenvalues. This allows us to perform a change of variables from <math> to <math> to obtain a much simplified expression:
+
+<math>.
+
+Here <math>. Since <math> is only an orthogonal matrix this does not perturb the gradients in a meaningful way. Expressed in terms of <math> gradient descent becomes.
+
+<math>.
+
+The important fact in this expression is that gradient descent does not mix between different eigenspaces. That is, when expressed in terms of the eigensystem of <math> the optimization problem proceeds in a coordinate-wise manner. This also holds for.
+
+<math>.
+
+In doing this we just proved the following theorem: gradient descent with and without momentum for a convex quadratic function decomposes into coordinate-wise optimization in the direction of the eigenvectors of the quadratic matrix.
+
+Scalar Functions.
+
+Given the above result let's see what happens when we minimize the function <math>. For gradient descent we have.
+
+<math>.
+
+Whenever <math> this optimization converges at an exponential rate since after <math> steps we have <math>. This shows how the rate of convergence improves initially as we increase the learning rate <math> until <math>. Beyond that things diverge and for <math> the optimization problem diverges.
+
+To analyze convergence in the case of momentum we begin by rewriting the update equations in terms of two scalars: one for <math> and one for velocity <math>. This yields:
+
+<math>.
+
+We used <math> to denote the <math> governing convergence behavior. After <math> steps the initial choice <math> becomes <math>. Hence, it is up to the eigenvalues of <math> to determine the speed of convergence. See the Distill post of for a great animation and for a detailed analysis. One can show that <math> velocity converges. This is a larger range of feasible parameters when compared to <math> for gradient descent. It also suggests that in general large values of <math> are desirable. Further details require a fair amount of technical detail and we suggest that the interested reader consult the original publications.
+
+Summary.
+
+Momentum replaces gradients with a leaky average over past gradients. This accelerates convergence significantly.
+
+It is desirable for both noise-free gradient descent and (noisy) stochastic gradient descent.
+
+Momentum prevents stalling of the optimization process that is much more likely to occur for stochastic gradient descent.
+
+The effective number of gradients is given by <math> due to exponentiated downweighting of past data.
+
+In the case of convex quadratic problems this can be analyzed explicitly in detail.
+
+Implementation is quite straightforward but it requires us to store an additional state vector (velocity <math>).
+
+Exercises.
+
+Use other combinations of momentum hyperparameters and learning rates and observe and analyze the different experimental results.
+
+Try out gradient descent and momentum for a quadratic problem where you have multiple eigenvalues, i.e., <math>, e.g., <math>. Plot how the values of <math> decrease for the initialization <math>.
+
+Derive minimum value and minimizer for <math>.
+
+What changes when we perform stochastic gradient descent with momentum? What happens when we use minibatch stochastic gradient descent with momentum? Experiment with the parameters?
+
+Discussions.
+
+Discussions.
+
+Discussions.

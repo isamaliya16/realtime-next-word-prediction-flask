@@ -1,0 +1,71 @@
+Attention Pooling by Similarity.
+
+Now that we have introduced the primary components of the attention mechanism, let's use them in a rather classical setting, namely regression and classification via kernel density estimation . This detour simply provides additional background: it is entirely optional and can be skipped if needed. At their core, Nadaraya--Watson estimators rely on some similarity kernel <math> relating queries <math> to keys <math>. Some common kernels are.
+
+<math>.
+
+There are many more choices that we could pick. See a Wikipedia article) for a more extensive review and how the choice of kernels is related to kernel density estimation, sometimes also called Parzen Windows . All of the kernels are heuristic and can be tuned. For instance, we can adjust the width, not only on a global basis but even on a per-coordinate basis. Regardless, all of them lead to the following equation for regression and classification alike:
+
+<math>.
+
+In the case of a (scalar) regression with observations <math> for features and labels respectively, <math> are scalars, <math> are vectors, and the query <math> denotes the new location where <math> should be evaluated. In the case of (multiclass) classification, we use one-hot-encoding of <math> to obtain <math>. One of the convenient properties of this estimator is that it requires no training. Even more so, if we suitably narrow the kernel with increasing amounts of data, the approach is consistent , i.e., it will converge to some statistically optimal solution. Let's start by inspecting some kernels.
+
+[Kernels and Data].
+
+All the kernels <math> defined in this section are translation and rotation invariant; that is, if we shift and rotate <math> and <math> in the same manner, the value of <math> remains unchanged. For simplicity we thus pick scalar arguments <math> and pick the key <math> as the origin. This yields:
+
+Different kernels correspond to different notions of range and smoothness. For instance, the boxcar kernel only attends to observations within a distance of <math> (or some otherwise defined hyperparameter) and does so indiscriminately.
+
+To see Nadaraya--Watson estimation in action, let's define some training data. In the following we use the dependency.
+
+<math>.
+
+where <math> is drawn from a normal distribution with zero mean and unit variance. We draw 40 training examples.
+
+[Attention Pooling via Nadaraya--Watson Regression].
+
+Now that we have data and kernels, all we need is a function that computes the kernel regression estimates. Note that we also want to obtain the relative kernel weights in order to perform some minor diagnostics. Hence we first compute the kernel between all training features (covariates) <code> and all validation features <code>. This yields a matrix, which we subsequently normalize. When multiplied with the training labels <code> we obtain the estimates.
+
+Recall attention pooling in <num>. Let each validation feature be a query, and each training feature--label pair be a key--value pair. As a result, the normalized relative kernel weights (<code> below) are the attention weights.
+
+Let's have a look at the kind of estimates that the different kernels produce.
+
+The first thing that stands out is that all three nontrivial kernels (Gaussian, Boxcar, and Epanechikov) produce fairly workable estimates that are not too far from the true function. Only the constant kernel that leads to the trivial estimate <math> produces a rather unrealistic result. Let's inspect the attention weighting a bit more closely:
+
+The visualization clearly shows why the estimates for Gaussian, Boxcar, and Epanechikov are very similar: after all, they are derived from very similar attention weights, despite the different functional form of the kernel. This raises the question as to whether this is always the case.
+
+[Adapting Attention Pooling].
+
+We could replace the Gaussian kernel with one of a different width. That is, we could use <math> where <math> determines the width of the kernel. Let's see whether this affects the outcomes.
+
+Clearly, the narrower the kernel, the less smooth the estimate. At the same time, it adapts better to the local variations. Let's look at the corresponding attention weights.
+
+As we would expect, the narrower the kernel, the narrower the range of large attention weights. It is also clear that picking the same width might not be ideal. In fact, proposed a heuristic that depends on the local density. Many more such "tricks" have been proposed. For instance, used a similar nearest-neighbor interpolation technique for designing cross-modal image and text representations.
+
+The astute reader might wonder why we are providing this deep dive for a method that is over half a century old. First, it is one of the earliest precursors of modern attention mechanisms. Second, it is great for visualization. Third, and just as importantly, it demonstrates the limits of hand-crafted attention mechanisms. A much better strategy is to learn the mechanism, by learning the representations for queries and keys. This is what we will embark on in the following sections.
+
+Summary.
+
+Nadaraya--Watson kernel regression is an early precursor of the current attention mechanisms. It can be used directly with little to no training or tuning, either for classification or regression. The attention weight is assigned according to the similarity (or distance) between query and key, and according to how many similar observations are available.
+
+Exercises.
+
+Parzen windows density estimates are given by <math>. Prove that for binary classification the function <math>, as obtained by Parzen windows is equivalent to Nadaraya--Watson classification.
+
+Implement stochastic gradient descent to learn a good value for kernel widths in Nadaraya--Watson regression.
+
+What happens if you just use the above estimates to minimize <math> directly? Hint: <math> is part of the terms used to compute <math>.
+
+Remove <math> from the estimate for <math> and optimize over the kernel widths. Do you still observe overfitting?
+
+Assume that all <math> lie on the unit sphere, i.e., all satisfy <math>. Can you simplify the <math> term in the exponential? Hint: we will later see that this is very closely related to dot product attention.
+
+Recall that proved that Nadaraya--Watson estimation is consistent. How quickly should you reduce the scale for the attention mechanism as you get more data? Provide some intuition for your answer. Does it depend on the dimensionality of the data? How?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

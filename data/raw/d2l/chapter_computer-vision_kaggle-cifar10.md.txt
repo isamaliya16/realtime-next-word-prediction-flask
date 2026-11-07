@@ -1,0 +1,93 @@
+Image Classification (CIFAR-10) on Kaggle.
+
+So far, we have been using high-level APIs of deep learning frameworks to directly obtain image datasets in tensor format. However, custom image datasets often come in the form of image files. In this section, we will start from raw image files, and organize, read, then transform them into tensor format step by step.
+
+We experimented with the CIFAR-10 dataset in section <num>, which is an important dataset in computer vision. In this section, we will apply the knowledge we learned in previous sections to practice the Kaggle competition of CIFAR-10 image classification. ( The web address of the competition is.
+
+section <num> shows the information on the competition's webpage. In order to submit the results, you need to register a Kaggle account.
+
+Obtaining and Organizing the Dataset.
+
+The competition dataset is divided into a training set and a test set, which contain 50000 and 300000 images, respectively. In the test set, 10000 images will be used for evaluation, while the remaining 290000 images will not be evaluated: they are included just to make it hard to cheat with manually labeled results of the test set. The images in this dataset are all png color (RGB channels) image files, whose height and width are both 32 pixels. The images cover a total of 10 categories, namely airplanes, cars, birds, cats, deer, dogs, frogs, horses, boats, and trucks. The upper-left corner of section <num> shows some images of airplanes, cars, and birds in the dataset.
+
+Downloading the Dataset.
+
+After logging in to Kaggle, we can click the "Data" tab on the CIFAR-10 image classification competition webpage shown in section <num> and download the dataset by clicking the "Download All" button. After unzipping the downloaded file in <code>, and unzipping <code> and <code> inside it, you will find the entire dataset in the following paths:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+where the <code> and <code> directories contain the training and testing images, respectively, <code> provides labels for the training images, and <code> is a sample submission file.
+
+To make it easier to get started, [we provide a small-scale sample of the dataset that contains the first 1000 training images and 5 random testing images.] To use the full dataset of the Kaggle competition, you need to set the following <code> variable to <code>.
+
+[Organizing the Dataset].
+
+We need to organize datasets to facilitate model training and testing. Let's first read the labels from the csv file. The following function returns a dictionary that maps the non-extension part of the filename to its label.
+
+Next, we define the <code> function to [split the validation set out of the original training set.] The argument <code> in this function is the ratio of the number of examples in the validation set to the number of examples in the original training set. More concretely, let <math> be the number of images of the class with the least examples, and <math> be the ratio. The validation set will split out <math> images for each class. Let's use <code> as an example. Since the original training set has 50000 images, there will be 45000 images used for training in the path <code>, while the other 5000 images will be split out as validation set in the path <code>. After organizing the dataset, images of the same class will be placed under the same folder.
+
+The <code> function below [organizes the testing set for data loading during prediction.].
+
+Finally, we use a function to [invoke] the <code>, <code>, and <code> (functions defined above.).
+
+Here we only set the batch size to 32 for the small-scale sample of the dataset. When training and testing the complete dataset of the Kaggle competition, <code> should be set to a larger integer, such as 128. We split out 10% of the training examples as the validation set for tuning hyperparameters.
+
+[Image Augmentation].
+
+We use image augmentation to address overfitting. For example, images can be flipped horizontally at random during training. We can also perform standardization for the three RGB channels of color images. Below lists some of these operations that you can tweak.
+
+During testing, we only perform standardization on images so as to remove randomness in the evaluation results.
+
+Reading the Dataset.
+
+Next, we [read the organized dataset consisting of raw image files]. Each example includes an image and a label.
+
+During training, we need to [specify all the image augmentation operations defined above]. When the validation set is used for model evaluation during hyperparameter tuning, no randomness from image augmentation should be introduced. Before final prediction, we train the model on the combined training set and validation set to make full use of all the labeled data.
+
+Defining the [Model].
+
+Here, we build the residual blocks based on the <code> class, which is slightly different from the implementation described in section <num>. This is for improving computational efficiency.
+
+Next, we define the ResNet-18 model.
+
+We use Xavier initialization described in section <num> before training begins.
+
+We define the ResNet-18 model described in section <num>.
+
+Defining the [Training Function].
+
+We will select models and tune hyperparameters according to the model's performance on the validation set. In the following, we define the model training function <code>.
+
+[Training and Validating the Model].
+
+Now, we can train and validate the model. All the following hyperparameters can be tuned. For example, we can increase the number of epochs. When <code> and <code> are set to 4 and 0.9, respectively, the learning rate of the optimization algorithm will be multiplied by 0.9 after every 4 epochs. Just for ease of demonstration, we only train 20 epochs here.
+
+[Classifying the Testing Set] and Submitting Results on Kaggle.
+
+After obtaining a promising model with hyperparameters, we use all the labeled data (including the validation set) to retrain the model and classify the testing set.
+
+The above code will generate a <code> file, whose format meets the requirement of the Kaggle competition. The method for submitting results to Kaggle is similar to that in section <num>.
+
+Summary.
+
+We can read datasets containing raw image files after organizing them into the required format.
+
+We can use convolutional neural networks, image augmentation, and hybrid programing in an image classification competition.
+
+We can use convolutional neural networks and image augmentation in an image classification competition.
+
+Exercises.
+
+Use the complete CIFAR-10 dataset for this Kaggle competition. Set hyperparameters as <code>, <code>, <code>, <code>, and <code>. See what accuracy and ranking you can achieve in this competition. Can you further improve them?
+
+What accuracy can you get when not using image augmentation?
+
+Discussions.
+
+Discussions.

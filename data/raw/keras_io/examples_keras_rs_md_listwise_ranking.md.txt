@@ -1,0 +1,55 @@
+List-wise ranking.
+
+Introduction.
+
+In our basic ranking tutorial, we explored a model that learned to predict ratings for specific user-movie combinations. This model took (user, movie) pairs as input and was trained using mean-squared error to precisely predict the rating a user might give to a movie.
+
+However, solely optimizing a model's accuracy in predicting individual movie scores isn't always the most effective strategy for developing ranking systems. For ranking models, pinpoint accuracy in predicting scores is less critical than the model's capability to generate an ordered list of items that aligns with a user's preferences. In essence, the relative order of items matters more than the exact predicted values.
+
+Instead of focusing on the model's predictions for individual query-item pairs (a pointwise approach), we can optimize the model based on its ability to correctly order items. One common method for this is pairwise ranking. In this approach, the model learns by comparing pairs of items (e.g., item A and item B) and determining which one should be ranked higher for a given user or query. The goal is to minimize the number of incorrectly ordered pairs.
+
+Let's begin by importing all the necessary libraries.
+
+Let's define some hyperparameters here.
+
+Preparing the dataset.
+
+We use the MovieLens dataset. The data loading and processing steps are similar to previous tutorials, so, we will only discuss the differences here.
+
+So far, we've replicated what we have in the basic ranking tutorial.
+
+However, this existing dataset is not directly applicable to list-wise optimization. List-wise optimization requires, for each user, a list of movies they have rated, allowing the model to learn from the relative orderings within that list. The MovieLens 100K dataset, in its original form, provides individual rating instances (one user, one movie, one rating per example), rather than these aggregated user-specific lists.
+
+To enable listwise optimization, we need to restructure the dataset. This involves transforming it so that each data point or example represents a single user ID accompanied by a list of movies that user has rated. Within these lists, some movies will naturally be ranked higher by the user (as evidenced by their ratings) than others. The primary objective for our model will then be to learn to predict item orderings that correspond to these observed user preferences.
+
+Let's start by getting the entire list of movies and corresponding ratings for every user. We remove <code> corresponding to users who have rated less than <code> number of movies.
+
+We now sample 50 lists for each user for the training data. For each list, we randomly sample 5 movies from the movies the user rated.
+
+Batch up the dataset, and cache it.
+
+Building the model.
+
+We build a typical two-tower ranking model, similar to the basic ranking tutorial. We have separate embedding layers for user ID and movie IDs. After obtaining these embeddings, we concatenate them and pass them through a network of dense layers.
+
+The only point of difference is that for movie IDs, we take a list of IDs rather than just one movie ID. So, when we concatenate user ID embedding and movie IDs' embeddings, we "repeat" the user ID 'NUMEXAMPLESPER_LIST' times so as to get the same shape as the movie IDs' embeddings.
+
+Let's instantiate, compile and train our model. We will train two models: one with vanilla mean-squared error, and the other with pairwise hinge loss. For the latter, we will use <code>.
+
+Pairwise losses compare pairs of items within each list, penalizing cases where an item with a higher true label has a lower predicted score than an item with a lower true label. This is why they are more suited for ranking tasks than pointwise losses.
+
+To quantify these results, we compute nDCG. nDCG is a measure of ranking quality that evaluates how well a system orders items based on relevance, giving more importance to highly relevant items appearing at the top of the list and normalizing the score against an ideal ranking. To compute it, we just need to pass <code> as a metric to <code>.
+
+And now, the model with pairwise hinge loss.
+
+Evaluation.
+
+Comparing the validation nDCG values, it is clear that the model trained with the pairwise hinge loss outperforms the other one. Let's make this observation more concrete by comparing results on the test set.
+
+Prediction.
+
+Now, let's rank some lists!
+
+Let's create a mapping from movie ID to title so that we can surface the titles for the ranked list.
+
+And we're all done!

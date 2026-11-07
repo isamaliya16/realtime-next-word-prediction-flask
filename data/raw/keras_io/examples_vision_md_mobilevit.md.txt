@@ -1,0 +1,57 @@
+MobileViT: A mobile-friendly Transformer-based model for image classification.
+
+Introduction.
+
+In this example, we implement the MobileViT architecture (Mehta et al.), which combines the benefits of Transformers (Vaswani et al.) and convolutions. With Transformers, we can capture long-range dependencies that result in global representations. With convolutions, we can capture spatial relationships that model locality.
+
+Besides combining the properties of Transformers and convolutions, the authors introduce MobileViT as a general-purpose mobile-friendly backbone for different image recognition tasks. Their findings suggest that, performance-wise, MobileViT is better than other models with the same or higher complexity (MobileNetV3, for example), while being efficient on mobile devices.
+
+Note: This example should be run with Tensorflow 2.13 and higher.
+
+Imports.
+
+Hyperparameters.
+
+MobileViT utilities.
+
+The MobileViT architecture is comprised of the following blocks:
+
+Strided 3x3 convolutions that process the input image.
+
+MobileNetV2-style inverted residual blocks for downsampling the resolution of the intermediate feature maps.
+
+MobileViT blocks that combine the benefits of Transformers and convolutions. It is presented in the figure below (taken from the original paper):
+
+More on the MobileViT block:
+
+First, the feature representations (A) go through convolution blocks that capture local relationships. The expected shape of a single entry here would be <code>.
+
+Then they get unfolded into another vector with shape <code>, where <code> is the area of a small patch, and <code> is <code>. So, we end up with <code> non-overlapping patches.
+
+This unfolded vector is then passed through a Tranformer block that captures global relationships between the patches.
+
+The output vector (B) is again folded into a vector of shape <code> resembling a feature map coming out of convolutions.
+
+Vectors A and B are then passed through two more convolutional layers to fuse the local and global representations. Notice how the spatial resolution of the final vector remains unchanged at this point. The authors also present an explanation of how the MobileViT block resembles a convolution block of a CNN. For more details, please refer to the original paper.
+
+Next, we combine these blocks together and implement the MobileViT architecture (XXS variant). The following figure (taken from the original paper) presents a schematic representation of the architecture:
+
+The authors use a multi-scale data sampler to help the model learn representations of varied scales. In this example, we discard this part.
+
+Load and prepare the dataset.
+
+Train a MobileViT (XXS) model.
+
+Results and TFLite conversion.
+
+With about one million parameters, getting to ~85% top-1 accuracy on 256x256 resolution is a strong result. This MobileViT mobile is fully compatible with TensorFlow Lite (TFLite) and can be converted with the following code:
+
+To learn more about different quantization recipes available in TFLite and running inference with TFLite models, check out this official resource.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.
+
+Chapter 15: Language models and the Transformer.

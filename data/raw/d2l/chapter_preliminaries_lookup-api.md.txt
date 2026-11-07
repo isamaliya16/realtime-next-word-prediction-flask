@@ -1,0 +1,31 @@
+Documentation.
+
+While we cannot possibly introduce every single MXNet function and class (and the information might become outdated quickly), the API documentation and additional tutorials and examples provide such documentation. This section provides some guidance for how to explore the MXNet API.
+
+While we cannot possibly introduce every single PyTorch function and class (and the information might become outdated quickly), the API documentation and additional tutorials and examples provide such documentation. This section provides some guidance for how to explore the PyTorch API.
+
+While we cannot possibly introduce every single TensorFlow function and class (and the information might become outdated quickly), the API documentation and additional tutorials and examples provide such documentation. This section provides some guidance for how to explore the TensorFlow API.
+
+Functions and Classes in a Module.
+
+To know which functions and classes can be called in a module, we invoke the <code> function. For instance, we can (query all properties in the module for generating random numbers):
+
+Generally, we can ignore functions that start and end with <code> (special objects in Python) or functions that start with a single <code>(usually internal functions). Based on the remaining function or attribute names, we might hazard a guess that this module offers various methods for generating random numbers, including sampling from the uniform distribution (<code>), normal distribution (<code>), and multinomial distribution (<code>).
+
+Specific Functions and Classes.
+
+For specific instructions on how to use a given function or class, we can invoke the <code> function. As an example, let's [explore the usage instructions for tensors' <code> function].
+
+From the documentation, we can see that the <code> function creates a new tensor with the specified shape and sets all the elements to the value of 1. Whenever possible, you should (run a quick test) to confirm your interpretation:
+
+In the Jupyter notebook, we can use <code> to display the document in another window. For example, <code> will create content that is almost identical to <code>, displaying it in a new browser window. In addition, if we use two question marks, such as <code>, the Python code implementing the function will also be displayed.
+
+The official documentation provides plenty of descriptions and examples that are beyond this book. We emphasize important use cases that will get you started quickly with practical problems, rather than completeness of coverage. We also encourage you to study the source code of the libraries to see examples of high-quality implementations of production code. By doing this you will become a better engineer in addition to becoming a better scientist.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

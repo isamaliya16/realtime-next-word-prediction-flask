@@ -1,0 +1,45 @@
+Image Captioning.
+
+Setup.
+
+Download the dataset.
+
+We will be using the Flickr8K dataset for this tutorial. This dataset comprises over 8,000 images, that are each paired with five different captions.
+
+Preparing the dataset.
+
+Vectorizing the text data.
+
+We'll use the <code> layer to vectorize the text data, that is to say, to turn the original strings into integer sequences where each integer represents the index of a word in a vocabulary. We will use a custom string standardization scheme (strip punctuation characters except <code> and <code>) and the default splitting scheme (split on whitespace).
+
+Building a <code> pipeline for training.
+
+We will generate pairs of images and corresponding captions using a <code> object. The pipeline consists of two steps:
+
+Read the image from the disk.
+
+Tokenize all the five captions corresponding to the image.
+
+Building the model.
+
+Our image captioning architecture consists of three models:
+
+A CNN: used to extract the image features.
+
+A TransformerEncoder: The extracted image features are then passed to a Transformer based encoder that generates a new representation of the inputs.
+
+A TransformerDecoder: This model takes the encoder output and the text data (sequences) as inputs and tries to learn to generate the caption.
+
+Model training.
+
+Check sample predictions.
+
+End Notes.
+
+We saw that the model starts to generate reasonable captions after a few epochs. To keep this example easily runnable, we have trained it with a few constraints, like a minimal number of attention heads. To improve the predictions, you can try changing these training settings and find a good model for your use case.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.
+
+Chapter 16: Text generation.

@@ -1,0 +1,69 @@
+Build a linear model with Estimators.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Overview.
+
+This end-to-end walkthrough trains a logistic regression model using the <code> API. The model is often used as a baseline for other, more complex, algorithms.
+
+Note: A Keras logistic regression example is available and is recommended over this tutorial.
+
+Setup.
+
+Load the titanic dataset.
+
+You will use the Titanic dataset with the (rather morbid) goal of predicting passenger survival, given characteristics such as gender, age, class, etc.
+
+Explore the data.
+
+The dataset contains the following features.
+
+There are 627 and 264 examples in the training and evaluation sets, respectively.
+
+The majority of passengers are in their 20's and 30's.
+
+There are approximately twice as many male passengers as female passengers aboard.
+
+The majority of passengers were in the "third" class.
+
+Females have a much higher chance of surviving versus males. This is clearly a predictive feature for the model.
+
+Feature Engineering for the Model.
+
+Warning: The tf.featurecolumns module described in this tutorial is not recommended for new code. Keras preprocessing layers cover this functionality, for migration instructions see the Migrating feature columns guide. The tf.featurecolumns module was designed for use with TF1 Estimators. It does fall under our compatibility guarantees, but will receive no fixes other than security vulnerabilities.
+
+Estimators use a system called feature columns to describe how the model should interpret each of the raw input features. An Estimator expects a vector of numeric inputs, and feature columns describe how the model should convert each feature.
+
+Selecting and crafting the right set of feature columns is key to learning an effective model. A feature column can be either one of the raw inputs in the original features <code> (a base feature column), or any new columns created using transformations defined over one or multiple base columns (a derived feature columns).
+
+The linear estimator uses both numeric and categorical features. Feature columns work with all TensorFlow estimators and their purpose is to define the features used for modeling. Additionally, they provide some feature engineering capabilities like one-hot-encoding, normalization, and bucketization.
+
+Base Feature Columns.
+
+The <code> specifies how data is converted to a <code> that feeds the input pipeline in a streaming fashion. <code> can take in multiple sources such as a dataframe, a csv-formatted file, and more.
+
+You can inspect the dataset:
+
+You can also inspect the result of a specific feature column using the <code> layer:
+
+<code> only accepts dense tensors, to inspect a categorical column you need to transform that to a indicator column first:
+
+After adding all the base features to the model, let's train the model. Training a model is just a single command using the <code> API:
+
+Derived Feature Columns.
+
+Now you reached an accuracy of 75%. Using each base feature column separately may not be enough to explain the data. For example, the correlation between age and the label may be different for different gender. Therefore, if you only learn a single model weight for <code> and <code>, you won't capture every age-gender combination (e.g. distinguishing between <code> AND <code> AND <code> AND <code>).
+
+To learn the differences between different feature combinations, you can add crossed feature columns to the model (you can also bucketize age column before the cross column):
+
+After adding the combination feature to the model, let's train the model again:
+
+It now achieves an accuracy of 77.6%, which is slightly better than only trained in base features. You can try using more features and transformations to see if you can do better!
+
+Now you can use the train model to make predictions on a passenger from the evaluation set. TensorFlow models are optimized to make predictions on a batch, or collection, of examples at once. Earlier, the <code> was defined using the entire evaluation set.
+
+Finally, look at the receiver operating characteristic (ROC) of the results, which will give us a better idea of the tradeoff between the true positive rate and false positive rate.

@@ -1,0 +1,151 @@
+PyTorch Profiler Author: Shivam Raikundalia.
+
+This recipe explains how to use PyTorch profiler and measure the time and memory consumption of the model's operators.
+
+Introduction PyTorch includes a simple profiler API that is useful when the user needs to determine the most expensive operators in the model.
+
+In this recipe, we will use a simple Resnet model to demonstrate how to use the profiler to analyze model performance.
+
+Prerequisites.
+
+<code>.
+
+Setup To install <code> and <code> use the following command:
+
+Steps.
+
+Import all necessary libraries.
+
+Instantiate a simple Resnet model.
+
+Using profiler to analyze execution time.
+
+Using profiler to analyze memory consumption.
+
+Using tracing functionality.
+
+Examining stack traces.
+
+Using profiler to analyze long-running jobs.
+
+Import all necessary libraries.
+
+In this recipe we will use <code>, <code> and <code> modules:
+
+Instantiate a simple Resnet model.
+
+Let's create an instance of a Resnet model and prepare an input for it:
+
+Using profiler to analyze execution time.
+
+PyTorch profiler is enabled through the context manager and accepts a number of parameters, some of the most useful are:
+
+<code> - a list of activities to profile:
+
+<code> - PyTorch operators, TorchScript functions and user-defined code labels (see <code> below);
+
+<code> - on-device CUDA kernels;
+
+<code> - on-device XPU kernels;
+
+<code> - whether to record shapes of the operator inputs;
+
+<code> - whether to report amount of memory consumed by model's Tensors;
+
+Note: when using CUDA, profiler also shows the runtime CUDA events occurring on the host.
+
+Let's see how we can use profiler to analyze the execution time:
+
+Note that we can use <code> context manager to label arbitrary code ranges with user provided names (<code> is used as a label in the example above).
+
+Profiler allows one to check which operators were called during the execution of a code range wrapped with a profiler context manager. If multiple profiler ranges are active at the same time (e.g. in parallel PyTorch threads), each profiling context manager tracks only the operators of its corresponding range. Profiler also automatically profiles the asynchronous tasks launched with <code> and (in case of a backward pass) the backward pass operators launched with <code> call.
+
+Let's print out the stats for the execution above:
+
+The output will look like (omitting some columns):
+
+Here we see that, as expected, most of the time is spent in convolution (and specifically in <code> for PyTorch compiled with <code> support). Note the difference between self cpu time and cpu time - operators can call other operators, self cpu time excludes time spent in children operator calls, while total cpu time includes it. You can choose to sort by the self cpu time by passing <code> into the <code> call.
+
+To get a finer granularity of results and include operator input shapes, pass <code> (note: this requires running the profiler with <code>):
+
+The output might look like this (omitting some columns):
+
+Note the occurrence of <code> twice with different input shapes.
+
+Profiler can also be used to analyze performance of models executed on GPUs: Users could switch between cpu, cuda and xpu.
+
+(Note: the first use of CUDA profiling may bring an extra overhead.).
+
+The resulting table output (omitting some columns):
+
+(Note: the first use of XPU profiling may bring an extra overhead.).
+
+The resulting table output (omitting some columns):
+
+Note the occurrence of on-device kernels in the output (e.g. <code> for CUDA or <code> for XPU).
+
+Using profiler to analyze memory consumption.
+
+PyTorch profiler can also show the amount of memory (used by the model's tensors) that was allocated (or released) during the execution of the model's operators. In the output below, 'self' memory corresponds to the memory allocated (released) by the operator, excluding the children calls to the other operators. To enable memory profiling functionality pass <code>.
+
+The output might look like this (omitting some columns):
+
+Using tracing functionality.
+
+Profiling results can be outputted as a <code> trace file: Tracing CUDA or XPU kernels Users could switch between cpu, cuda and xpu.
+
+You can examine the sequence of profiled operators and CUDA/XPU kernels in Chrome trace viewer (<code>):
+
+Examining stack traces.
+
+Profiler can be used to analyze Python and TorchScript stack traces:
+
+The output might look like this (omitting some columns):
+
+Note the two convolutions and the two call sites in <code> script.
+
+(Warning: stack tracing adds an extra profiling overhead.).
+
+Using profiler to analyze long-running jobs.
+
+PyTorch profiler offers an additional API to handle long-running jobs (such as training loops). Tracing all of the execution can be slow and result in very large trace files. To avoid this, use optional arguments:
+
+<code> - specifies a function that takes an integer argument (step number) as an input and returns an action for the profiler, the best way to use this parameter is to use <code> helper function that can generate a schedule for you;
+
+<code> - specifies a function that takes a reference to the profiler as an input and is called by the profiler each time the new trace is ready.
+
+To illustrate how the API works, let's first consider the following example with <code> helper function:
+
+Profiler assumes that the long-running job is composed of steps, numbered starting from zero. The example above defines the following sequence of actions for the profiler:
+
+Parameter <code> tells profiler that it should ignore the first 10 steps (default value of <code> is zero);
+
+After the first <code> steps, profiler starts executing profiler cycles;
+
+Each cycle consists of three phases:
+
+idling (<code> steps), during this phase profiler is not active;
+
+warming up (<code> steps), during this phase profiler starts tracing, but the results are discarded; this phase is used to discard the samples obtained by the profiler at the beginning of the trace since they are usually skewed by an extra overhead;
+
+active tracing (<code> steps), during this phase profiler traces and records data;
+
+An optional <code> parameter specifies an upper bound on the number of cycles. By default (zero value), profiler will execute cycles as long as the job runs.
+
+Thus, in the example above, profiler will skip the first 15 steps, spend the next step on the warm up, actively record the next 3 steps, skip another 5 steps, spend the next step on the warm up, actively record another 3 steps. Since the <code> parameter value is specified, the profiler will stop the recording after the first two cycles.
+
+At the end of each cycle profiler calls the specified <code> function and passes itself as an argument. This function is used to process the new trace - either by obtaining the table output or by saving the output on disk as a trace file.
+
+To send the signal to the profiler that the next step has started, call <code> function. The current profiler step is stored in <code>.
+
+The following example shows how to use all of the concepts above for CUDA and XPU Kernels:
+
+Learn More.
+
+Take a look at the following recipes/tutorials to continue your learning:
+
+PyTorch Benchmark.
+
+Visualizing models, data, and training with TensorBoard tutorial.
+
+Hugging Face PyTorch Profiler Blog Post.

@@ -1,0 +1,69 @@
+How to use Keras with NNX backend.
+
+A Guide to the Keras & Flax NNX Integration.
+
+This tutorial will guide you through the integration of Keras with Flax's NNX (Neural Networks JAX) module system, demonstrating how it significantly enhances variable handling and opens up advanced training capabilities within the JAX ecosystem. Whether you love the simplicity of model.fit() or the fine-grained control of a custom training loop, this integration lets you have the best of both worlds. Let's dive in!
+
+Why Keras and NNX Integration?
+
+Keras is known for its user-friendliness and high-level API, making deep learning accessible. JAX, on the other hand, provides high-performance numerical computation, especially suited for machine learning research due to its JIT compilation and automatic differentiation capabilities. NNX is Flax's functional module system built on JAX, offering explicit state management and powerful functional programming paradigms.
+
+NNX is designed for simplicity. It is characterized by its Pythonic approach, where modules are standard Python classes, promoting ease of use and familiarity. NNX prioritizes user-friendliness and offers fine-grained control over JAX transformations through typed Variable collections.
+
+The integration of Keras with NNX allows you to leverage the best of both worlds: the simplicity and modularity of Keras for model construction, combined with the power and explicit control of NNX and JAX for variable management and sophisticated training loops.
+
+Getting Started: Setting Up Your Environment.
+
+Enabling NNX Mode.
+
+To activate the integration, we must set two environment variables before importing Keras. This tells Keras to use the JAX backend and switch to NNX as an opt in feature.
+
+The Core Integration: Keras Variables in NNX.
+
+The heart of this integration is the new keras.Variable, which is designed to be a native citizen of the Flax NNX ecosystem. This means you can mix Keras and NNX components freely, and NNX's tracing and state management tools will understand your Keras variables. Let's prove it. We'll create an nnx.Module that contains both a standard nnx.Linear layer and a keras.Variable.
+
+What this shows: The KerasVariable is successfully traced by NNX, just like any native nnx.Variable. The nnx.variables() function correctly identifies and lists our custom_variable as part of the model's state. This confirms that Keras state and NNX state can live together in perfect harmony.
+
+The Best of Both Worlds: Training Workflows.
+
+Now for the exciting part: training models. This integration unlocks two powerful workflows.
+
+Workflow 1: The Classic Keras Experience (model.fit).
+
+Create a Keras Model.
+
+Create Dummy Data.
+
+Compile and Fit.
+
+Verify a change.
+
+As you can see, your existing Keras code works out-of-the-box, giving you a high-level, productive experience powered by JAX and NNX under the hood.
+
+Workflow 2: The Power of NNX: Custom Training Loops.
+
+For maximum flexibility, you can treat any Keras layer or model as an nnx.Module and write your own training loop using libraries like Optax. This is perfect when you need fine-grained control over the gradient and update process.
+
+This example shows how a keras model object is seamlessly passed to nnx.Optimizer and differentiated by nnx.grad. This composition allows you to integrate Keras components into sophisticated JAX/NNX workflows. This approach also works perfectly with sequential, functional, subclassed keras models are even just layers.
+
+Saving and Loading.
+
+Your investment in the Keras ecosystem is safe. Standard features like model serialization work exactly as you'd expect.
+
+Real-World Application: Training Gemma.
+
+Before trying out this KerasHub model, please make sure you have set up your Kaggle credentials in colab secrets. The colab pulls in <code> and <code> to authenticate and download the models.
+
+Conclusion.
+
+The Keras-NNX integration represents a significant step forward, offering a unified framework for both rapid prototyping and high-performance, customizable research. You can now:
+
+Use familiar Keras APIs (Sequential, Model, fit, save) on a JAX backend.
+
+Integrate Keras layers and models directly into Flax NNX modules and training loops.
+
+Integrate Keras code/model with the NNX ecosystem like Qwix, Tunix, etc.
+
+Leverage the entire JAX ecosystem (e.g., nnx.jit, optax) with your Keras models.
+
+Seamlessly work with large models from KerasHub.

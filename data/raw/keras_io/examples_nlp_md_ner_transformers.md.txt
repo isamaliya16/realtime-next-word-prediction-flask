@@ -1,0 +1,57 @@
+Named Entity Recognition using Transformers.
+
+Introduction.
+
+Named Entity Recognition (NER) is the process of identifying named entities in text. Example of named entities are: "Person", "Location", "Organization", "Dates" etc. NER is essentially a token classification task where every token is classified into one or more predetermined categories.
+
+In this exercise, we will train a simple Transformer based model to perform NER. We will be using the data from CoNLL 2003 shared task. For more information about the dataset, please visit the dataset website. However, since obtaining this data requires an additional step of getting a free license, we will be using HuggingFace's datasets library which contains a processed version of this dataset.
+
+Install the open source datasets library from HuggingFace.
+
+We also download the script used to evaluate NER models.
+
+We will be using the transformer implementation from this fantastic example.
+
+Let's start by defining a <code> layer:
+
+Next, let's define a <code> layer:
+
+Build the NER model class as a <code> subclass.
+
+Load the CoNLL 2003 dataset from the datasets library and process it.
+
+We will export this data to a tab-separated file format which will be easy to read as a <code> object.
+
+Make the NER label lookup table.
+
+NER labels are usually provided in IOB, IOB2 or IOBES formats. Checkout this link for more information: Wikipedia).
+
+Note that we start our label numbering from 1 since 0 will be reserved for padding. We have a total of 10 labels: 9 from the NER dataset and one for padding.
+
+Get a list of all tokens in the training dataset. This will be used to create the vocabulary.
+
+Create 2 new <code> objects from the training and validation data.
+
+Print out one line to make sure it looks good. The first record in the line is the number of tokens. After that we will have all the tokens followed by all the ner tags.
+
+We will be using the following map function to transform the data in the dataset:
+
+We will be using a custom loss function that will ignore the loss from padded tokens.
+
+Compile and fit the model.
+
+Metrics calculation.
+
+Here is a function to calculate the metrics. The function calculates F1 score for the overall NER dataset as well as individual scores for each NER tag.
+
+Conclusions.
+
+In this exercise, we created a simple transformer based named entity recognition model. We trained it on the CoNLL 2003 shared task data and got an overall F1 score of around 70%. State of the art NER models fine-tuned on pretrained models such as BERT or ELECTRA can easily get much higher F1 score -between 90-95% on this dataset owing to the inherent knowledge of words as part of the pretraining process and the usage of subword tokenization.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.""".
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.
+
+Chapter 15: Language models and the Transformer.

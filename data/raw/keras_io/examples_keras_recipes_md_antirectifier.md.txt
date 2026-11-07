@@ -1,0 +1,25 @@
+Simple custom layer example: Antirectifier.
+
+Introduction.
+
+This example shows how to create custom layers, using the Antirectifier layer (originally proposed as a Keras example script in January 2016), an alternative to ReLU. Instead of zeroing-out the negative part of the input, it splits the negative and positive parts and returns the concatenation of the absolute value of both. This avoids loss of information, at the cost of an increase in dimensionality. To fix the dimensionality increase, we linearly combine the features back to a space of the original size.
+
+Setup.
+
+The Antirectifier layer.
+
+To implement a custom layer:
+
+Create the state variables via <code> in <code> or <code>. Similarly, you can also create sublayers.
+
+Implement the <code> method, taking the layer's input tensor(s) and return the output tensor(s).
+
+Optionally, you can also enable serialization by implementing <code>, which returns a configuration dictionary.
+
+See also the guide Making new layers and models via subclassing.
+
+Let's test-drive it on MNIST.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

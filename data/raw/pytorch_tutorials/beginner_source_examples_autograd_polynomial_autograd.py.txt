@@ -1,0 +1,7 @@
+PyTorch: Tensors and autograd.
+
+A third order polynomial, trained to predict y=\sin(x) from -\pi to \pi by minimizing squared Euclidean distance.
+
+This implementation computes the forward pass using operations on PyTorch Tensors, and uses PyTorch autograd to compute gradients.
+
+A PyTorch Tensor represents a node in a computational graph. If <code> is a Tensor that has <code> then <code> is another Tensor holding the gradient of <code> with respect to some scalar value.

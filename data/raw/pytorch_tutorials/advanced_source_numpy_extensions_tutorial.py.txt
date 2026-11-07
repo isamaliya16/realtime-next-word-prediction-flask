@@ -1,0 +1,35 @@
+Creating Extensions Using NumPy and SciPy Author: Adam Paszke.
+
+Updated by: Adam Dziedzic.
+
+In this tutorial, we shall go through two tasks:
+
+Create a neural network layer with no parameters.
+
+This calls into numpy as part of its implementation.
+
+Create a neural network layer that has learnable weights.
+
+This calls into SciPy as part of its implementation.
+
+Parameter-less example.
+
+This layer doesn’t particularly do anything useful or mathematically correct.
+
+It is aptly named <code>.
+
+Layer Implementation.
+
+Example usage of the created layer:
+
+Parametrized example.
+
+In deep learning literature, this layer is confusingly referred to as convolution while the actual operation is cross-correlation (the only difference is that filter is flipped for convolution, which is not the case for cross-correlation).
+
+Implementation of a layer with learnable weights, where cross-correlation has a filter (kernel) that represents weights.
+
+The backward pass computes the gradient <code> the input and the gradient <code> the filter.
+
+Example usage:
+
+Check the gradients:

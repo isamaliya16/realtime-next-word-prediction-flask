@@ -1,0 +1,49 @@
+Introduction to Libuv TCPStore Backend Authors: Xilun Wu.
+
+Introduction.
+
+Recently, we have rolled out a new TCPStore server backend using libuv, a third-party library for asynchronous I/O. This new server backend aims to address scalability and robustness challenges in large-scale distributed training jobs, such as those with more than 1024 ranks. We ran a series of benchmarks to compare the libuv backend against the old one, and the experiment results demonstrated significant improvements in store initialization time and maintained a comparable performance in store I/O operations.
+
+As a result of these findings, the libuv backend has been set as the default TCPStore server backend in PyTorch 2.4. This change is expected to enhance the performance and scalability of distributed training jobs.
+
+This change introduces a slight incompatibility to store initialization. For users who wish to continue using the legacy backend, the tutorial will provide guidance on how to specify to use the previous TCPStore server backend.
+
+Performance Benchmark.
+
+To better demonstrate the benefit of our new libuv TCPStore backend, we set up a benchmark over a wide range of job size, from 1024 (1K) to 98304 (96K) ranks. We first measured the TCPStore initialization time using the code snippet below:
+
+Since the execution of the TCPStore server thread will be blocked until all clients are successfully connected, we take the time measured on rank 0 as the total TCPStore initialization runtime. The experiment numbers are reported in the figure below:
+
+Figure 1. shows some significant evidence that the libuv backend is superior to the legacy backend:
+
+TCPStore with libuv backend always has a faster initialization than the legacy backend, especially at super-large scale.
+
+The legacy backend would timeout at server-client connecting at 96K scale (for example, over 30 minutes) while the libuv backend completed the initialization in 100 seconds.
+
+The second benchmark we did is to measure the runtime of TCPStore <code> operation:
+
+We compute the average by dividing the runtime measured on rank 0 by <code> and report it in the figure below:
+
+Figure 2. shows that the I/O performance of libuv backend is comparable to the legacy backend:
+
+The libuv backend has a comparable performance over the whole spectrum in terms of the number of ranks.
+
+The libuv backend runtime is more stable than the legacy backend as the number of ranks grows.
+
+Impact.
+
+One incompatibility that users may need to pay attention is, TCPStore currently does not support initialization with a <code> when using libuv backend. If the user wants to keep using this initialization method, the user can simply pass <code> to stay with the old TCPStore backend.
+
+Exit Route 1: Pass <code> to TCPStore Initialization.
+
+As the above code snippet shows, if user calls TCPStore init method to create a store, simply passing <code> allows user to remain using the old TCPStore backend. This override has the highest priority over other approaches determining which backend the TCPStore server should choose.
+
+Exit Route 2: Add <code> to <code> at ProcessGroup Initialization.
+
+<code> creates a TCPStore if user does not explicitly pass one to its initialization. User can add the query option <code> to <code> when initializing the <code>. This approach has lower priority than Exit Route 1.
+
+Exit Route 3: Set Environment Variable <code> to <code>.
+
+When ProcessGroup creates a TCPStore, it also checks the environment vairable <code> to determine which TCPStore backend to use. User can set the environment variable <code> to <code> to specify the use of old TCPStore backend. This approach has lower priority than Exit Route 2, for example, if the user sets environment variable <code> to <code> and also passes <code> in <code>, then the old store backend will be chosen.
+
+Conclusion In PyTorch 2.4, we made the new libuv TCPStore backend the default. Although the new backend has incompatibility with initialization from a <code>, it shows significant performance improvement on store initialization at large-scale and compatible performance on store I/O at small/medium/large scales, which brings a major benefit to Distributed Training's control plane. This tutorial explains our motivation, goes through the performance benchmark, notifies users of the potential impact, and introduces three exit routes to remain using the legacy backend. In the long term, we aim to eventually deprecate the legacy backend.

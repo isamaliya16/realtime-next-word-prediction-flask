@@ -1,0 +1,159 @@
+A Vision Transformer without Attention.
+
+Introduction.
+
+Vision Transformers (ViTs) have sparked a wave of research at the intersection of Transformers and Computer Vision (CV).
+
+ViTs can simultaneously model long- and short-range dependencies, thanks to the Multi-Head Self-Attention mechanism in the Transformer block. Many researchers believe that the success of ViTs are purely due to the attention layer, and they seldom think about other parts of the ViT model.
+
+In the academic paper When Shift Operation Meets Vision Transformer: An Extremely Simple Alternative to Attention Mechanism the authors propose to demystify the success of ViTs with the introduction of a NO PARAMETER operation in place of the attention operation. They swap the attention operation with a shifting operation.
+
+In this example, we minimally implement the paper with close alignement to the author's official implementation.
+
+This example requires TensorFlow 2.9 or higher.
+
+Setup and imports.
+
+Hyperparameters.
+
+These are the hyperparameters that we have chosen for the experiment. Please feel free to tune them.
+
+Load the CIFAR-10 dataset.
+
+We use the CIFAR-10 dataset for our experiments.
+
+Data Augmentation.
+
+The augmentation pipeline consists of:
+
+Rescaling.
+
+Resizing.
+
+Random cropping.
+
+Random horizontal flipping.
+
+Note: The image data augmentation layers do not apply data transformations at inference time. This means that when these layers are called with <code> they behave differently. Refer to the documentation for more details.
+
+The ShiftViT architecture.
+
+In this section, we build the architecture proposed in the ShiftViT paper.
+
+Source.
+
+The architecture as shown in Fig. 1, is inspired by Swin Transformer: Hierarchical Vision Transformer using Shifted Windows. Here the authors propose a modular architecture with 4 stages. Each stage works on its own spatial size, creating a hierarchical architecture.
+
+An input image of size <code> is split into non-overlapping patches of size <code>. This is done via the patchify layer which results in individual tokens of feature size <code> (<code>). Each stage comprises two parts:
+
+Embedding Generation.
+
+Stacked Shift Blocks.
+
+We discuss the stages and the modules in detail in what follows.
+
+Note: Compared to the official implementation we restructure some key components to better fit the Keras API.
+
+The ShiftViT Block.
+
+Each stage in the ShiftViT architecture comprises of a Shift Block as shown in Fig 2.
+
+The Shift Block as shown in Fig. 3, comprises of the following:
+
+Shift Operation.
+
+Linear Normalization.
+
+MLP Layer.
+
+The MLP block.
+
+The MLP block is intended to be a stack of densely-connected layers.
+
+The DropPath layer.
+
+Stochastic depth is a regularization technique that randomly drops a set of layers. During inference, the layers are kept as they are. It is very similar to Dropout, but it operates on a block of layers rather than on individual nodes present inside a layer.
+
+Block.
+
+The most important operation in this paper is the shift operation. In this section, we describe the shift operation and compare it with its original implementation provided by the authors.
+
+A generic feature map is assumed to have the shape <code>. Here we choose a <code> parameter that decides the division size of the channels. The first 4 divisions are shifted (1 pixel) in the left, right, up, and down direction. The remaining splits are kept as is. After partial shifting the shifted channels are padded and the overflown pixels are chopped off. This completes the partial shifting operation.
+
+In the original implementation, the code is approximately:
+
+In TensorFlow it would be infeasible for us to assign shifted channels to a tensor in the middle of the training process. This is why we have resorted to the following procedure:
+
+Split the channels with the <code> parameter.
+
+Select each of the first four spilts and shift and pad them in the respective directions.
+
+After shifting and padding, we concatenate the channel back.
+
+The entire procedure is explained in the Fig. 4.
+
+The ShiftViT blocks.
+
+Each stage of the architecture has shift blocks as shown in Fig.5. Each of these blocks contain a variable number of stacked ShiftViT block (as built in the earlier section).
+
+Shift blocks are followed by a PatchMerging layer that scales down feature inputs. The PatchMerging layer helps in the pyramidal structure of the model.
+
+The PatchMerging layer.
+
+This layer merges the two adjacent tokens. This layer helps in scaling the features down spatially and increasing the features up channel wise. We use a Conv2D layer to merge the patches.
+
+Stacked Shift Blocks.
+
+Each stage will have a variable number of stacked ShiftViT Blocks, as suggested in the paper. This is a generic layer that will contain the stacked shift vit blocks with the patch merging layer as well. Combining the two operations (shift ViT block and patch merging) is a design choice we picked for better code reusability.
+
+The ShiftViT model.
+
+Build the ShiftViT custom model.
+
+Instantiate the model.
+
+Learning rate schedule.
+
+In many experiments, we want to warm up the model with a slowly increasing learning rate and then cool down the model with a slowly decaying learning rate. In the warmup cosine decay, the learning rate linearly increases for the warmup steps and then decays with a cosine decay.
+
+Compile and train the model.
+
+Save trained model.
+
+Since we created the model by Subclassing, we can't save the model in HDF5 format.
+
+It can be saved in TF SavedModel format only. In general, this is the recommended format for saving models as well.
+
+Model inference.
+
+Download sample data for inference.
+
+Load saved model.
+
+Utility functions for inference.
+
+Get predictions.
+
+View predictions.
+
+Conclusion.
+
+The most impactful contribution of the paper is not the novel architecture, but the idea that hierarchical ViTs trained with no attention can perform quite well. This opens up the question of how essential attention is to the performance of ViTs.
+
+For curious minds, we would suggest reading the ConvNexT paper which attends more to the training paradigms and architectural details of ViTs rather than providing a novel architecture based on attention.
+
+Acknowledgements:
+
+We would like to thank PyImageSearch for providing us with resources that helped in the completion of this project.
+
+We would like to thank JarvisLabs.ai for providing with the GPU credits.
+
+We would like to thank Manim Community for the manim library.
+
+A personal note of thanks to Puja Roychowdhury for helping us with the Learning Rate Schedule.
+
+Example available on HuggingFace.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

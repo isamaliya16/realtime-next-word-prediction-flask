@@ -1,0 +1,313 @@
+The Functional API.
+
+Setup.
+
+Introduction.
+
+The Keras functional API is a way to create models that are more flexible than the <code> API. The functional API can handle models with non-linear topology, shared layers, and even multiple inputs or outputs.
+
+The main idea is that a deep learning model is usually a directed acyclic graph (DAG) of layers. So the functional API is a way to build graphs of layers.
+
+Consider the following model:
+
+This is a basic graph with three layers. To build this model using the functional API, start by creating an input node:
+
+The shape of the data is set as a 784-dimensional vector. The batch size is always omitted since only the shape of each sample is specified.
+
+If, for example, you have an image input with a shape of <code>, you would use:
+
+The <code> that is returned contains information about the shape and <code> of the input data that you feed to your model. Here's the shape:
+
+Here's the dtype:
+
+You create a new node in the graph of layers by calling a layer on this <code> object:
+
+The "layer call" action is like drawing an arrow from "inputs" to this layer you created. You're "passing" the inputs to the <code> layer, and you get <code> as the output.
+
+Let's add a few more layers to the graph of layers:
+
+At this point, you can create a <code> by specifying its inputs and outputs in the graph of layers:
+
+Let's check out what the model summary looks like:
+
+Model: "mnist_model".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( None , 784 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense ( Dense ) │ ( None , 64 ) │ 50,240 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense1 ( Dense ) │ ( None , 64 ) │ 4,160 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense_2 ( Dense ) │ ( None , 10 ) │ 650 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 55,050 (215.04 KB).
+
+Trainable params: 55,050 (215.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+You can also plot the model as a graph:
+
+And, optionally, display the input and output shapes of each layer in the plotted graph:
+
+This figure and the code are almost identical. In the code version, the connection arrows are replaced by the call operation.
+
+A "graph of layers" is an intuitive mental image for a deep learning model, and the functional API is a way to create models that closely mirrors this.
+
+Training, evaluation, and inference.
+
+Training, evaluation, and inference work exactly in the same way for models built using the functional API as for <code> models.
+
+The <code> class offers a built-in training loop (the <code> method) and a built-in evaluation loop (the <code> method). Note that you can easily customize these loops to implement your own training routines. See also the guides on customizing what happens in <code>:
+
+Writing a custom train step with TensorFlow.
+
+Writing a custom train step with JAX.
+
+Writing a custom train step with PyTorch.
+
+Here, load the MNIST image data, reshape it into vectors, fit the model on the data (while monitoring performance on a validation split), then evaluate the model on the test data:
+
+For further reading, see the training and evaluation guide.
+
+Save and serialize.
+
+Saving the model and serialization work the same way for models built using the functional API as they do for <code> models. The standard way to save a functional model is to call <code> to save the entire model as a single file. You can later recreate the same model from this file, even if the code that built the model is no longer available.
+
+This saved file includes the:
+
+model architecture.
+
+model weight values (that were learned during training).
+
+model training config, if any (as passed to <code>).
+
+optimizer and its state, if any (to restart training where you left off).
+
+For details, read the model serialization & saving guide.
+
+Use the same graph of layers to define multiple models.
+
+In the functional API, models are created by specifying their inputs and outputs in a graph of layers. That means that a single graph of layers can be used to generate multiple models.
+
+In the example below, you use the same stack of layers to instantiate two models: an <code> model that turns image inputs into 16-dimensional vectors, and an end-to-end <code> model for training.
+
+Model: "encoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ img ( InputLayer ) │ ( None , 28 , 28 , 1 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d ( Conv2D ) │ ( None , 26 , 26 , 16 ) │ 160 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d1 ( Conv2D ) │ ( None , 24 , 24 , 32 ) │ 4,640 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ maxpooling2d ( MaxPooling2D ) │ ( None , 8 , 8 , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d2 ( Conv2D ) │ ( None , 6 , 6 , 32 ) │ 9,248 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d3 ( Conv2D ) │ ( None , 4 , 4 , 16 ) │ 4,624 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalmaxpooling2d │ ( None , 16 ) │ 0 │ │ ( GlobalMaxPooling2D ) │ │ │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 18,672 (72.94 KB).
+
+Trainable params: 18,672 (72.94 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Model: "autoencoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ img ( InputLayer ) │ ( None , 28 , 28 , 1 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d ( Conv2D ) │ ( None , 26 , 26 , 16 ) │ 160 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d1 ( Conv2D ) │ ( None , 24 , 24 , 32 ) │ 4,640 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ maxpooling2d ( MaxPooling2D ) │ ( None , 8 , 8 , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d2 ( Conv2D ) │ ( None , 6 , 6 , 32 ) │ 9,248 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d3 ( Conv2D ) │ ( None , 4 , 4 , 16 ) │ 4,624 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalmaxpooling2d │ ( None , 16 ) │ 0 │ │ ( GlobalMaxPooling2D ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ reshape ( Reshape ) │ ( None , 4 , 4 , 1 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose │ ( None , 6 , 6 , 16 ) │ 160 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose1 │ ( None , 8 , 8 , 32 ) │ 4,640 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ upsampling2d ( UpSampling2D ) │ ( None , 24 , 24 , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose2 │ ( None , 26 , 26 , 16 ) │ 4,624 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose3 │ ( None , 28 , 28 , 1 ) │ 145 │ │ ( Conv2DTranspose ) │ │ │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 28,241 (110.32 KB).
+
+Trainable params: 28,241 (110.32 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Here, the decoding architecture is strictly symmetrical to the encoding architecture, so the output shape is the same as the input shape <code>.
+
+The reverse of a <code> layer is a <code> layer, and the reverse of a <code> layer is an <code> layer.
+
+All models are callable, just like layers.
+
+You can treat any model as if it were a layer by invoking it on an <code> or on the output of another layer. By calling a model you aren't just reusing the architecture of the model, you're also reusing its weights.
+
+To see this in action, here's a different take on the autoencoder example that creates an encoder model, a decoder model, and chains them in two calls to obtain the autoencoder model:
+
+Model: "encoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ originalimg ( InputLayer ) │ ( None , 28 , 28 , 1 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d4 ( Conv2D ) │ ( None , 26 , 26 , 16 ) │ 160 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d5 ( Conv2D ) │ ( None , 24 , 24 , 32 ) │ 4,640 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ maxpooling2d1 ( MaxPooling2D ) │ ( None , 8 , 8 , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d6 ( Conv2D ) │ ( None , 6 , 6 , 32 ) │ 9,248 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2d7 ( Conv2D ) │ ( None , 4 , 4 , 16 ) │ 4,624 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalmaxpooling2d1 │ ( None , 16 ) │ 0 │ │ ( GlobalMaxPooling2D ) │ │ │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 18,672 (72.94 KB).
+
+Trainable params: 18,672 (72.94 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Model: "decoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ encodedimg ( InputLayer ) │ ( None , 16 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ reshape1 ( Reshape ) │ ( None , 4 , 4 , 1 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose4 │ ( None , 6 , 6 , 16 ) │ 160 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose5 │ ( None , 8 , 8 , 32 ) │ 4,640 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ upsampling2d1 ( UpSampling2D ) │ ( None , 24 , 24 , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose6 │ ( None , 26 , 26 , 16 ) │ 4,624 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ conv2dtranspose7 │ ( None , 28 , 28 , 1 ) │ 145 │ │ ( Conv2DTranspose ) │ │ │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 9,569 (37.38 KB).
+
+Trainable params: 9,569 (37.38 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Model: "autoencoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ img ( InputLayer ) │ ( None , 28 , 28 , 1 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ encoder ( Functional ) │ ( None , 16 ) │ 18,672 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ decoder ( Functional ) │ ( None , 28 , 28 , 1 ) │ 9,569 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 28,241 (110.32 KB).
+
+Trainable params: 28,241 (110.32 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+As you can see, the model can be nested: a model can contain sub-models (since a model is just like a layer). A common use case for model nesting is ensembling. For example, here's how to ensemble a set of models into a single model that averages their predictions:
+
+Manipulate complex graph topologies.
+
+Models with multiple inputs and outputs.
+
+The functional API makes it easy to manipulate multiple inputs and outputs. This cannot be handled with the <code> API.
+
+For example, if you're building a system for ranking customer issue tickets by priority and routing them to the correct department, then the model will have three inputs:
+
+the title of the ticket (text input).
+
+the text body of the ticket (text input), and.
+
+any tags added by the user (categorical input).
+
+This model will have two outputs:
+
+the priority score between 0 and 1 (scalar sigmoid output), and.
+
+the department that should handle the ticket (softmax output over the set of departments).
+
+You can build this model in a few lines with the functional API:
+
+Now plot the model:
+
+When compiling this model, you can assign different losses to each output. You can even assign different weights to each loss -- to modulate their contribution to the total training loss.
+
+Since the output layers have different names, you could also specify the losses and loss weights with the corresponding layer names:
+
+Train the model by passing lists of NumPy arrays of inputs and targets:
+
+When calling fit with a <code> object, it should yield either a tuple of lists like <code> or a tuple of dictionaries like <code>.
+
+For more detailed explanation, refer to the training and evaluation guide.
+
+A toy ResNet model.
+
+In addition to models with multiple inputs and outputs, the functional API makes it easy to manipulate non-linear connectivity topologies -- these are models with layers that are not connected sequentially, which the <code> API cannot handle.
+
+A common use case for this is residual connections. Let's build a toy ResNet model for CIFAR10 to demonstrate this:
+
+Model: "toy_resnet".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩ │ img ( InputLayer ) │ ( None , 32 , 32 , 3 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d8 ( Conv2D ) │ ( None , 30 , 30 , │ 896 │ img 0 │ │ │ 32 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d9 ( Conv2D ) │ ( None , 28 , 28 , │ 18,496 │ conv2d8 0 │ │ │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ maxpooling2d2 │ ( None , 9 , 9 , 64 ) │ 0 │ conv2d9 0 │ │ ( MaxPooling2D ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d10 ( Conv2D ) │ ( None , 9 , 9 , 64 ) │ 36,928 │ maxpooling2d2 … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d11 ( Conv2D ) │ ( None , 9 , 9 , 64 ) │ 36,928 │ conv2d10[ 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ add ( Add ) │ ( None , 9 , 9 , 64 ) │ 0 │ conv2d11 0 , │ │ │ │ │ maxpooling2d2 … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d12 ( Conv2D ) │ ( None , 9 , 9 , 64 ) │ 36,928 │ add[ 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d13 ( Conv2D ) │ ( None , 9 , 9 , 64 ) │ 36,928 │ conv2d12 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ add1 ( Add ) │ ( None , 9 , 9 , 64 ) │ 0 │ conv2d13 0 , │ │ │ │ │ add 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d14 ( Conv2D ) │ ( None , 7 , 7 , 64 ) │ 36,928 │ add1 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ globalaveragepoo… │ ( None , 64 ) │ 0 │ conv2d14 0 │ │ ( GlobalAveragePool… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense6 ( Dense ) │ ( None , 256 ) │ 16,640 │ globalaveragep… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dropout ( Dropout ) │ ( None , 256 ) │ 0 │ dense6 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense_7 ( Dense ) │ ( None , 10 ) │ 2,570 │ dropout 0 │ └─────────────────────┴───────────────────┴────────────┴───────────────────┘.
+
+Total params: 223,242 (872.04 KB).
+
+Trainable params: 223,242 (872.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Plot the model:
+
+Now train the model:
+
+Shared layers.
+
+Another good use for the functional API are models that use shared layers. Shared layers are layer instances that are reused multiple times in the same model -- they learn features that correspond to multiple paths in the graph-of-layers.
+
+Shared layers are often used to encode inputs from similar spaces (say, two different pieces of text that feature similar vocabulary). They enable sharing of information across these different inputs, and they make it possible to train such a model on less data. If a given word is seen in one of the inputs, that will benefit the processing of all inputs that pass through the shared layer.
+
+To share a layer in the functional API, call the same layer instance multiple times. For instance, here's an <code> layer shared across two different text inputs:
+
+Extract and reuse nodes in the graph of layers.
+
+Because the graph of layers you are manipulating is a static data structure, it can be accessed and inspected. And this is how you are able to plot functional models as images.
+
+This also means that you can access the activations of intermediate layers ("nodes" in the graph) and reuse them elsewhere -- which is very useful for something like feature extraction.
+
+Let's look at an example. This is a VGG19 model with weights pretrained on ImageNet:
+
+And these are the intermediate activations of the model, obtained by querying the graph data structure:
+
+Use these features to create a new feature-extraction model that returns the values of the intermediate layer activations:
+
+This comes in handy for tasks like neural style transfer, among other things.
+
+Extend the API using custom layers.
+
+<code> includes a wide range of built-in layers, for example:
+
+Convolutional layers: <code>, <code>, <code>, <code>.
+
+Pooling layers: <code>, <code>, <code>, <code>.
+
+RNN layers: <code>, <code>, <code>.
+
+<code>, <code>, <code>, etc.
+
+But if you don't find what you need, it's easy to extend the API by creating your own layers. All layers subclass the <code> class and implement:
+
+<code> method, that specifies the computation done by the layer.
+
+<code> method, that creates the weights of the layer (this is just a style convention since you can create weights in <code>, as well).
+
+To learn more about creating layers from scratch, read custom layers and models guide.
+
+The following is a basic implementation of <code>:
+
+For serialization support in your custom layer, define a <code> method that returns the constructor arguments of the layer instance:
+
+Optionally, implement the class method <code> which is used when recreating a layer instance given its config dictionary. The default implementation of <code> is:
+
+When to use the functional API.
+
+Should you use the Keras functional API to create a new model, or just subclass the <code> class directly? In general, the functional API is higher-level, easier and safer, and has a number of features that subclassed models do not support.
+
+However, model subclassing provides greater flexibility when building models that are not easily expressible as directed acyclic graphs of layers. For example, you could not implement a Tree-RNN with the functional API and would have to subclass <code> directly.
+
+For an in-depth look at the differences between the functional API and model subclassing, read What are Symbolic and Imperative APIs in TensorFlow 2.0?.
+
+Functional API strengths:
+
+The following properties are also true for Sequential models (which are also data structures), but are not true for subclassed models (which are Python bytecode, not data structures).
+
+Less verbose.
+
+There is no <code>, no <code>, etc.
+
+Compare:
+
+With the subclassed version:
+
+Model validation while defining its connectivity graph.
+
+In the functional API, the input specification (shape and dtype) is created in advance (using <code>). Every time you call a layer, the layer checks that the specification passed to it matches its assumptions, and it will raise a helpful error message if not.
+
+This guarantees that any model you can build with the functional API will run. All debugging -- other than convergence-related debugging -- happens statically during the model construction and not at execution time. This is similar to type checking in a compiler.
+
+A functional model is plottable and inspectable.
+
+You can plot the model as a graph, and you can easily access intermediate nodes in this graph. For example, to extract and reuse the activations of intermediate layers (as seen in a previous example):
+
+A functional model can be serialized or cloned.
+
+Because a functional model is a data structure rather than a piece of code, it is safely serializable and can be saved as a single file that allows you to recreate the exact same model without having access to any of the original code. See the serialization & saving guide.
+
+To serialize a subclassed model, it is necessary for the implementer to specify a <code> and <code> method at the model level.
+
+Functional API weakness:
+
+It does not support dynamic architectures.
+
+The functional API treats models as DAGs of layers. This is true for most deep learning architectures, but not all -- for example, recursive networks or Tree RNNs do not follow this assumption and cannot be implemented in the functional API.
+
+Mix-and-match API styles.
+
+Choosing between the functional API or Model subclassing isn't a binary decision that restricts you into one category of models. All models in the <code> API can interact with each other, whether they're <code> models, functional models, or subclassed models that are written from scratch.
+
+You can always use a functional model or <code> model as part of a subclassed model or layer:
+
+You can use any subclassed layer or model in the functional API as long as it implements a <code> method that follows one of the following patterns:
+
+<code> -- Where <code> is a tensor or a nested structure of tensors (e.g. a list of tensors), and where <code> are non-tensor arguments (non-inputs).
+
+<code> -- Where <code> is a boolean indicating whether the layer should behave in training mode and inference mode.
+
+<code> -- Where <code> is a boolean mask tensor (useful for RNNs, for instance).
+
+<code> -- Of course, you can have both masking and training-specific behavior at the same time.
+
+Additionally, if you implement the <code> method on your custom Layer or model, the functional models you create will still be serializable and cloneable.
+
+Here's a quick example of a custom RNN, written from scratch, being used in a functional model:

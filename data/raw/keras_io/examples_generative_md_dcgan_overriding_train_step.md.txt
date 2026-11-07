@@ -1,0 +1,51 @@
+DCGAN to generate face images.
+
+Setup.
+
+Prepare CelebA data.
+
+We'll use face images from the CelebA dataset, resized to 64x64.
+
+Create a dataset from our folder, and rescale the images to the [0-1] range:
+
+Let's display a sample image:
+
+Create the discriminator.
+
+It maps a 64x64 image to a binary classification score.
+
+Model: "discriminator".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ conv2d ( Conv2D ) │ ( None , 32 , 32 , 64 ) │ 3,136 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ leakyrelu ( LeakyReLU ) │ ( None , 32 , 32 , 64 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d1 ( Conv2D ) │ ( None , 16 , 16 , 128 ) │ 131,200 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ leakyrelu1 ( LeakyReLU ) │ ( None , 16 , 16 , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d2 ( Conv2D ) │ ( None , 8 , 8 , 128 ) │ 262,272 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ leakyrelu2 ( LeakyReLU ) │ ( None , 8 , 8 , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ flatten ( Flatten ) │ ( None , 8192 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 8192 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 1 ) │ 8,193 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 404,801 (1.54 MB).
+
+Trainable params: 404,801 (1.54 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Create the generator.
+
+It mirrors the discriminator, replacing <code> layers with <code> layers.
+
+Model: "generator".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ dense1 ( Dense ) │ ( None , 8192 ) │ 1,056,768 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ reshape ( Reshape ) │ ( None , 8 , 8 , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2dtranspose │ ( None , 16 , 16 , 128 ) │ 262,272 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ leakyrelu3 ( LeakyReLU ) │ ( None , 16 , 16 , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2dtranspose1 │ ( None , 32 , 32 , 256 ) │ 524,544 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ leakyrelu4 ( LeakyReLU ) │ ( None , 32 , 32 , 256 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2dtranspose2 │ ( None , 64 , 64 , 512 ) │ 2,097,664 │ │ ( Conv2DTranspose ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ leakyrelu5 ( LeakyReLU ) │ ( None , 64 , 64 , 512 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d3 ( Conv2D ) │ ( None , 64 , 64 , 3 ) │ 38,403 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 3,979,651 (15.18 MB).
+
+Trainable params: 3,979,651 (15.18 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Override <code>.
+
+Create a callback that periodically saves generated images.
+
+Train the end-to-end model.
+
+Some of the last generated images around epoch 30 (results keep improving after that):
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

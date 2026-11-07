@@ -1,0 +1,93 @@
+Keypoint Detection with Transfer Learning.
+
+Keypoint detection consists of locating key object parts. For example, the key parts of our faces include nose tips, eyebrows, eye corners, and so on. These parts help to represent the underlying object in a feature-rich manner. Keypoint detection has applications that include pose estimation, face detection, etc.
+
+In this example, we will build a keypoint detector using the StanfordExtra dataset, using transfer learning. This example requires TensorFlow 2.4 or higher, as well as <code> library, which can be installed using the following command:
+
+Data collection.
+
+The StanfordExtra dataset contains 12,000 images of dogs together with keypoints and segmentation maps. It is developed from the Stanford dogs dataset. It can be downloaded with the command below:
+
+Annotations are provided as a single JSON file in the StanfordExtra dataset and one needs to fill this form to get access to it. The authors explicitly instruct users not to share the JSON file, and this example respects this wish: you should obtain the JSON file yourself.
+
+The JSON file is expected to be locally available as <code>.
+
+After the files are downloaded, we can extract the archives.
+
+Imports.
+
+Define hyperparameters.
+
+Load data.
+
+The authors also provide a metadata file that specifies additional information about the keypoints, like color information, animal pose name, etc. We will load this file in a <code> dataframe to extract information for visualization purposes.
+
+A single entry of <code> looks like the following:
+
+In this example, the keys we are interested in are:
+
+<code>.
+
+<code>.
+
+There are a total of 24 entries present inside <code>. Each entry has 3 values:
+
+x-coordinate.
+
+y-coordinate.
+
+visibility flag of the keypoints (1 indicates visibility and 0 indicates non-visibility).
+
+As we can see <code> contain multiple <code> entries which denote that those keypoints were not labeled. In this example, we will consider both non-visible as well as unlabeled keypoints in order to allow mini-batch learning.
+
+Visualize data.
+
+Now, we write a utility function to visualize the images and their keypoints.
+
+The plots show that we have images of non-uniform sizes, which is expected in most real-world scenarios. However, if we resize these images to have a uniform shape (for instance (224 x 224)) their ground-truth annotations will also be affected. The same applies if we apply any geometric transformation (horizontal flip, for e.g.) to an image. Fortunately, <code> provides utilities that can handle this issue. In the next section, we will write a data generator inheriting the <code> class that applies data augmentation on batches of data using <code>.
+
+Prepare data generator.
+
+To know more about how to operate with keypoints in <code> check out this document.
+
+Define augmentation transforms.
+
+Create training and validation splits.
+
+Data generator investigation.
+
+Model building.
+
+The Stanford dogs dataset (on which the StanfordExtra dataset is based) was built using the ImageNet-1k dataset. So, it is likely that the models pretrained on the ImageNet-1k dataset would be useful for this task. We will use a MobileNetV2 pre-trained on this dataset as a backbone to extract meaningful features from the images and then pass those to a custom regression head for predicting coordinates.
+
+Our custom network is fully-convolutional which makes it more parameter-friendly than the same version of the network having fully-connected dense layers.
+
+Model: "keypoint_detector".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer1 ( InputLayer ) │ ( None , 224 , 224 , 3 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ truedivide ( TrueDivide ) │ ( None , 224 , 224 , 3 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ subtract ( Subtract ) │ ( None , 224 , 224 , 3 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ mobilenetv21.00224 │ ( None , 7 , 7 , 1280 ) │ 2,257,984 │ │ ( Functional ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 7 , 7 , 1280 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ separableconv2d │ ( None , 3 , 3 , 48 ) │ 93,488 │ │ ( SeparableConv2D ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ separableconv2d1 │ ( None , 1 , 1 , 48 ) │ 2,784 │ │ ( SeparableConv2D ) │ │ │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 2,354,256 (8.98 MB).
+
+Trainable params: 96,272 (376.06 KB).
+
+Non-trainable params: 2,257,984 (8.61 MB).
+
+Notice the output shape of the network: <code>. This is why we have reshaped the coordinates as: <code>.
+
+Model compilation and training.
+
+For this example, we will train the network only for five epochs.
+
+Make predictions and visualize them.
+
+Predictions will likely improve with more training.
+
+Going further.
+
+Try using other augmentation transforms from <code> to investigate how that changes the results.
+
+Here, we transferred the features from the pre-trained network linearly that is we did not fine-tune it. You are encouraged to fine-tune it on this task and see if that improves the performance. You can also try different architectures and see how they affect the final performance.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 12: Object detection.

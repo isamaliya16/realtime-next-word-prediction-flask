@@ -1,0 +1,61 @@
+Sequence to sequence learning for performing number addition.
+
+Introduction.
+
+In this example, we train a model to learn to add two numbers, provided as strings.
+
+Example:
+
+Input: "535+61".
+
+Output: "596".
+
+Input may optionally be reversed, which was shown to increase performance in many tasks in: Learning to Execute and Sequence to Sequence Learning with Neural Networks.
+
+Theoretically, sequence order inversion introduces shorter term dependencies between source and target for this problem.
+
+Results:
+
+For two digits (reversed):
+
+One layer LSTM (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs.
+
+Three digits (reversed):
+
+One layer LSTM (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs.
+
+Four digits (reversed):
+
+One layer LSTM (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs.
+
+Five digits (reversed):
+
+One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs.
+
+Setup.
+
+Generate the data.
+
+Vectorize the data.
+
+Build the model.
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ lstm ( LSTM ) │ ( None , 128 ) │ 72,192 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ repeatvector ( RepeatVector ) │ ( None , 4 , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ lstm1 ( LSTM ) │ ( None , 4 , 128 ) │ 131,584 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 4 , 12 ) │ 1,548 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 205,324 (802.05 KB).
+
+Trainable params: 205,324 (802.05 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Train the model.
+
+You'll get to 99+% validation accuracy after ~30 epochs.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.
+
+Chapter 16: Text generation.

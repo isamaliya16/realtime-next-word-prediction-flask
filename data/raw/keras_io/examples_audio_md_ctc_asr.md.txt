@@ -1,0 +1,101 @@
+Automatic Speech Recognition using CTC.
+
+Introduction.
+
+Speech recognition is an interdisciplinary subfield of computer science and computational linguistics that develops methodologies and technologies that enable the recognition and translation of spoken language into text by computers. It is also known as automatic speech recognition (ASR), computer speech recognition or speech to text (STT). It incorporates knowledge and research in the computer science, linguistics and computer engineering fields.
+
+This demonstration shows how to combine a 2D CNN, RNN and a Connectionist Temporal Classification (CTC) loss to build an ASR. CTC is an algorithm used to train deep neural networks in speech recognition, handwriting recognition and other sequence problems. CTC is used when we don’t know how the input aligns with the output (how the characters in the transcript align to the audio). The model we create is similar to DeepSpeech2.
+
+We will use the LJSpeech dataset from the LibriVox project. It consists of short audio clips of a single speaker reading passages from 7 non-fiction books.
+
+We will evaluate the quality of the model using Word Error Rate (WER). WER is obtained by adding up the substitutions, insertions, and deletions that occur in a sequence of recognized words. Divide that number by the total number of words originally spoken. The result is the WER. To get the WER score you need to install the jiwer package. You can use the following command line:
+
+References:
+
+LJSpeech Dataset.
+
+Speech recognition.
+
+Sequence Modeling With CTC.
+
+DeepSpeech2.
+
+Setup.
+
+Load the LJSpeech Dataset.
+
+Let's download the LJSpeech Dataset. The dataset contains 13,100 audio files as <code> files in the <code> folder. The label (transcript) for each audio file is a string given in the <code> file. The fields are:
+
+ID: this is the name of the corresponding .wav file.
+
+Transcription: words spoken by the reader (UTF-8).
+
+Normalized transcription: transcription with numbers, ordinals, and monetary units expanded into full words (UTF-8).
+
+For this demo we will use on the "Normalized transcription" field.
+
+Each audio file is a single-channel 16-bit PCM WAV with a sample rate of 22,050 Hz.
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+filename normalizedtranscription.
+
+0 LJ049-0116 of such persons as have been constitutionally ...
+
+1 LJ038-0248 was also identified by Marina Oswald as having...
+
+2 LJ047-0129 FBI informants in the New Orleans area, famili...
+
+We now split the data into training and validation set.
+
+Preprocessing.
+
+We first prepare the vocabulary to be used.
+
+Next, we create the function that describes the transformation that we apply to each element of our dataset.
+
+Creating <code> objects.
+
+We create a <code> object that yields the transformed elements, in the same order as they appeared in the input.
+
+Visualize the data.
+
+Let's visualize an example in our dataset, including the audio clip, the spectrogram and the corresponding label.
+
+Your browser does not support the audio element.
+
+Model.
+
+We first define the CTC Loss function.
+
+We now define our model. We will define a model similar to DeepSpeech2.
+
+Model: "DeepSpeech_2".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩ │ input ( InputLayer ) │ ( None , None , 193 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ expanddim ( Reshape ) │ ( None , None , 193 , 1 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ conv1 ( Conv2D ) │ ( None , None , 97 , 32 ) │ 14,432 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ conv1_bn ( BatchNormalization ) │ ( None , None , 97 , 32 ) │ 128 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ conv1relu ( ReLU ) │ ( None , None , 97 , 32 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ conv2 ( Conv2D ) │ ( None , None , 49 , 32 ) │ 236,544 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ conv2_bn ( BatchNormalization ) │ ( None , None , 49 , 32 ) │ 128 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ conv2relu ( ReLU ) │ ( None , None , 49 , 32 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ reshape ( Reshape ) │ ( None , None , 1568 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ bidirectional1 ( Bidirectional ) │ ( None , None , 1024 ) │ 6,395,904 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dropout ( Dropout ) │ ( None , None , 1024 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ bidirectional2 ( Bidirectional ) │ ( None , None , 1024 ) │ 4,724,736 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dropout1 ( Dropout ) │ ( None , None , 1024 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ bidirectional3 ( Bidirectional ) │ ( None , None , 1024 ) │ 4,724,736 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dropout2 ( Dropout ) │ ( None , None , 1024 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ bidirectional4 ( Bidirectional ) │ ( None , None , 1024 ) │ 4,724,736 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dropout3 ( Dropout ) │ ( None , None , 1024 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ bidirectional5 ( Bidirectional ) │ ( None , None , 1024 ) │ 4,724,736 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dense1 ( Dense ) │ ( None , None , 1024 ) │ 1,049,600 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dense1_relu ( ReLU ) │ ( None , None , 1024 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dropout4 ( Dropout ) │ ( None , None , 1024 ) │ 0 │ ├────────────────────────────────────────────────┼─────────────────────────────────────┼─────────────────────┤ │ dense ( Dense ) │ ( None , None , 32 ) │ 32,800 │ └────────────────────────────────────────────────┴─────────────────────────────────────┴─────────────────────┘.
+
+Total params: 26,628,480 (101.58 MB).
+
+Trainable params: 26,628,352 (101.58 MB).
+
+Non-trainable params: 128 (512.00 B).
+
+Training and Evaluating.
+
+Let's start the training process.
+
+Inference.
+
+Conclusion.
+
+In practice, you should train for around 50 epochs or more. Each epoch takes approximately 8-10 minutes using a <code> GPU. The model we trained at 50 epochs has a <code>.
+
+Some of the transcriptions around epoch 50:
+
+Audio file: LJ017-0009.wav.
+
+Audio file: LJ003-0340.wav.
+
+Audio file: LJ011-0136.wav.
+
+Example available on HuggingFace.

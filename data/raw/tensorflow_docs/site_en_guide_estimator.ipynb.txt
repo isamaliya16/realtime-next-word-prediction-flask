@@ -1,0 +1,179 @@
+Estimators.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+This document introduces <code>—a high-level TensorFlow API. Estimators encapsulate the following actions:
+
+Training.
+
+Evaluation.
+
+Prediction.
+
+Export for serving.
+
+TensorFlow implements several pre-made Estimators. Custom estimators are still suported, but mainly as a backwards compatibility measure. Custom estimators should not be used for new code. All Estimators—pre-made or custom ones—are classes based on the <code> class.
+
+For a quick example, try Estimator tutorials. For an overview of the API design, check the white paper.
+
+Setup.
+
+Advantages.
+
+Similar to a <code>, an <code> is a model-level abstraction. The <code> provides some capabilities currently still under development for <code>. These are:
+
+Parameter server based training.
+
+Full TFX integration.
+
+Estimators Capabilities.
+
+Estimators provide the following benefits:
+
+You can run Estimator-based models on a local host or on a distributed multi-server environment without changing your model. Furthermore, you can run Estimator-based models on CPUs, GPUs, or TPUs without recoding your model.
+
+Estimators provide a safe distributed training loop that controls how and when to:
+
+Load data.
+
+Handle exceptions.
+
+Create checkpoint files and recover from failures.
+
+Save summaries for TensorBoard.
+
+When writing an application with Estimators, you must separate the data input pipeline from the model. This separation simplifies experiments with different datasets.
+
+Using pre-made Estimators.
+
+Pre-made Estimators enable you to work at a much higher conceptual level than the base TensorFlow APIs. You no longer have to worry about creating the computational graph or sessions since Estimators handle all the "plumbing" for you. Furthermore, pre-made Estimators let you experiment with different model architectures by making only minimal code changes. <code>, for example, is a pre-made Estimator class that trains classification models based on dense, feed-forward neural networks.
+
+A TensorFlow program relying on a pre-made Estimator typically consists of the following four steps:
+
+1. Write an input functions.
+
+For example, you might create one function to import the training set and another function to import the test set. Estimators expect their inputs to be formatted as a pair of objects:
+
+A dictionary in which the keys are feature names and the values are Tensors (or SparseTensors) containing the corresponding feature data.
+
+A Tensor containing one or more labels.
+
+The <code> should return a <code> that yields pairs in that format.
+
+For example, the following code builds a <code> from the Titanic dataset's <code> file:
+
+The <code> is executed in a <code> and can also directly return a <code> pair containing graph tensors, but this is error prone outside of simple cases like returning constants.
+
+2. Define the feature columns.
+
+Each <code> identifies a feature name, its type, and any input pre-processing.
+
+For example, the following snippet creates three feature columns.
+
+The first uses the <code> feature directly as a floating-point input.
+
+The second uses the <code> feature as a categorical input.
+
+The third uses the <code> as a categorical input, but uses the <code> to avoid the need to enumerate the options, and to set the number of options.
+
+For further information, check the feature columns tutorial.
+
+3. Instantiate the relevant pre-made Estimator.
+
+For example, here's a sample instantiation of a pre-made Estimator named <code>:
+
+For more information, you can go the linear classifier tutorial.
+
+4. Call a training, evaluation, or inference method.
+
+All Estimators provide <code>, <code>, and <code> methods.
+
+Benefits of pre-made Estimators.
+
+Pre-made Estimators encode best practices, providing the following benefits:
+
+Best practices for determining where different parts of the computational graph should run, implementing strategies on a single machine or on a cluster.
+
+Best practices for event (summary) writing and universally useful summaries.
+
+If you don't use pre-made Estimators, you must implement the preceding features yourself.
+
+Custom Estimators.
+
+The heart of every Estimator—whether pre-made or custom—is its model function, <code>, which is a method that builds graphs for training, evaluation, and prediction. When you are using a pre-made Estimator, someone else has already implemented the model function. When relying on a custom Estimator, you must write the model function yourself. Note: A custom <code> will still run in 1.x-style graph mode. This means there is no eager execution and no automatic control dependencies. You should plan to migrate away from <code> with custom <code>. The alternative APIs are <code> and <code>. If you still need an <code> for some part of your training you can use the <code> converter to create an <code> from a <code>.
+
+Create an Estimator from a Keras model.
+
+You can convert existing Keras models to Estimators with <code>. This is helpful if you want to modernize your model code, but your training pipeline still requires Estimators.
+
+Instantiate a Keras MobileNet V2 model and compile the model with the optimizer, loss, and metrics to train with:
+
+Create an <code> from the compiled Keras model. The initial model state of the Keras model is preserved in the created <code>:
+
+Treat the derived <code> as you would with any other <code>.
+
+To train, call Estimator's train function:
+
+Similarly, to evaluate, call the Estimator's evaluate function:
+
+For more details, please refer to the documentation for <code>.
+
+Saving object-based checkpoints with Estimator.
+
+Estimators by default save checkpoints with variable names rather than the object graph described in the Checkpoint guide. <code> will read name-based checkpoints, but variable names may change when moving parts of a model outside of the Estimator's <code>. For forwards compatibility saving object-based checkpoints makes it easier to train a model inside an Estimator and then use it outside of one.
+
+<code> can then load the Estimator's checkpoints from its <code>.
+
+SavedModels from Estimators.
+
+Estimators export SavedModels through <code>.
+
+To save an <code> you need to create a <code>. This function builds a part of a <code> that parses the raw data received by the SavedModel.
+
+The <code> module contains functions to help build these <code>.
+
+The following code builds a receiver, based on the <code>, that accepts serialized <code> protocol buffers, which are often used with tf-serving.
+
+You can also load and run that model, from python:
+
+<code> allows you to create input functions which take raw tensors rather than <code>s.
+
+Using <code> with Estimator (Limited support).
+
+<code> is a distributed training TensorFlow API that originally supported the async parameter server approach. <code> now supports <code>. If you're using <code>, you can change to distributed training with very few changes to your code. With this, Estimator users can now do synchronous distributed training on multiple GPUs and multiple workers, as well as use TPUs. This support in Estimator is, however, limited. Check out the What's supported now section below for more details.
+
+Using <code> with Estimator is slightly different than in the Keras case. Instead of using <code>, now you pass the strategy object into the <code> for the Estimator.
+
+You can refer to the distributed training guide for more information.
+
+Here is a snippet of code that shows this with a premade Estimator <code> and <code>:
+
+Here, you use a premade Estimator, but the same code works with a custom Estimator as well. <code> determines how training will be distributed, and <code> determines how evaluation will be distributed. This is another difference from Keras where you use the same strategy for both training and eval.
+
+Now you can train and evaluate this Estimator with an input function:
+
+Another difference to highlight here between Estimator and Keras is the input handling. In Keras, each batch of the dataset is split automatically across the multiple replicas. In Estimator, however, you do not perform automatic batch splitting, nor automatically shard the data across different workers. You have full control over how you want your data to be distributed across workers and devices, and you must provide an <code> to specify how to distribute your data.
+
+Your <code> is called once per worker, thus giving one dataset per worker. Then one batch from that dataset is fed to one replica on that worker, thereby consuming N batches for N replicas on 1 worker. In other words, the dataset returned by the <code> should provide batches of size <code>. And the global batch size for a step can be obtained as <code>.
+
+When performing multi-worker training, you should either split your data across the workers, or shuffle with a random seed on each. You can check an example of how to do this in the Multi-worker training with Estimator tutorial.
+
+And similarly, you can use multi worker and parameter server strategies as well. The code remains the same, but you need to use <code>, and set <code> environment variables for each binary running in your cluster.
+
+What's supported now?
+
+There is limited support for training with Estimator using all strategies except <code>. Basic training and evaluation should work, but a number of advanced features such as <code> do not. There may also be a number of bugs in this integration and there are no plans to actively improve this support (the focus is on Keras and custom training loop support). If at all possible, you should prefer to use <code> with those APIs instead.
+
+Examples and tutorials.
+
+Here are some end-to-end examples that show how to use various strategies with Estimator:
+
+The Multi-worker Training with Estimator tutorial shows how you can train with multiple workers using <code> on the MNIST dataset.
+
+An end-to-end example of running multi-worker training with distribution strategies in <code> using Kubernetes templates. It starts with a Keras model and converts it to an Estimator using the <code> API.
+
+The official ResNet50 model, which can be trained using either <code> or <code>.

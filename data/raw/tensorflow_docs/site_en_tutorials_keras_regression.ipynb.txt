@@ -1,0 +1,195 @@
+Basic regression: Predict fuel efficiency.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+In a regression problem, the aim is to predict the output of a continuous value, like a price or a probability. Contrast this with a classification problem, where the aim is to select a class from a list of classes (for example, where a picture contains an apple or an orange, recognizing which fruit is in the picture).
+
+This tutorial uses the classic Auto MPG dataset and demonstrates how to build models to predict the fuel efficiency of the late-1970s and early 1980s automobiles. To do this, you will provide the models with a description of many automobiles from that time period. This description includes attributes like cylinders, displacement, horsepower, and weight.
+
+This example uses the Keras API. (Visit the Keras tutorials and guides to learn more.).
+
+The Auto MPG dataset.
+
+The dataset is available from the UCI Machine Learning Repository.
+
+Get the data.
+
+First download and import the dataset using pandas:
+
+Clean the data.
+
+The dataset contains a few unknown values:
+
+Drop those rows to keep this initial tutorial simple:
+
+The <code> column is categorical, not numeric. So the next step is to one-hot encode the values in the column with pd.get_dummies.
+
+Neglecting to specify a data type by way of a <code> argument will leave you with boolean values, causing errors during normalization when instantiating the Tensor object if the feature values are not cast to a uniform type when passing the array into <code>. Tensor objects must house uniform data types.
+
+Note: You can set up the <code> to do this kind of transformation for you but that's beyond the scope of this tutorial. Check out the Classify structured data using Keras preprocessing layers or Load CSV data tutorials for examples.
+
+Split the data into training and test sets.
+
+Now, split the dataset into a training set and a test set. You will use the test set in the final evaluation of your models.
+
+Inspect the data.
+
+Review the joint distribution of a few pairs of columns from the training set.
+
+The top row suggests that the fuel efficiency (MPG) is a function of all the other parameters. The other rows indicate they are functions of each other.
+
+Let's also check the overall statistics. Note how each feature covers a very different range:
+
+Split features from labels.
+
+Separate the target value—the "label"—from the features. This label is the value that you will train the model to predict.
+
+Normalization.
+
+In the table of statistics it's easy to see how different the ranges of each feature are:
+
+It is good practice to normalize features that use different scales and ranges.
+
+One reason this is important is because the features are multiplied by the model weights. So, the scale of the outputs and the scale of the gradients are affected by the scale of the inputs.
+
+Although a model might converge without feature normalization, normalization makes training much more stable.
+
+Note: There is no advantage to normalizing the one-hot features—it is done here for simplicity. For more details on how to use the preprocessing layers, refer to the Working with preprocessing layers guide and the Classify structured data using Keras preprocessing layers tutorial.
+
+The Normalization layer.
+
+The <code> is a clean and simple way to add feature normalization into your model.
+
+The first step is to create the layer:
+
+Then, fit the state of the preprocessing layer to the data by calling <code>:
+
+Calculate the mean and variance, and store them in the layer:
+
+When the layer is called, it returns the input data, with each feature independently normalized:
+
+Linear regression.
+
+Before building a deep neural network model, start with linear regression using one and several variables.
+
+Linear regression with one variable.
+
+Begin with a single-variable linear regression to predict <code> from <code>.
+
+Training a model with <code> typically starts by defining the model architecture. Use a <code> model, which represents a sequence of steps.
+
+There are two steps in your single-variable linear regression model:
+
+Normalize the <code> input features using the <code> preprocessing layer.
+
+Apply a linear transformation (<math>) to produce 1 output using a linear layer (<code>).
+
+The number of inputs can either be set by the <code> argument, or automatically when the model is run for the first time.
+
+First, create a NumPy array made of the <code> features. Then, instantiate the <code> and fit its state to the <code> data:
+
+Build the Keras Sequential model:
+
+This model will predict <code> from <code>.
+
+Run the untrained model on the first 10 'Horsepower' values. The output won't be good, but notice that it has the expected shape of <code>:
+
+Once the model is built, configure the training procedure using the Keras <code> method. The most important arguments to compile are the <code> and the <code>, since these define what will be optimized (<code>) and how (using the <code>).
+
+Use Keras <code> to execute the training for 100 epochs:
+
+Visualize the model's training progress using the stats stored in the <code> object:
+
+Collect the results on the test set for later:
+
+Since this is a single variable regression, it's easy to view the model's predictions as a function of the input:
+
+Linear regression with multiple inputs.
+
+You can use an almost identical setup to make predictions based on multiple inputs. This model still does the same <math> except that <math> is a matrix and <math> is a vector.
+
+Create a two-step Keras Sequential model again with the first layer being <code> (<code>) you defined earlier and adapted to the whole dataset:
+
+When you call <code> on a batch of inputs, it produces <code> outputs for each example:
+
+When you call the model, its weight matrices will be built—check that the <code> weights (the <math> in <math>) have a shape of <code>:
+
+Configure the model with Keras <code> and train with <code> for 100 epochs:
+
+Using all the inputs in this regression model achieves a much lower training and validation error than the <code>, which had one input:
+
+Collect the results on the test set for later:
+
+Regression with a deep neural network (DNN).
+
+In the previous section, you implemented two linear models for single and multiple inputs.
+
+Here, you will implement single-input and multiple-input DNN models.
+
+The code is basically the same except the model is expanded to include some "hidden" non-linear layers. The name "hidden" here just means not directly connected to the inputs or outputs.
+
+These models will contain a few more layers than the linear model:
+
+The normalization layer, as before (with <code> for a single-input model and <code> for a multiple-input model).
+
+Two hidden, non-linear, <code> layers with the ReLU (<code>) activation function nonlinearity.
+
+A linear <code> single-output layer.
+
+Both models will use the same training procedure, so the <code> method is included in the <code> function below.
+
+Regression using a DNN and a single input.
+
+Create a DNN model with only <code> as input and <code> (defined earlier) as the normalization layer:
+
+This model has quite a few more trainable parameters than the linear models:
+
+Train the model with Keras <code>:
+
+This model does slightly better than the linear single-input <code>:
+
+If you plot the predictions as a function of <code>, you should notice how this model takes advantage of the nonlinearity provided by the hidden layers:
+
+Collect the results on the test set for later:
+
+Regression using a DNN and multiple inputs.
+
+Repeat the previous process using all the inputs. The model's performance slightly improves on the validation dataset.
+
+Collect the results on the test set:
+
+Performance.
+
+Since all models have been trained, you can review their test set performance:
+
+These results match the validation error observed during training.
+
+Make predictions.
+
+You can now make predictions with the <code> on the test set using Keras <code> and review the loss:
+
+It appears that the model predicts reasonably well.
+
+Now, check the error distribution:
+
+If you're happy with the model, save it for later use with <code>:
+
+If you reload the model, it gives identical output:
+
+Conclusion.
+
+This notebook introduced a few techniques to handle a regression problem. Here are a few more tips that may help:
+
+Mean squared error (MSE) (<code>) and mean absolute error (MAE) (<code>) are common loss functions used for regression problems. MAE is less sensitive to outliers. Different loss functions are used for classification problems.
+
+Similarly, evaluation metrics used for regression differ from classification.
+
+When numeric input data features have values with different ranges, each feature should be scaled independently to the same range.
+
+Overfitting is a common problem for DNN models, though it wasn't a problem for this tutorial. Visit the Overfit and underfit tutorial for more help with this.

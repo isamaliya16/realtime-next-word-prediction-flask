@@ -1,0 +1,101 @@
+Fine-tuning a model with the Trainer API.
+
+🤗 Transformers provides a <code> class to help you fine-tune any of the pretrained models it provides on your dataset with modern best practices. Once you've done all the data preprocessing work in the last section, you have just a few steps left to define the <code>. The hardest part is likely to be preparing the environment to run <code>, as it will run very slowly on a CPU. If you don't have a GPU set up, you can get access to free GPUs or TPUs on Google Colab.
+
+📚 Training Resources: Before diving into training, familiarize yourself with the comprehensive 🤗 Transformers training guide and explore practical examples in the fine-tuning cookbook.
+
+The code examples below assume you have already executed the examples in the previous section. Here is a short summary recapping what you need:
+
+Training.
+
+The first step before we can define our <code> is to define a <code> class that will contain all the hyperparameters the <code> will use for training and evaluation. The only argument you have to provide is a directory where the trained model will be saved, as well as the checkpoints along the way. For all the rest, you can leave the defaults, which should work pretty well for a basic fine-tuning.
+
+If you want to automatically upload your model to the Hub during training, pass along <code> in the <code>. We will learn more about this in Chapter 4.
+
+🚀 Advanced Configuration: For detailed information on all available training arguments and optimization strategies, check out the TrainingArguments documentation and the training configuration cookbook.
+
+The second step is to define our model. As in the previous chapter, we will use the <code> class, with two labels:
+
+You will notice that unlike in Chapter 2, you get a warning after instantiating this pretrained model. This is because BERT has not been pretrained on classifying pairs of sentences, so the head of the pretrained model has been discarded and a new head suitable for sequence classification has been added instead. The warnings indicate that some weights were not used (the ones corresponding to the dropped pretraining head) and that some others were randomly initialized (the ones for the new head). It concludes by encouraging you to train the model, which is exactly what we are going to do now.
+
+Once we have our model, we can define a <code> by passing it all the objects constructed up to now — the <code>, the <code>, the training and validation datasets, our <code>, and our <code>. The <code> parameter is a newer addition that tells the Trainer which tokenizer to use for processing:
+
+When you pass a tokenizer as the <code>, the default <code> used by the <code> will be a <code>. You can skip the <code> line in this case, but we included it here to show you this important part of the processing pipeline.
+
+📖 Learn More: For comprehensive details on the Trainer class and its parameters, visit the Trainer API documentation and explore advanced usage patterns in the training cookbook recipes.
+
+To fine-tune the model on our dataset, we just have to call the <code> method of our <code>:
+
+This will start the fine-tuning (which should take a couple of minutes on a GPU) and report the training loss every 500 steps. It won't, however, tell you how well (or badly) your model is performing. This is because:
+
+We didn't tell the <code> to evaluate during training by setting <code> in <code> to either <code> (evaluate every <code>) or <code> (evaluate at the end of each epoch).
+
+We didn't provide the <code> with a <code> function to calculate a metric during said evaluation (otherwise the evaluation would just have printed the loss, which is not a very intuitive number).
+
+Evaluation.
+
+Let's see how we can build a useful <code> function and use it the next time we train. The function must take an <code> object (which is a named tuple with a <code> field and a <code> field) and will return a dictionary mapping strings to floats (the strings being the names of the metrics returned, and the floats their values). To get some predictions from our model, we can use the <code> command:
+
+The output of the <code> method is another named tuple with three fields: <code>, <code>, and <code>. The <code> field will just contain the loss on the dataset passed, as well as some time metrics (how long it took to predict, in total and on average). Once we complete our <code> function and pass it to the <code>, that field will also contain the metrics returned by <code>.
+
+As you can see, <code> is a two-dimensional array with shape 408 x 2 (408 being the number of elements in the dataset we used). Those are the logits for each element of the dataset we passed to <code> (as you saw in the previous chapter, all Transformer models return logits). To transform them into predictions that we can compare to our labels, we need to take the index with the maximum value on the second axis:
+
+We can now compare those <code> to the labels. To build our <code> function, we will rely on the metrics from the 🤗 Evaluate library. We can load the metrics associated with the MRPC dataset as easily as we loaded the dataset, this time with the <code> function. The object returned has a <code> method we can use to do the metric calculation:
+
+Learn about different evaluation metrics and strategies in the 🤗 Evaluate documentation.
+
+The exact results you get may vary, as the random initialization of the model head might change the metrics it achieved. Here, we can see our model has an accuracy of 85.78% on the validation set and an F1 score of 89.97. Those are the two metrics used to evaluate results on the MRPC dataset for the GLUE benchmark. The table in the BERT paper reported an F1 score of 88.9 for the base model. That was the <code> model while we are currently using the <code> model, which explains the better result.
+
+Wrapping everything together, we get our <code> function:
+
+And to see it used in action to report metrics at the end of each epoch, here is how we define a new <code> with this <code> function:
+
+Note that we create a new <code> with its <code> set to <code> and a new model — otherwise, we would just be continuing the training of the model we have already trained. To launch a new training run, we execute:
+
+This time, it will report the validation loss and metrics at the end of each epoch on top of the training loss. Again, the exact accuracy/F1 score you reach might be a bit different from what we found, because of the random head initialization of the model, but it should be in the same ballpark.
+
+Advanced Training Features.
+
+The <code> comes with many built-in features that make modern deep learning best practices accessible:
+
+Mixed Precision Training: Use <code> in your training arguments for faster training and reduced memory usage:
+
+Gradient Accumulation: For effective larger batch sizes when GPU memory is limited:
+
+Learning Rate Scheduling: The Trainer uses linear decay by default, but you can customize this:
+
+🎯 Performance Optimization: For more advanced training techniques including distributed training, memory optimization, and hardware-specific optimizations, explore the 🤗 Transformers performance guide.
+
+The <code> will work out of the box on multiple GPUs or TPUs and provides lots of options for distributed training. We will go over everything it supports in Chapter 10.
+
+This concludes the introduction to fine-tuning using the <code> API. An example of doing this for most common NLP tasks will be given in Chapter 7, but for now let's look at how to do the same thing with a pure PyTorch training loop.
+
+📝 More Examples: Check out the comprehensive collection of 🤗 Transformers notebooks.
+
+Section Quiz.
+
+Test your understanding of the Trainer API and fine-tuning concepts:
+
+1. What is the purpose of the <code>processing_class</code> parameter in the Trainer?
+
+2. Which TrainingArguments parameter controls how often evaluation occurs during training?
+
+3. What does <code>fp16=True</code> in TrainingArguments enable?
+
+4. What is the role of the <code>compute_metrics</code> function in the Trainer?
+
+5. What happens when you don't provide an <code>eval_dataset</code> to the Trainer?
+
+6. What is gradient accumulation and how do you enable it?
+
+💡 Key Takeaways:
+
+The <code> API provides a high-level interface that handles most training complexity.
+
+Use <code> to specify your tokenizer for proper data handling.
+
+<code> controls all aspects of training: learning rate, batch size, evaluation strategy, and optimizations.
+
+<code> enables custom evaluation metrics beyond just training loss.
+
+Modern features like mixed precision (<code>) and gradient accumulation can significantly improve training efficiency.

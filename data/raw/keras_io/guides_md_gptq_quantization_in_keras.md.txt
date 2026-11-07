@@ -1,0 +1,73 @@
+GPTQ Quantization in Keras.
+
+What is GPTQ?
+
+GPTQ ("Generative Pre-Training Quantization") is a post-training, weight-only quantization method that uses a second-order approximation of the loss (via a Hessian estimate) to minimize the error introduced when compressing weights to lower precision, typically 4-bit integers.
+
+Unlike standard post-training techniques, GPTQ keeps activations in higher-precision and only quantizes the weights. This often preserves model quality in low bit-width settings while still providing large storage and memory savings.
+
+Keras supports GPTQ quantization for KerasHub models via the <code> class.
+
+Load a KerasHub model.
+
+This guide uses the <code> model from KerasHub, a small (1B parameter) causal language model.
+
+Configure & run GPTQ quantization.
+
+You can configure GPTQ quantization via the <code> class.
+
+The GPTQ configuration requires a calibration dataset and tokenizer, which it uses to estimate the Hessian and quantization error. Here, we use a small slice of the WikiText-2 dataset for calibration.
+
+You can tune several parameters to trade off speed, memory, and accuracy. The most important of these are <code> (the bit-width to quantize weights to) and <code> (the number of weights to quantize together). The group size controls the granularity of quantization: smaller groups typically yield better accuracy but are slower to quantize and may use more memory. A good starting point is <code> for 4-bit quantization (<code>).
+
+In this example, we first prepare a tiny calibration set, and then run GPTQ on the model using the <code> API.
+
+Model Export.
+
+The GPTQ quantized model can be saved to a preset and reloaded elsewhere, just like any other KerasHub model.
+
+Performance & Benchmarking.
+
+Micro-benchmarks collected on a single NVIDIA 4070 Ti Super (16 GB). Baselines are FP32.
+
+Dataset: WikiText-2.
+
+Detailed benchmarking numbers and scripts are available here.
+
+Analysis.
+
+There is notable reduction in disk space and VRAM usage across all models, with disk space savings around 50% and VRAM savings ranging from 41% to 54%. The reported disk savings understate the true weight compression because presets also include non-weight assets.
+
+Perplexity increases only marginally, indicating model quality is largely preserved after quantization.
+
+GPTQ vs AWQ?
+
+Both GPTQ and AWQ are weight-only quantization methods that require calibration data. Here's how to choose between them:
+
+Choose GPTQ when:
+
+You need bit-widths other than 4 (e.g., 2-bit or 8-bit).
+
+Maximum accuracy is critical and you can afford longer quantization time.
+
+You're working with decoder-only LLMs where GPTQ may have a slight edge.
+
+Choose AWQ when:
+
+You need faster quantization (AWQ is typically 2-3x faster than GPTQ).
+
+Memory during quantization is constrained.
+
+4-bit is sufficient for your use case.
+
+Your model will be used on diverse/out-of-distribution data (AWQ is less prone to overfitting on calibration data).
+
+Practical tips.
+
+GPTQ is a post-training technique; training after quantization is not supported.
+
+Always use the model's own tokenizer for calibration.
+
+Use a representative calibration set; small slices are only for demos.
+
+Start with W4 group_size=128; tune per model/task.

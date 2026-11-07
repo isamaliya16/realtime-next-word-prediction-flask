@@ -1,0 +1,63 @@
+Natural Language Inference and the Dataset.
+
+In section <num>, we discussed the problem of sentiment analysis. This task aims to classify a single text sequence into predefined categories, such as a set of sentiment polarities. However, when there is a need to decide whether one sentence can be inferred form another, or eliminate redundancy by identifying sentences that are semantically equivalent, knowing how to classify one text sequence is insufficient. Instead, we need to be able to reason over pairs of text sequences.
+
+Natural Language Inference.
+
+Natural language inference studies whether a hypothesis can be inferred from a premise, where both are a text sequence. In other words, natural language inference determines the logical relationship between a pair of text sequences. Such relationships usually fall into three types:
+
+Entailment: the hypothesis can be inferred from the premise.
+
+Contradiction: the negation of the hypothesis can be inferred from the premise.
+
+Neutral: all the other cases.
+
+Natural language inference is also known as the recognizing textual entailment task. For example, the following pair will be labeled as entailment because "showing affection" in the hypothesis can be inferred from "hugging one another" in the premise. Premise: Two women are hugging each other. Hypothesis: Two women are showing affection.
+
+The following is an example of contradiction as "running the coding example" indicates "not sleeping" rather than "sleeping". Premise: A man is running the coding example from Dive into Deep Learning. Hypothesis: The man is sleeping.
+
+The third example shows a neutrality relationship because neither "famous" nor "not famous" can be inferred from the fact that "are performing for us". Premise: The musicians are performing for us. Hypothesis: The musicians are famous.
+
+Natural language inference has been a central topic for understanding natural language. It enjoys wide applications ranging from information retrieval to open-domain question answering. To study this problem, we will begin by investigating a popular natural language inference benchmark dataset.
+
+The Stanford Natural Language Inference (SNLI) Dataset.
+
+[Stanford Natural Language Inference (SNLI) Corpus] is a collection of over 500000 labeled English sentence pairs . We download and store the extracted SNLI dataset in the path <code>.
+
+[Reading the Dataset].
+
+The original SNLI dataset contains much richer information than what we really need in our experiments. Thus, we define a function <code> to only extract part of the dataset, then return lists of premises, hypotheses, and their labels.
+
+Now let's [print the first 3 pairs] of premise and hypothesis, as well as their labels ("0", "1", and "2" correspond to "entailment", "contradiction", and "neutral", respectively ).
+
+The training set has about 550000 pairs, and the testing set has about 10000 pairs. The following shows that the three [labels "entailment", "contradiction", and "neutral" are balanced] in both the training set and the testing set.
+
+[Defining a Class for Loading the Dataset].
+
+Below we define a class for loading the SNLI dataset by inheriting from the <code> class in Gluon. The argument <code> in the class constructor specifies the length of a text sequence so that each minibatch of sequences will have the same shape. In other words, tokens after the first <code> ones in longer sequence are trimmed, while special tokens “ ” will be appended to shorter sequences until their length becomes <code>. By implementing the <code> function, we can arbitrarily access the premise, hypothesis, and label with the index <code>.
+
+[Putting It All Together].
+
+Now we can invoke the <code> function and the <code> class to download the SNLI dataset and return <code> instances for both training and testing sets, together with the vocabulary of the training set. It is noteworthy that we must use the vocabulary constructed from the training set as that of the testing set. As a result, any new token from the testing set will be unknown to the model trained on the training set.
+
+Here we set the batch size to 128 and sequence length to 50, and invoke the <code> function to get the data iterators and vocabulary. Then we print the vocabulary size.
+
+Now we print the shape of the first minibatch. Contrary to sentiment analysis, we have two inputs <code> and <code> representing pairs of premises and hypotheses.
+
+Summary.
+
+Natural language inference studies whether a hypothesis can be inferred from a premise, where both are a text sequence.
+
+In natural language inference, relationships between premises and hypotheses include entailment, contradiction, and neutral.
+
+Stanford Natural Language Inference (SNLI) Corpus is a popular benchmark dataset of natural language inference.
+
+Exercises.
+
+Machine translation has long been evaluated based on superficial <math>-gram matching between an output translation and a ground-truth translation. Can you design a measure for evaluating machine translation results by using natural language inference?
+
+How can we change hyperparameters to reduce the vocabulary size?
+
+Discussions.
+
+Discussions.

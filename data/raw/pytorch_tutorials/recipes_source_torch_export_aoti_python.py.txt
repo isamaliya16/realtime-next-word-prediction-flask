@@ -1,0 +1,65 @@
+<code> AOTInductor Tutorial for Python runtime (Beta) Author: Ankith Gunapal, Bin Bao, Angela Yi.
+
+It has been shown previously how AOTInductor can be used to do Ahead-of-Time compilation of PyTorch exported models by creating an artifact that can be run in a non-Python environment. In this tutorial, you will learn an end-to-end example of how to use AOTInductor for Python runtime.
+
+Contents.
+
+Prerequisites.
+
+PyTorch 2.6 or later.
+
+Basic understanding of <code> and AOTInductor.
+
+Complete the AOTInductor: Ahead-Of-Time Compilation for Torch.Export-ed Models tutorial.
+
+What you will learn.
+
+How to use AOTInductor for Python runtime.
+
+How to use torch.inductor.aoticompileandpackage along with torch.export.export to generate a compiled artifact.
+
+How to load and run the artifact in a Python runtime using torch.export.aotload.
+
+When to you use AOTInductor with a Python runtime.
+
+Model Compilation.
+
+We will use the TorchVision pretrained <code> model as an example.
+
+The first step is to export the model to a graph representation using torch.export.export. To learn more about using this function, you can check out the docs or the tutorial.
+
+Once we have exported the PyTorch model and obtained an <code>, we can apply torch.inductor.aoticompileandpackage to AOTInductor to compile the program to a specified device, and save the generated contents into a ".pt2" artifact.
+
+The result of aoticompileand_package is an artifact "resnet18.pt2" which can be loaded and executed in Python and C++.
+
+The artifact itself contains a bunch of AOTInductor generated code, such as a generated C++ runner file, a shared library compiled from the C++ file, and CUDA binary files, aka cubin files, if optimizing for CUDA.
+
+Structure-wise, the artifact is a structured <code> file, with the following specification:
+
+We can use the following command to inspect the artifact contents:
+
+Model Inference in Python.
+
+To load and run the artifact in Python, we can use torch.inductor.aotiload_package.
+
+When to use AOTInductor with a Python Runtime.
+
+There are mainly two reasons why one would use AOTInductor with a Python Runtime:
+
+<code> generates a singular serialized artifact. This is useful for model versioning for deployments and tracking model performance over time.
+
+With torch.compile being a JIT compiler, there is a warmup cost associated with the first compilation. Your deployment needs to account for the compilation time taken for the first inference. With AOTInductor, the compilation is done ahead of time using <code> and <code>. At deployment time, after loading the model, running inference does not have any additional cost.
+
+The section below shows the speedup achieved with AOTInductor for first inference.
+
+We define a utility function <code> to measure the time taken for inference.
+
+Lets measure the time for first inference using AOTInductor.
+
+Lets measure the time for first inference using <code>.
+
+We see that there is a drastic speedup in first inference time using AOTInductor compared to <code>.
+
+Conclusion.
+
+In this recipe, we have learned how to effectively use the AOTInductor for Python runtime by compiling and loading a pretrained <code> model. This process demonstrates the practical application of generating a compiled artifact and running it within a Python environment. We also looked at the advantage of using AOTInductor in model deployments, with regards to speed up in first inference time.

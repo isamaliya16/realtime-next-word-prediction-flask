@@ -1,0 +1,49 @@
+Multi-task recommenders: retrieval + ranking.
+
+Introduction.
+
+In the basic retrieval and basic ranking tutorials, we created separate models for retrieval and ranking tasks, respectively. However, in many cases, building a single, joint model for multiple tasks can lead to better performance than creating distinct models for each task. This is especially true when dealing with data that is unevenly distributed — such as abundant data (e.g., clicks) versus sparse data (e.g., purchases, returns, or manual reviews). In such scenarios, a joint model can leverage representations learned from the abundant data to improve predictions on the sparse data, a technique known as transfer learning. For instance, research shows that a model trained to predict user ratings from sparse survey data can be significantly enhanced by incorporating an auxiliary task using abundant click log data.
+
+In this example, we develop a multi-objective recommender system using the MovieLens dataset. We incorporate both implicit feedback (e.g., movie watches) and explicit feedback (e.g., ratings) to create a more robust and effective recommendation model. For the former, we predict "movie watches", i.e., whether a user has watched a movie, and for the latter, we predict the rating given by a user to a movie.
+
+Let's start by importing the necessary packages.
+
+Prepare the dataset.
+
+We use the MovieLens dataset. The data loading and processing steps are similar to previous tutorials, so we will not discuss them in details here.
+
+Get user and movie counts so that we can define embedding layers.
+
+Our inputs are <code> and <code>. Our label for the ranking task is <code>. <code> is an integer between 0 to 4. We constrain it to <code>.
+
+Split the dataset into train-test sets.
+
+Building the model.
+
+We build the model in a similar way to the basic retrieval and basic ranking guides.
+
+For the retrieval task (i.e., predicting whether a user watched a movie), we compute the similarity of the corresponding user and movie embeddings, and use cross entropy loss, where the positive pairs are labelled one, and all other samples in the batch are considered "negatives". We report top-k accuracy for this task.
+
+For the ranking task (i.e., given a user-movie pair, predict rating), we concatenate user and movie embeddings and pass it to a dense module. We use MSE loss here, and report the Root Mean Squared Error (RMSE).
+
+The final loss is a weighted combination of the two losses mentioned above, where the weights are <code> and <code>. These weights decide which task the model will focus on.
+
+Training and evaluating.
+
+We will train three different models here. This can be done easily by passing the correct loss weights:
+
+Rating-specialised model.
+
+Retrieval-specialised model.
+
+Multi-task model.
+
+Let's plot a table of the metrics and pen down our observations:
+
+As expected, the rating-specialised model has good RMSE, but poor top-k accuracy. For the retrieval-specialised model, it's the opposite.
+
+For the multi-task model, we notice that the model does well (or even slightly better than the two specialised models) on both tasks. In general, we can expect multi-task learning to bring about better results, especially when one task has a data-abundant source, and the other task is trained on sparse data.
+
+Now, let's make a prediction! We will first do a retrieval, and then for the retrieved list of movies, we will predict the rating using the same model.
+
+For these retrieved movies, we can now get the corresponding ratings.

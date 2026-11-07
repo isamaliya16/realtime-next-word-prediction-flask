@@ -1,0 +1,115 @@
+Text Classification using FNet.
+
+Introduction.
+
+In this example, we will demonstrate the ability of FNet to achieve comparable results with a vanilla Transformer model on the text classification task. We will be using the IMDb dataset, which is a collection of movie reviews labelled either positive or negative (sentiment analysis).
+
+To build the tokenizer, model, etc., we will use components from KerasHub. KerasHub makes life easier for people who want to build NLP pipelines! :).
+
+Model.
+
+Transformer-based language models (LMs) such as BERT, RoBERTa, XLNet, etc. have demonstrated the effectiveness of the self-attention mechanism for computing rich embeddings for input text. However, the self-attention mechanism is an expensive operation, with a time complexity of <code>, where <code> is the number of tokens in the input. Hence, there has been an effort to reduce the time complexity of the self-attention mechanism and improve performance without sacrificing the quality of results.
+
+In 2020, a paper titled FNet: Mixing Tokens with Fourier Transforms replaced the self-attention layer in BERT with a simple Fourier Transform layer for "token mixing". This resulted in comparable accuracy and a speed-up during training. In particular, a couple of points from the paper stand out:
+
+The authors claim that FNet is 80% faster than BERT on GPUs and 70% faster on TPUs. The reason for this speed-up is two-fold: a) the Fourier Transform layer is unparametrized, it does not have any parameters, and b) the authors use Fast Fourier Transform (FFT); this reduces the time complexity from <code> (in the case of self-attention) to <code>.
+
+FNet manages to achieve 92-97% of the accuracy of BERT on the GLUE benchmark.
+
+Setup.
+
+Before we start with the implementation, let's import all the necessary packages.
+
+Let's also define our hyperparameters.
+
+Loading the dataset.
+
+First, let's download the IMDB dataset and extract it.
+
+Samples are present in the form of text files. Let's inspect the structure of the directory.
+
+The directory contains two sub-directories: <code> and <code>. Each subdirectory in turn contains two folders: <code> and <code> for positive and negative reviews, respectively. Before we load the dataset, let's delete the <code> folder since it has unlabelled samples.
+
+We'll use the <code> utility to generate our labelled <code> dataset from text files.
+
+We will now convert the text to lowercase.
+
+Let's print a few samples.
+
+Tokenizing the data.
+
+We'll be using the <code> layer to tokenize the text. <code> takes a WordPiece vocabulary and has functions for tokenizing the text, and detokenizing sequences of tokens.
+
+Before we define the tokenizer, we first need to train it on the dataset we have. The WordPiece tokenization algorithm is a subword tokenization algorithm; training it on a corpus gives us a vocabulary of subwords. A subword tokenizer is a compromise between word tokenizers (word tokenizers need very large vocabularies for good coverage of input words), and character tokenizers (characters don't really encode meaning like words do). Luckily, KerasHub makes it very simple to train WordPiece on a corpus with the <code> utility.
+
+Note: The official implementation of FNet uses the SentencePiece Tokenizer.
+
+Every vocabulary has a few special, reserved tokens. We have two such tokens:
+
+<code> - Padding token. Padding tokens are appended to the input sequence length when the input sequence length is shorter than the maximum sequence length.
+
+<code> - Unknown token.
+
+Let's see some tokens!
+
+Now, let's define the tokenizer. We will configure the tokenizer with the the vocabularies trained above. We will define a maximum sequence length so that all sequences are padded to the same length, if the length of the sequence is less than the specified sequence length. Otherwise, the sequence is truncated.
+
+Let's try and tokenize a sample from our dataset! To verify whether the text has been tokenized correctly, we can also detokenize the list of tokens back to the original text.
+
+Formatting the dataset.
+
+Next, we'll format our datasets in the form that will be fed to the models. We need to tokenize the text.
+
+Building the model.
+
+Now, let's move on to the exciting part - defining our model! We first need an embedding layer, i.e., a layer that maps every token in the input sequence to a vector. This embedding layer can be initialised randomly. We also need a positional embedding layer which encodes the word order in the sequence. The convention is to add, i.e., sum, these two embeddings. KerasHub has a <code> layer which does all of the above steps for us.
+
+Our FNet classification model consists of three <code> layers with a <code> layer on top.
+
+Note: For FNet, masking the padding tokens has a minimal effect on results. In the official implementation, the padding tokens are not masked.
+
+Training our model.
+
+We'll use accuracy to monitor training progress on the validation data. Let's train our model for 3 epochs.
+
+Model: "fnet_classifier".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputids ( InputLayer ) │ ( None , None ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ tokenandpositionembedding │ ( None , None , 128 ) │ 1,985,536 │ │ ( TokenAndPositionEmbedding ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ fnetencoder ( FNetEncoder ) │ ( None , None , 128 ) │ 132,224 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ fnetencoder1 ( FNetEncoder ) │ ( None , None , 128 ) │ 132,224 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ fnetencoder2 ( FNetEncoder ) │ ( None , None , 128 ) │ 132,224 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ globalaveragepooling1d │ ( None , 128 ) │ 0 │ │ ( GlobalAveragePooling1D ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 1 ) │ 129 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 2,382,337 (9.09 MB).
+
+Trainable params: 2,382,337 (9.09 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+We obtain a train accuracy of around 92% and a validation accuracy of around 85%. Moreover, for 3 epochs, it takes around 86 seconds to train the model (on Colab with a 16 GB Tesla T4 GPU).
+
+Let's calculate the test accuracy.
+
+Comparison with Transformer model.
+
+Let's compare our FNet Classifier model with a Transformer Classifier model. We keep all the parameters/hyperparameters the same. For example, we use three <code> layers.
+
+We set the number of heads to 2.
+
+Model: "transformer_classifier".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩ │ inputids │ ( None , None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ tokenandposition… │ ( None , None , 128 ) │ 1,985,… │ inputids 0 │ │ ( TokenAndPositionE… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformerencoder │ ( None , None , 128 ) │ 198,272 │ tokenandposition… │ │ ( TransformerEncode… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformerencode… │ ( None , None , 128 ) │ 198,272 │ transformerencoder… │ │ ( TransformerEncode… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ transformerencode… │ ( None , None , 128 ) │ 198,272 │ transformerencoder… │ │ ( TransformerEncode… │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ notequal1 │ ( None , None ) │ 0 │ inputids 0 │ │ ( NotEqual ) │ │ │ │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ globalaveragepoo… │ ( None , 128 ) │ 0 │ transformerencoder… │ │ ( GlobalAveragePool… │ │ │ notequal1 0 │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dropout4 ( Dropout ) │ ( None , 128 ) │ 0 │ globalaveragepool… │ ├─────────────────────┼───────────────────┼─────────┼──────────────────────┤ │ dense1 ( Dense ) │ ( None , 1 ) │ 129 │ dropout_4 0 │ └─────────────────────┴───────────────────┴─────────┴──────────────────────┘.
+
+Total params: 2,580,481 (9.84 MB).
+
+Trainable params: 2,580,481 (9.84 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+We obtain a train accuracy of around 94% and a validation accuracy of around 86.5%. It takes around 146 seconds to train the model (on Colab with a 16 GB Tesla T4 GPU).
+
+Let's calculate the test accuracy.
+
+Let's make a table and compare the two models. We can see that FNet significantly speeds up our run time (1.7x), with only a small sacrifice in overall accuracy (drop of 0.75%).
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.
+
+Chapter 15: Language models and the Transformer.

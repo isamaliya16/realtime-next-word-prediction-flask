@@ -1,0 +1,103 @@
+Natural Language Inference: Using Attention.
+
+We introduced the natural language inference task and the SNLI dataset in section <num>. In view of many models that are based on complex and deep architectures, proposed to address natural language inference with attention mechanisms and called it a "decomposable attention model". This results in a model without recurrent or convolutional layers, achieving the best result at the time on the SNLI dataset with much fewer parameters. In this section, we will describe and implement this attention-based method (with MLPs) for natural language inference, as depicted in section <num>.
+
+The Model.
+
+Simpler than preserving the order of tokens in premises and hypotheses, we can just align tokens in one text sequence to every token in the other, and vice versa, then compare and aggregate such information to predict the logical relationships between premises and hypotheses. Similar to alignment of tokens between source and target sentences in machine translation, the alignment of tokens between premises and hypotheses can be neatly accomplished by attention mechanisms.
+
+section <num> depicts the natural language inference method using attention mechanisms. At a high level, it consists of three jointly trained steps: attending, comparing, and aggregating. We will illustrate them step by step in the following.
+
+Attending.
+
+The first step is to align tokens in one text sequence to each token in the other sequence. Suppose that the premise is "i do need sleep" and the hypothesis is "i am tired". Due to semantical similarity, we may wish to align "i" in the hypothesis with "i" in the premise, and align "tired" in the hypothesis with "sleep" in the premise. Likewise, we may wish to align "i" in the premise with "i" in the hypothesis, and align "need" and "sleep" in the premise with "tired" in the hypothesis. Note that such alignment is soft using weighted average, where ideally large weights are associated with the tokens to be aligned. For ease of demonstration, section <num> shows such alignment in a hard way.
+
+Now we describe the soft alignment using attention mechanisms in more detail. Denote by <math> and <math> the premise and hypothesis, whose number of tokens are <math> and <math>, respectively, where <math> (<math>) is a <math>-dimensional word vector. For soft alignment, we compute the attention weights <math> as.
+
+<math>.
+
+where the function <math> is an MLP defined in the following <code> function. The output dimension of <math> is specified by the <code> argument of <code>.
+
+It should be highlighted that, in <num> <math> takes inputs <math> and <math> separately rather than takes a pair of them together as input. This decomposition trick leads to only <math> applications (linear complexity) of <math> rather than <math> applications (quadratic complexity).
+
+Normalizing the attention weights in <num>, we compute the weighted average of all the token vectors in the hypothesis to obtain representation of the hypothesis that is softly aligned with the token indexed by <math> in the premise:
+
+<math>.
+
+Likewise, we compute soft alignment of premise tokens for each token indexed by <math> in the hypothesis:
+
+<math>.
+
+Below we define the <code> class to compute the soft alignment of hypotheses (<code>) with input premises <code> and soft alignment of premises (<code>) with input hypotheses <code>.
+
+Comparing.
+
+In the next step, we compare a token in one sequence with the other sequence that is softly aligned with that token. Note that in soft alignment, all the tokens from one sequence, though with probably different attention weights, will be compared with a token in the other sequence. For easy of demonstration, section <num> pairs tokens with aligned tokens in a hard way. For example, suppose that the attending step determines that "need" and "sleep" in the premise are both aligned with "tired" in the hypothesis, the pair "tired--need sleep" will be compared.
+
+In the comparing step, we feed the concatenation (operator <math>) of tokens from one sequence and aligned tokens from the other sequence into a function <math> (an MLP):
+
+<math>.
+
+In <num>, <math> is the comparison between token <math> in the premise and all the hypothesis tokens that are softly aligned with token <math>; while <math> is the comparison between token <math> in the hypothesis and all the premise tokens that are softly aligned with token <math>. The following <code> class defines such as comparing step.
+
+Aggregating.
+
+With two sets of comparison vectors <math> (<math>) and <math> (<math>) on hand, in the last step we will aggregate such information to infer the logical relationship. We begin by summing up both sets:
+
+<math>.
+
+Next we feed the concatenation of both summarization results into function <math> (an MLP) to obtain the classification result of the logical relationship:
+
+<math>.
+
+The aggregation step is defined in the following <code> class.
+
+Putting It All Together.
+
+By putting the attending, comparing, and aggregating steps together, we define the decomposable attention model to jointly train these three steps.
+
+Training and Evaluating the Model.
+
+Now we will train and evaluate the defined decomposable attention model on the SNLI dataset. We begin by reading the dataset.
+
+Reading the dataset.
+
+We download and read the SNLI dataset using the function defined in section <num>. The batch size and sequence length are set to <math> and <math>, respectively.
+
+Creating the Model.
+
+We use the pretrained 100-dimensional GloVe embedding to represent the input tokens. Thus, we predefine the dimension of vectors <math> and <math> in <num> as 100. The output dimension of functions <math> in <num> and <math> in <num> is set to 200. Then we create a model instance, initialize its parameters, and load the GloVe embedding to initialize vectors of input tokens.
+
+Training and Evaluating the Model.
+
+In contrast to the <code> function in section <num> that takes single inputs such as text sequences (or images), we define a <code> function to take multiple inputs such as premises and hypotheses in minibatches.
+
+Now we can train and evaluate the model on the SNLI dataset.
+
+Using the Model.
+
+Finally, define the prediction function to output the logical relationship between a pair of premise and hypothesis.
+
+We can use the trained model to obtain the natural language inference result for a sample pair of sentences.
+
+Summary.
+
+The decomposable attention model consists of three steps for predicting the logical relationships between premises and hypotheses: attending, comparing, and aggregating.
+
+With attention mechanisms, we can align tokens in one text sequence to every token in the other, and vice versa. Such alignment is soft using weighted average, where ideally large weights are associated with the tokens to be aligned.
+
+The decomposition trick leads to a more desirable linear complexity than quadratic complexity when computing attention weights.
+
+We can use pretrained word vectors as the input representation for downstream natural language processing task such as natural language inference.
+
+Exercises.
+
+Train the model with other combinations of hyperparameters. Can you get better accuracy on the test set?
+
+What are major drawbacks of the decomposable attention model for natural language inference?
+
+Suppose that we want to get the level of semantical similarity (e.g., a continuous value between 0 and 1) for any pair of sentences. How shall we collect and label the dataset? Can you design a model with attention mechanisms?
+
+Discussions.
+
+Discussions.

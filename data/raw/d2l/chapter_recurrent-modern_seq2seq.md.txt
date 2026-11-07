@@ -1,0 +1,117 @@
+Sequence-to-Sequence Learning for Machine Translation.
+
+In so-called sequence-to-sequence problems such as machine translation (as discussed in section <num>), where inputs and outputs each consist of variable-length unaligned sequences, we generally rely on encoder--decoder architectures (section <num>). In this section, we will demonstrate the application of an encoder--decoder architecture, where both the encoder and decoder are implemented as RNNs, to the task of machine translation .
+
+Here, the encoder RNN will take a variable-length sequence as input and transform it into a fixed-shape hidden state. Later, in section <num>, we will introduce attention mechanisms, which allow us to access encoded inputs without having to compress the entire input into a single fixed-length representation.
+
+Then to generate the output sequence, one token at a time, the decoder model, consisting of a separate RNN, will predict each successive target token given both the input sequence and the preceding tokens in the output. During training, the decoder will typically be conditioned upon the preceding tokens in the official "ground truth" label. However, at test time, we will want to condition each output of the decoder on the tokens already predicted. Note that if we ignore the encoder, the decoder in a sequence-to-sequence architecture behaves just like a normal language model. section <num> illustrates how to use two RNNs for sequence-to-sequence learning in machine translation.
+
+In section <num>, the special " " token marks the end of the sequence. Our model can stop making predictions once this token is generated. At the initial time step of the RNN decoder, there are two special design decisions to be aware of: First, we begin every input with a special beginning-of-sequence " " token. Second, we may feed the final hidden state of the encoder into the decoder at every single decoding time step . In some other designs, such as that of , the final hidden state of the RNN encoder is used to initiate the hidden state of the decoder only at the first decoding step.
+
+Teacher Forcing.
+
+While running the encoder on the input sequence is relatively straightforward, handling the input and output of the decoder requires more care. The most common approach is sometimes called teacher forcing. Here, the original target sequence (token labels) is fed into the decoder as input. More concretely, the special beginning-of-sequence token and the original target sequence, excluding the final token, are concatenated as input to the decoder, while the decoder output (labels for training) is the original target sequence, shifted by one token: " ", "Ils", "regardent", "." <math> "Ils", "regardent", ".", " " (section <num>).
+
+Our implementation in section <num> prepared training data for teacher forcing, where shifting tokens for self-supervised learning is similar to the training of language models in section <num>. An alternative approach is to feed the predicted token from the previous time step as the current input to the decoder.
+
+In the following, we explain the design depicted in section <num> in greater detail. We will train this model for machine translation on the English--French dataset as introduced in section <num>.
+
+Encoder.
+
+Recall that the encoder transforms an input sequence of variable length into a fixed-shape context variable <math> (see section <num>).
+
+Consider a single sequence example (batch size 1). Suppose the input sequence is <math>, such that <math> is the <math> token. At time step <math>, the RNN transforms the input feature vector <math> for <math> and the hidden state <math> from the previous time step into the current hidden state <math>. We can use a function <math> to express the transformation of the RNN's recurrent layer:
+
+<math>.
+
+In general, the encoder transforms the hidden states at all time steps into a context variable through a customized function <math>:
+
+<math>.
+
+For example, in section <num>, the context variable is just the hidden state <math> corresponding to the encoder RNN's representation after processing the final token of the input sequence.
+
+In this example, we have used a unidirectional RNN to design the encoder, where the hidden state only depends on the input subsequence at and before the time step of the hidden state. We can also construct encoders using bidirectional RNNs. In this case, a hidden state depends on the subsequence before and after the time step (including the input at the current time step), which encodes the information of the entire sequence.
+
+Now let's [implement the RNN encoder]. Note that we use an embedding layer to obtain the feature vector for each token in the input sequence. The weight of an embedding layer is a matrix, where the number of rows corresponds to the size of the input vocabulary (<code>) and number of columns corresponds to the feature vector's dimension (<code>). For any input token index <math>, the embedding layer fetches the <math> row (starting from 0) of the weight matrix to return its feature vector. Here we implement the encoder with a multilayer GRU.
+
+Let's use a concrete example to [illustrate the above encoder implementation.] Below, we instantiate a two-layer GRU encoder whose number of hidden units is 16. Given a minibatch of sequence inputs <code> (batch size <math>; number of time steps <math>), the hidden states of the final layer at all the time steps (<code> returned by the encoder's recurrent layers) are a tensor of shape (number of time steps, batch size, number of hidden units).
+
+Since we are using a GRU here, the shape of the multilayer hidden states at the final time step is (number of hidden layers, batch size, number of hidden units).
+
+[Decoder].
+
+Given a target output sequence <math> for each time step <math> (we use <math> to differentiate from the input sequence time steps), the decoder assigns a predicted probability to each possible token occurring at step <math> conditioned upon the previous tokens in the target <math> and the context variable <math>, i.e., <math>.
+
+To predict the subsequent token <math> in the target sequence, the RNN decoder takes the previous step's target token <math>, the hidden RNN state from the previous time step <math>, and the context variable <math> as its input, and transforms them into the hidden state <math> at the current time step. We can use a function <math> to express the transformation of the decoder's hidden layer:
+
+<math>.
+
+After obtaining the hidden state of the decoder, we can use an output layer and the softmax operation to compute the predictive distribution <math> over the subsequent output token <math>.
+
+Following section <num>, when implementing the decoder as follows, we directly use the hidden state at the final time step of the encoder to initialize the hidden state of the decoder. This requires that the RNN encoder and the RNN decoder have the same number of layers and hidden units. To further incorporate the encoded input sequence information, the context variable is concatenated with the decoder input at all the time steps. To predict the probability distribution of the output token, we use a fully connected layer to transform the hidden state at the final layer of the RNN decoder.
+
+To [illustrate the implemented decoder], below we instantiate it with the same hyperparameters from the aforementioned encoder. As we can see, the output shape of the decoder becomes (batch size, number of time steps, vocabulary size), where the final dimension of the tensor stores the predicted token distribution.
+
+The layers in the above RNN encoder--decoder model are summarized in section <num>.
+
+Encoder--Decoder for Sequence-to-Sequence Learning.
+
+Putting it all together in code yields the following:
+
+Loss Function with Masking.
+
+At each time step, the decoder predicts a probability distribution for the output tokens. As with language modeling, we can apply softmax to obtain the distribution and calculate the cross-entropy loss for optimization. Recall from section <num> that the special padding tokens are appended to the end of sequences and so sequences of varying lengths can be efficiently loaded in minibatches of the same shape. However, prediction of padding tokens should be excluded from loss calculations. To this end, we can [mask irrelevant entries with zero values] so that multiplication of any irrelevant prediction with zero equates to zero.
+
+[Training].
+
+Now we can [create and train an RNN encoder--decoder model] for sequence-to-sequence learning on the machine translation dataset.
+
+[Prediction].
+
+To predict the output sequence at each step, the predicted token from the previous time step is fed into the decoder as an input. One simple strategy is to sample whichever token that has been assigned by the decoder the highest probability when predicting at each step. As in training, at the initial time step the beginning-of-sequence (" ") token is fed into the decoder. This prediction process is illustrated in section <num>. When the end-of-sequence (" ") token is predicted, the prediction of the output sequence is complete.
+
+In the next section, we will introduce more sophisticated strategies based on beam search (section <num>).
+
+Evaluation of Predicted Sequences.
+
+We can evaluate a predicted sequence by comparing it with the target sequence (the ground truth). But what precisely is the appropriate measure for comparing similarity between two sequences?
+
+Bilingual Evaluation Understudy (BLEU), though originally proposed for evaluating machine translation results , has been extensively used in measuring the quality of output sequences for different applications. In principle, for any <math>-gram (section <num>) in the predicted sequence, BLEU evaluates whether this <math>-gram appears in the target sequence.
+
+Denote by <math> the precision of an <math>-gram, defined as the ratio of the number of matched <math>-grams in the predicted and target sequences to the number of <math>-grams in the predicted sequence. To explain, given a target sequence <math>, <math>, <math>, <math>, <math>, <math>, and a predicted sequence <math>, <math>, <math>, <math>, <math>, we have <math>, <math>, <math>, and <math>. Now let <math> and <math> be the numbers of tokens in the target sequence and the predicted sequence, respectively. Then, BLEU is defined as.
+
+<math>.
+
+where <math> is the longest <math>-gram for matching.
+
+Based on the definition of BLEU in <num>, whenever the predicted sequence is the same as the target sequence, BLEU is 1. Moreover, since matching longer <math>-grams is more difficult, BLEU assigns a greater weight when a longer <math>-gram has high precision. Specifically, when <math> is fixed, <math> increases as <math> grows (the original paper uses <math>). Furthermore, since predicting shorter sequences tends to yield a higher <math> value, the coefficient before the multiplication term in <num> penalizes shorter predicted sequences. For example, when <math>, given the target sequence <math>, <math>, <math>, <math>, <math>, <math> and the predicted sequence <math>, <math>, although <math>, the penalty factor <math> lowers the BLEU.
+
+We [implement the BLEU measure] as follows.
+
+In the end, we use the trained RNN encoder--decoder to [translate a few English sentences into French] and compute the BLEU of the results.
+
+Summary.
+
+Following the design of the encoder--decoder architecture, we can use two RNNs to design a model for sequence-to-sequence learning. In encoder--decoder training, the teacher forcing approach feeds original output sequences (in contrast to predictions) into the decoder. When implementing the encoder and the decoder, we can use multilayer RNNs. We can use masks to filter out irrelevant computations, such as when calculating the loss. For evaluating output sequences, BLEU is a popular measure that matches <math>-grams between the predicted sequence and the target sequence.
+
+Exercises.
+
+Can you adjust the hyperparameters to improve the translation results?
+
+Rerun the experiment without using masks in the loss calculation. What results do you observe? Why?
+
+If the encoder and the decoder differ in the number of layers or the number of hidden units, how can we initialize the hidden state of the decoder?
+
+In training, replace teacher forcing with feeding the prediction at the previous time step into the decoder. How does this influence the performance?
+
+Rerun the experiment by replacing GRU with LSTM.
+
+Are there any other ways to design the output layer of the decoder?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

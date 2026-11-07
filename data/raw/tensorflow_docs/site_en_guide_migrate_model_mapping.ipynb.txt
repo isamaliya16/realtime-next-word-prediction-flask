@@ -1,0 +1,251 @@
+Use TF1.x models in TF2 workflows.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+This guide provides an overview and examples of a modeling code shim) that you can employ to use your existing TF1.x models in TF2 workflows such as eager execution, <code>, and distribution strategies with minimal changes to your modeling code.
+
+Scope of usage.
+
+The shim described in this guide is designed for TF1.x models that rely on:
+
+<code> and <code> to control variable creation and reuse, and.
+
+Graph-collection based APIs such as <code>, <code>, <code>, and <code> to keep track of weights and regularization losses.
+
+This includes most models built on top of <code>, <code> APIs, and TensorFlow-Slim.
+
+The shim is NOT necessary for the following TF1.x models:
+
+Stand-alone Keras models that already track all of their trainable weights and regularization losses via <code> and <code> respectively.
+
+<code>s that already track all of their trainable weights via <code>, and only create weights if they have not already been created.
+
+These models are likely to work in TF2 with eager execution and <code>s out-of-the-box.
+
+Setup.
+
+Import TensorFlow and other dependencies.
+
+The <code> decorator.
+
+The key shim described in this guide is <code>, a decorator that you can use within methods belonging to <code> and <code> to track TF1.x-style weights and capture regularization losses.
+
+Decorating a <code>'s or <code>'s call methods with <code> allows variable creation and reuse via <code> (and by extension <code>) to work correctly inside of the decorated method rather than always creating a new variable on each call. It will also cause the layer or module to implicitly track any weights created or accessed via <code> inside the decorated method.
+
+In addition to tracking the weights themselves under the standard <code>/<code>/etc. properties, if the method belongs to a <code>, then any regularization losses specified via the <code> or <code> regularizer arguments will get tracked by the layer under the standard <code> property.
+
+This tracking mechanism enables using large classes of TF1.x-style model-forward-pass code inside of Keras layers or <code>s in TF2 even with TF2 behaviors enabled.
+
+Usage examples.
+
+The usage examples below demonstrate the modeling shims used to decorate <code> methods, but except where they are specifically interacting with Keras features they are applicable when decorating <code> methods as well.
+
+Layer built with tf.compat.v1.get_variable.
+
+Imagine you have a layer implemented directly on top of <code> as follows:
+
+Use the shim to turn it into a layer and call it on inputs.
+
+Access the tracked variables and the captured regularization losses like a standard Keras layer.
+
+To see that the weights get reused each time you call the layer, set all the weights to zero and call the layer again.
+
+You can use the converted layer directly in Keras functional model construction as well.
+
+Model built with <code>.
+
+Imagine you have a layer or model implemented directly on top of <code> as follows:
+
+Use the shim to turn it into a layer and call it on inputs.
+
+Warning: For safety reasons, make sure to put all <code> inside of a non-empty-string <code>. This is because <code> with auto-generated names will always auto-increment the name outside of any variable scope. This means the requested variable names will mismatch each time you call the layer/module. So, rather than reusing the already-made weights it will create a new set of variables every call.
+
+Access the tracked variables and captured regularization losses like a standard Keras layer.
+
+To see that the weights get reused each time you call the layer, set all the weights to zero and call the layer again.
+
+You can use the converted layer directly in Keras functional model construction as well.
+
+Capture batch normalization updates and model <code> args.
+
+In TF1.x, you perform batch normalization like this:
+
+Note that:
+
+The batch normalization moving average updates are tracked by <code> which was called separately from the layer.
+
+<code> requires a <code> argument (generally called <code> when using TF-Slim batch normalization layers).
+
+In TF2, due to eager execution and automatic control dependencies, the batch normalization moving average updates will be executed right away. There is no need to separately collect them from the updates collection and add them as explicit control dependencies.
+
+Additionally, if you give your <code>'s forward pass method a <code> argument, Keras will be able to pass the current training phase and any nested layers to it just like it does for any other layer. See the API docs for <code> for more information on how Keras handles the <code> argument.
+
+If you are decorating <code> methods, you need to make sure to manually pass all <code> arguments as needed. However, the batch normalization moving average updates will still be applied automatically with no need for explicit control dependencies.
+
+The following code snippets demonstrate how to embed batch normalization layers in the shim and how using it in a Keras model works (applicable to <code>).
+
+Variable-scope based variable reuse.
+
+Any variable creations in the forward pass based on <code> will maintain the same variable naming and reuse semantics that variable scopes have in TF1.x. This is true as long as you have at least one non-empty outer scope for any <code> with auto-generated names, as mentioned above.
+
+Note: Naming and reuse will be scoped to within a single layer/module instance. Calls to <code> inside one shim-decorated layer or module will not be able to refer to variables created inside of layers or modules. You can get around this by using Python references to other variables directly if need be, rather than accessing variables via <code>.
+
+Eager execution & <code>.
+
+As seen above, decorated methods for <code> and <code> run inside of eager execution and are also compatible with <code>. This means you can use pdb and other interactive tools to step through your forward pass as it is running.
+
+Warning: Although it is perfectly safe to call your shim-decorated layer/module methods from inside of a <code>, it is not safe to put <code>s inside of your shim-decorated methods if those <code> contain <code> calls. Entering a <code> resets <code>s, which means the TF1.x-style variable-scope-based variable reuse that the shim mimics will break down in this setting.
+
+Distribution strategies.
+
+Calls to <code> inside of <code>-decorated layer or module methods use standard <code> variable creations under the hood. This means you can use them with the various distribution strategies available with <code> such as <code> and <code>.
+
+Nesting <code>s, <code>s, <code> & <code> in decorated calls.
+
+Decorating your layer call in <code> will only add automatic implicit tracking of variables created (and reused) via <code>. It will not capture weights directly created by <code> calls, such as those used by typical Keras layers and most <code>s. This section describes how to handle these nested cases.
+
+(Pre-existing usages) <code> and <code>.
+
+For pre-existing usages of nested Keras layers and models, use <code>. This is only recommended for easing migration of existing TF1.x nested Keras usages; new code should use explicit attribute setting as described below for tf.Variables and tf.Modules.
+
+To use <code>, wrap the code that constructs your nested model into a method, and pass it in to the method. Example:
+
+This method ensures that these nested layers are correctly reused and tracked by tensorflow. Note that the <code> decorator is still required on the appropriate method. The model builder method passed into <code> (in this case, <code>), should take no arguments.
+
+Weights are tracked:
+
+And regularization loss as well:
+
+Incremental migration: <code> and <code>.
+
+If you need to embed <code> calls or <code>s in your decorated methods (for example, if you are following the incremental migration to non-legacy TF2 APIs described later in this guide), you still need to explicitly track these, with the following requirements:
+
+Explicitly make sure that the variable/module/layer is only created once.
+
+Explicitly attach them as instance attributes just as you would when defining a typical module or layer.
+
+Explicitly reuse the already-created object in follow-on calls.
+
+This ensures that weights are not created new each call and are correctly reused. Additionally, this also ensures that existing weights and regularization losses get tracked.
+
+Here is an example of how this could look:
+
+Note that explicit tracking of the nested module is needed even though it is decorated with the <code> decorator. This is because each module/layer with decorated methods has its own variable store associated with it.
+
+The weights are correctly tracked:
+
+As well as regularization loss:
+
+Note that if the <code> were a non-Keras <code> instead, variables would still be tracked but regularization losses would not be automatically tracked, so you would have to explicitly track them separately.
+
+Guidance on variable names.
+
+Explicit <code> calls and Keras layers use a different layer name / variable name autogeneration mechanism than you may be used to from the combination of <code> and <code>. Although the shim will make your variable names match for variables created by <code> even when going from TF1.x graphs to TF2 eager execution & <code>, it cannot guarantee the same for the variable names generated for <code> calls and Keras layers that you embed within your method decorators. It is even possible for multiple variables to share the same name in TF2 eager execution and <code>.
+
+You should take special care with this when following the sections on validating correctness and mapping TF1.x checkpoints later on in this guide.
+
+Using <code> in the decorated method.
+
+It is highly recommended you directly use <code> instead of using <code>, as it is a thinner layer on top of TF2.
+
+Follow the guidance in this section for prior TF1.x code that was already relying on <code>.
+
+Because <code> wraps code that uses <code>, the <code> decorator allows you to use these templates in layer calls and successfully track the weights and regularization losses.
+
+However, do make sure to call <code> only once and then reuse the same template in each layer call. Otherwise, a new template will be created each time you call the layer along with a new set of variables.
+
+For example.
+
+Warning: Avoid sharing the same <code>-created template across multiple layer instances as it may break the variable and regularization loss tracking mechanisms of the shim decorator. Additionally, if you plan to use the same <code> name inside of multiple layer instances then you should nest the created template's usage inside of a <code>. If not, the generated name for the template's <code> will increment with each new instance of the layer. This could alter the weight names in unexpected ways.
+
+Incremental migration to Native TF2.
+
+As mentioned earlier, <code> allows you to mix TF2-style object-oriented <code>/<code>/<code> usage with legacy <code>/<code>-style usage inside of the same decorated module/layer.
+
+This means that after you have made your TF1.x model fully-TF2-compatible, you can write all new model components with native (non-<code>) TF2 APIs and have them interoperate with your older code.
+
+However, if you continue to modify your older model components, you may also choose to incrementally switch your legacy-style <code> usage over to the purely-native object-oriented APIs that are recommended for newly written TF2 code.
+
+<code> usage can be replaced with either <code> calls if you are decorating a Keras layer/model, or with <code> calls if you are decorating Keras objects or <code>s.
+
+Both functional-style and object-oriented <code> can generally be replaced with the equivalent <code> layer with no argument changes required.
+
+You may also consider chunks parts of your model or common patterns into individual layers/modules during your incremental move to purely-native APIs, which may themselves use <code>.
+
+A note on Slim and contrib.layers.
+
+A large amount of older TF 1.x code uses the Slim library, which was packaged with TF 1.x as <code>. Converting code using Slim to native TF 2 is more involved than converting <code>. In fact, it may make sense to convert your Slim code to <code> first, then convert to Keras. Below is some general guidance for converting Slim code.
+
+Ensure all arguments are explicit. Remove <code> if possible. If you still need to use them, split <code> and <code> into their own layers.
+
+Separable conv layers map to one or more different Keras layers (depthwise, pointwise, and separable Keras layers).
+
+Slim and <code> have different argument names and default values.
+
+Note that some arguments have different scales.
+
+Migration to Native TF2 ignoring checkpoint compatibility.
+
+The following code sample demonstrates an incremental move of a model to purely-native APIs without considering checkpoint compatibility.
+
+Next, replace the <code> APIs with their native object-oriented equivalents in a piecewise manner. Start by switching the convolution layer to a Keras object created in the layer constructor.
+
+Use the <code> class to verify that this incremental change leaves the model with the same behavior as before.
+
+You have now replaced all of the individual <code> with native Keras layers.
+
+Finally, remove both any remaining (no-longer-needed) <code> usage and the <code> decorator itself.
+
+You are now left with a version of the model that uses entirely native APIs.
+
+Maintaining checkpoint compatibility during migration to Native TF2.
+
+The above migration process to native TF2 APIs changed both the variable names (as Keras APIs produce very different weight names), and the object-oriented paths that point to different weights in the model. The impact of these changes is that they will have broken both any existing TF1-style name-based checkpoints or TF2-style object-oriented checkpoints.
+
+However, in some cases, you might be able to take your original name-based checkpoint and find a mapping of the variables to their new names with approaches like the one detailed in the Reusing TF1.x checkpoints guide.
+
+Some tips to making this feasible are as follows:
+
+Variables still all have a <code> argument you can set.
+
+Keras models also take a <code> argument as which they set as the prefix for their variables.
+
+The <code> function can be used to set variable name prefixes. This is very different from <code>. It only affects names, and doesn't track variables and reuse.
+
+With the above pointers in mind, the following code samples demonstrate a workflow you can adapt to your code to incrementally update part of a model while simultaneously updating checkpoints.
+
+Note: Due to the complexity of variable naming with Keras layers, this is not guaranteed to work for all use cases.
+
+Begin by switching functional-style <code> to their object-oriented versions.
+
+Next, assign the compat.v1.layer objects and any variables created by <code> as properties of the <code>/<code> object whose method is decorated with <code> (note that any object-oriented TF2 style checkpoints will now save out both a path by variable name and the new object-oriented path).
+
+Resave a loaded checkpoint at this point to save out paths both by the variable name (for compat.v1.layers), or by the object-oriented object graph.
+
+You can now swap out the object-oriented <code> for native Keras layers while still being able to load the recently-saved checkpoint. Ensure that you preserve variable names for the remaining <code> by still recording the auto-generated <code> of the replaced layers. These switched layers/variables will now only use the object attribute path to the variables in the checkpoint instead of the variable name path.
+
+In general, you can replace usage of <code> in variables attached to properties by:
+
+Switching them to using <code>, OR.
+
+Updating them by using <code>. Note that if you are not switching all layers in one go this may change auto-generated layer/variable naming for the remaining <code> that are missing a <code> argument. If that is the case, you must keep the variable names for remaining <code> the same by manually opening and closing a <code> corresponding to the removed <code>'s generated scope name. Otherwise the paths from existing checkpoints may conflict and checkpoint loading will behave incorrectly.
+
+Saving a checkpoint out at this step after constructing the variables will make it contain only the currently-available object paths.
+
+Ensure you record the scopes of the removed <code> to preserve the auto-generated weight names for the remaining <code>.
+
+Repeat the above steps until you have replaced all the <code> and <code>s in your model with fully-native equivalents.
+
+Remember to test to make sure the newly updated checkpoint still behaves as you expect. Apply the techniques described in the validate numerical correctness guide at every incremental step of this process to ensure your migrated code runs correctly.
+
+Handling TF1.x to TF2 behavior changes not covered by the modeling shims.
+
+The modeling shims described in this guide can make sure that variables, layers, and regularization losses created with <code>, <code>, and <code> semantics continue to work as before when using eager execution and <code>, without having to rely on collections.
+
+This does not cover all TF1.x-specific semantics that your model forward passes may be relying on. In some cases, the shims might be insufficient to get your model forward pass running in TF2 on their own. Read the TF1.x vs TF2 behaviors guide to learn more about the behavioral differences between TF1.x and TF2.

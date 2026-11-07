@@ -1,0 +1,45 @@
+Natural Language Inference: Fine-Tuning BERT.
+
+In earlier sections of this chapter, we have designed an attention-based architecture (in section <num>) for the natural language inference task on the SNLI dataset (as described in section <num>). Now we revisit this task by fine-tuning BERT. As discussed in section <num>, natural language inference is a sequence-level text pair classification problem, and fine-tuning BERT only requires an additional MLP-based architecture, as illustrated in section <num>.
+
+In this section, we will download a pretrained small version of BERT, then fine-tune it for natural language inference on the SNLI dataset.
+
+[Loading Pretrained BERT].
+
+We have explained how to pretrain BERT on the WikiText-2 dataset in section <num> and section <num> (note that the original BERT model is pretrained on much bigger corpora). As discussed in section <num>, the original BERT model has hundreds of millions of parameters. In the following, we provide two versions of pretrained BERT: "bert.base" is about as big as the original BERT base model that requires a lot of computational resources to fine-tune, while "bert.small" is a small version to facilitate demonstration.
+
+Either pretrained BERT model contains a "vocab.json" file that defines the vocabulary set and a "pretrained.params" file of the pretrained parameters. We implement the following <code> function to [load pretrained BERT parameters].
+
+To facilitate demonstration on most of machines, we will load and fine-tune the small version ("bert.small") of the pretrained BERT in this section. In the exercise, we will show how to fine-tune the much larger "bert.base" to significantly improve the testing accuracy.
+
+[The Dataset for Fine-Tuning BERT].
+
+For the downstream task natural language inference on the SNLI dataset, we define a customized dataset class <code>. In each example, the premise and hypothesis form a pair of text sequence and is packed into one BERT input sequence as depicted in section <num>. Recall section <num> that segment IDs are used to distinguish the premise and the hypothesis in a BERT input sequence. With the predefined maximum length of a BERT input sequence (<code>), the last token of the longer of the input text pair keeps getting removed until <code> is met. To accelerate generation of the SNLI dataset for fine-tuning BERT, we use 4 worker processes to generate training or testing examples in parallel.
+
+After downloading the SNLI dataset, we [generate training and testing examples] by instantiating the <code> class. Such examples will be read in minibatches during training and testing of natural language inference.
+
+Fine-Tuning BERT.
+
+As section <num> indicates, fine-tuning BERT for natural language inference requires only an extra MLP consisting of two fully connected layers (see <code> and <code> in the following <code> class). [This MLP transforms the BERT representation of the special “ ” token], which encodes the information of both the premise and the hypothesis, (into three outputs of natural language inference): entailment, contradiction, and neutral.
+
+In the following, the pretrained BERT model <code> is fed into the <code> instance <code> for the downstream application. In common implementations of BERT fine-tuning, only the parameters of the output layer of the additional MLP (<code>) will be learned from scratch. All the parameters of the pretrained BERT encoder (<code>) and the hidden layer of the additional MLP (<code>) will be fine-tuned.
+
+Recall that in section <num> both the <code> class and the <code> class have parameters in their employed MLPs. These parameters are part of those in the pretrained BERT model <code>, and thus part of parameters in <code>. However, such parameters are only for computing the masked language modeling loss and the next sentence prediction loss during pretraining. These two loss functions are irrelevant to fine-tuning downstream applications, thus the parameters of the employed MLPs in <code> and <code> are not updated (staled) when BERT is fine-tuned.
+
+To allow parameters with stale gradients, the flag <code> is set in the <code> function of <code>. We use this function to train and evaluate the model <code> using the training set (<code>) and the testing set (<code>) of SNLI. Due to the limited computational resources, [the training] and testing accuracy can be further improved: we leave its discussions in the exercises.
+
+Summary.
+
+We can fine-tune the pretrained BERT model for downstream applications, such as natural language inference on the SNLI dataset.
+
+During fine-tuning, the BERT model becomes part of the model for the downstream application. Parameters that are only related to pretraining loss will not be updated during fine-tuning.
+
+Exercises.
+
+Fine-tune a much larger pretrained BERT model that is about as big as the original BERT base model if your computational resource allows. Set arguments in the <code> function as: replacing 'bert.small' with 'bert.base', increasing values of <code>, <code>, <code>, and <code> to 768, 3072, 12, and 12, respectively. By increasing fine-tuning epochs (and possibly tuning other hyperparameters), can you get a testing accuracy higher than 0.86?
+
+How to truncate a pair of sequences according to their ratio of length? Compare this pair truncation method and the one used in the <code> class. What are their pros and cons?
+
+Discussions.
+
+Discussions.

@@ -1,0 +1,39 @@
+The Object Detection Dataset.
+
+There is no small dataset such as MNIST and Fashion-MNIST in the field of object detection. In order to quickly demonstrate object detection models, [we collected and labeled a small dataset]. First, we took photos of free bananas from our office and generated 1000 banana images with different rotations and sizes. Then we placed each banana image at a random position on some background image. In the end, we labeled bounding boxes for those bananas on the images.
+
+[Downloading the Dataset].
+
+The banana detection dataset with all the image and csv label files can be downloaded directly from the Internet.
+
+Reading the Dataset.
+
+We are going to [read the banana detection dataset] in the <code> function below. The dataset includes a csv file for object class labels and ground-truth bounding box coordinates at the upper-left and lower-right corners.
+
+By using the <code> function to read images and labels, the following <code> class will allow us to [create a customized <code> instance] for loading the banana detection dataset.
+
+Finally, we define the <code> function to [return two data iterator instances for both the training and test sets.] For the test dataset, there is no need to read it in random order.
+
+Let's [read a minibatch and print the shapes of both images and labels] in this minibatch. The shape of the image minibatch, (batch size, number of channels, height, width), looks familiar: it is the same as in our earlier image classification tasks. The shape of the label minibatch is (batch size, <math>, 5), where <math> is the largest possible number of bounding boxes that any image has in the dataset.
+
+Although computation in minibatches is more efficient, it requires that all the image examples contain the same number of bounding boxes to form a minibatch via concatenation. In general, images may have a varying number of bounding boxes; thus, images with fewer than <math> bounding boxes will be padded with illegal bounding boxes until <math> is reached. Then the label of each bounding box is represented by an array of length 5. The first element in the array is the class of the object in the bounding box, where -1 indicates an illegal bounding box for padding. The remaining four elements of the array are the (<math>, <math>)-coordinate values of the upper-left corner and the lower-right corner of the bounding box (the range is between 0 and 1). For the banana dataset, since there is only one bounding box on each image, we have <math>.
+
+[Demonstration].
+
+Let's demonstrate ten images with their labeled ground-truth bounding boxes. We can see that the rotations, sizes, and positions of bananas vary across all these images. Of course, this is just a simple artificial dataset. In practice, real-world datasets are usually much more complicated.
+
+Summary.
+
+The banana detection dataset we collected can be used to demonstrate object detection models.
+
+The data loading for object detection is similar to that for image classification. However, in object detection the labels also contain information of ground-truth bounding boxes, which is missing in image classification.
+
+Exercises.
+
+Demonstrate other images with ground-truth bounding boxes in the banana detection dataset. How do they differ with respect to bounding boxes and objects?
+
+Say that we want to apply data augmentation, such as random cropping, to object detection. How can it be different from that in image classification? Hint: what if a cropped image only contains a small portion of an object?
+
+Discussions.
+
+Discussions.

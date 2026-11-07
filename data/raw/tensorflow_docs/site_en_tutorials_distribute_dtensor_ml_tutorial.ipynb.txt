@@ -1,0 +1,209 @@
+Distributed training with DTensors.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+DTensor provides a way for you to distribute the training of your model across devices to improve efficiency, reliability and scalability. For more details, check out the DTensor concepts guide.
+
+In this tutorial, you will train a sentiment analysis model using DTensors. The example demonstrates three distributed training schemes:
+
+Data Parallel training, where the training samples are sharded (partitioned) to devices.
+
+Model Parallel training, where the model variables are sharded to devices.
+
+Spatial Parallel training, where the features of input data are sharded to devices (also known as Spatial Partitioning).
+
+The training portion of this tutorial is inspired by a Kaggle notebook called A Kaggle guide on sentiment analysis. To learn about the complete training and evaluation workflow (without DTensor), refer to that notebook.
+
+This tutorial will walk through the following steps:
+
+Some data cleaning to obtain a <code> of tokenized sentences and their polarity.
+
+Then, building an MLP model with custom Dense and BatchNorm layers using a <code> to track the inference variables. The model constructor will take additional <code> arguments to control the sharding of variables.
+
+For training, you will first use data parallel training together with <code>'s checkpoint feature. Then, you will continue with Model Parallel Training and Spatial Parallel Training.
+
+The final section briefly describes the interaction between <code> and <code> as of TensorFlow 2.9.
+
+Setup.
+
+DTensor (<code>) has been part of TensorFlow since the 2.9.0 release.
+
+First, install or upgrade TensorFlow Datasets:
+
+Next, import <code> and <code>, and configure TensorFlow to use 8 virtual CPUs.
+
+Even though this example uses virtual CPUs, DTensor works the same way on CPU, GPU or TPU devices.
+
+Download the dataset.
+
+Download the IMDB reviews data set to train the sentiment analysis model:
+
+Prepare the data.
+
+First tokenize the text. Here use an extension of one-hot encoding, the <code> mode of <code>.
+
+For the sake of speed, limit the number of tokens to 1200.
+
+To keep the <code> simple, run <code> as a preprocessing step before the training.
+
+The final result of the data cleaning section is a <code> with the tokenized text as <code> and label as <code>.
+
+Note: Running <code> as a preprocessing step is neither a usual practice nor a recommended one as doing so assumes the training data fits into the client memory, which is not always the case.
+
+Build a neural network with DTensor.
+
+Now build a Multi-Layer Perceptron (MLP) network with <code>. The network will use fully connected Dense and BatchNorm layers.
+
+<code> expands TensorFlow through single-program multi-data (SPMD) expansion of regular TensorFlow Ops according to the <code> attributes of their input <code> and variables.
+
+Variables of <code> aware layers are <code>, and the constructors of <code> aware layer objects take additional <code> inputs in addition to the usual layer parameters.
+
+Note: As of TensorFlow 2.9, Keras layers such as <code>, and <code> accepts <code> arguments. Refer to the DTensor Keras Integration Tutorial for more information using Keras with DTensor.
+
+Dense Layer.
+
+The following custom Dense layer defines 2 layer variables: <math> is the variable for weights, and <math> is the variable for the biases.
+
+<math>.
+
+Layout deduction.
+
+This result comes from the following observations:
+
+The preferred DTensor sharding for operands to a matrix dot product <math> is to shard <math> and <math> the same way along the <math>-axis.
+
+The preferred DTensor sharding for operands to a matrix sum <math>, is to shard <math> and <math> the same way along the <math>-axis.
+
+BatchNorm.
+
+A batch normalization layer helps avoid collapsing modes while training. In this case, adding batch normalization layers helps model training avoid producing a model that only produces zeros.
+
+The constructor of the custom <code> layer below does not take a <code> argument. This is because <code> has no layer variables. This still works with DTensor because 'x', the only input to the layer, is already a DTensor that represents the global batch.
+
+Note: With DTensor, the input Tensor 'x' always represents the global batch. Therefore <code> is applied to the global batch. This differs from training with <code>, where Tensor 'x' only represents the per-replica shard of the batch (the local batch).
+
+A full featured batch normalization layer (such as <code>) will need Layout arguments for its variables.
+
+Putting Layers Together.
+
+Next, build a Multi-layer perceptron (MLP) network with the building blocks above. The diagram below shows the axis relationships between the input <code> and the weight matrices for the two <code> layers without any DTensor sharding or replication applied.
+
+The output of the first <code> layer is passed into the input of the second <code> layer (after the <code>). Therefore, the preferred DTensor sharding for the output of first <code> layer (<math>) and the input of second <code> layer (<math>) is to shard <math> and <math> the same way along the common axis <math>.
+
+<math>.
+
+Even though the layout deduction shows that the 2 layouts are not independent, for the sake of simplicity of the model interface, <code> will take 2 <code> arguments, one per Dense layer.
+
+The trade-off between correctness in layout deduction constraints and simplicity of API is a common design point of APIs that uses DTensor. It is also possible to capture the dependency between <code>'s with a different API. For example, the <code> class creates the <code> objects in the constructor.
+
+To make sure the model runs, probe your model with fully replicated layouts and a fully replicated batch of <code> input.
+
+Moving data to the device.
+
+Usually, <code> iterators (and other data fetching methods) yield tensor objects backed by the local host device memory. This data must be transferred to the accelerator device memory that backs DTensor's component tensors.
+
+<code> is unsuitable for this situation because it replicates input tensors to all devices due to DTensor's global perspective. So in this tutorial, you will use a helper function <code>, to facilitate the transfer of data. This helper function uses <code> to send (and only send) the shard of the global batch that is intended for a replica to the device backing the replica.
+
+This simplified function assumes single-client. Determining the correct way to split the local tensor and the mapping between the pieces of the split and the local devices can be laboring in a multi-client application.
+
+Additional DTensor API to simplify <code> integration is planned, supporting both single-client and multi-client applications. Please stay tuned.
+
+Data parallel training.
+
+In this section, you will train your MLP model with data parallel training. The following sections will demonstrate model parallel training and spatial parallel training.
+
+Data parallel training is a commonly used scheme for distributed machine learning:
+
+Model variables are replicated on N devices each.
+
+A global batch is split into N per-replica batches.
+
+Each per-replica batch is trained on the replica device.
+
+The gradient is reduced before weight up data is collectively performed on all replicas.
+
+Data parallel training provides nearly linear speedup regarding the number of devices.
+
+Creating a data parallel mesh.
+
+A typical data parallelism training loop uses a DTensor <code> that consists of a single <code> dimension, where each device becomes a replica that receives a shard from the global batch.
+
+The replicated model runs on the replica, therefore the model variables are fully replicated (unsharded).
+
+Packing training data to DTensors.
+
+The training data batch should be packed into DTensors sharded along the <code>(first) axis, such that DTensor will evenly distribute the training data to the <code> mesh dimension.
+
+Note: In DTensor, the <code> always refers to the global batch size. The batch size should be chosen such that it can be divided evenly by the size of the <code> mesh dimension.
+
+Training step.
+
+This example uses a Stochastic Gradient Descent optimizer with the Custom Training Loop (CTL). Consult the Custom Training Loop guide and Walk through for more information on those topics.
+
+The <code> is encapsulated as a <code> to indicate this body is to be traced as a TensorFlow Graph. The body of <code> consists of a forward inference pass, a backward gradient pass, and the variable update.
+
+Note that the body of <code> does not contain any special DTensor annotations. Instead, <code> only contains high-level TensorFlow operations that process the input <code> and <code> from the global view of the input batch and the model. All of the DTensor annotations (<code>, <code>) are factored out of the train step.
+
+Checkpointing.
+
+You can checkpoint a DTensor model using <code> out of the box. Saving and restoring sharded DVariables will perform an efficient sharded save and restore. Currently, when using <code> and <code>, all DVariables must be on the same host mesh, and DVariables and regular variables cannot be saved together. You can learn more about checkpointing in this guide.
+
+When a DTensor checkpoint is restored, <code>s of variables can be different from when the checkpoint is saved. That is, saving DTensor models is layout- and mesh-agnostic, and only affects the efficiency of sharded saving. You can save a DTensor model with one mesh and layout and restore it on a different mesh and layout. This tutorial makes use of this feature to continue the training in the Model Parallel training and Spatial Parallel training sections.
+
+Training loop.
+
+For the data parallel training scheme, train for epochs and report the progress. 3 epochs is insufficient for training the model -- an accuracy of 50% is as good as randomly guessing.
+
+Enable checkpointing so that you can pick up the training later. In the following section, you will load the checkpoint and train with a different parallel scheme.
+
+Model Parallel Training.
+
+If you switch to a 2 dimensional <code>, and shard the model variables along the second mesh dimension, then the training becomes Model Parallel.
+
+In Model Parallel training, each model replica spans multiple devices (2 in this case):
+
+There are 4 model replicas, and the training data batch is distributed to the 4 replicas.
+
+The 2 devices within a single model replica receive replicated training data.
+
+As the training data is still sharded along the batch dimension, you can reuse the same <code> function as the Data Parallel training case. DTensor will automatically replicate the per-replica batch to all devices inside the replica along the <code> mesh dimension.
+
+Next run the training loop. The training loop reuses the same checkpoint manager as the Data Parallel training example, and the code looks identical.
+
+You can continue training the data parallel trained model under model parallel training.
+
+Spatial Parallel Training.
+
+When training data of very high dimensionality (e.g. a very large image or a video), it may be desirable to shard along the feature dimension. This is called Spatial Partitioning, which was first introduced into TensorFlow for training models with large 3-d input samples.
+
+DTensor also supports this case. The only change you need to do is to create a Mesh that includes a <code> dimension, and apply the corresponding <code>.
+
+Shard the input data along the <code> dimension when packing the input tensors to DTensors. You do this with a slightly different repack function, <code>, where <code> stands for Spatial Parallel Training.
+
+The Spatial parallel training can also continue from a checkpoint created with other parallell training schemes.
+
+SavedModel and DTensor.
+
+The integration of DTensor and SavedModel is still under development.
+
+As of TensorFlow <code>, <code> can save sharded and replicated DTensor models, and saving will do an efficient sharded save on different devices of the mesh. However, after a model is saved, all DTensor annotations are lost and the saved signatures can only be used with regular Tensors, not DTensors.
+
+As of TensorFlow 2.9.0, you can only call a loaded signature with a regular Tensor, or a fully replicated DTensor (which will be converted to a regular Tensor).
+
+What's next?
+
+This tutorial demonstrated building and training an MLP sentiment analysis model with DTensor.
+
+Through <code> and <code> primitives, DTensor can transform a TensorFlow <code> to a distributed program suitable for a variety of training schemes.
+
+In a real-world machine learning application, evaluation and cross-validation should be applied to avoid producing an over-fitted model. The techniques introduced in this tutorial can also be applied to introduce parallelism to evaluation.
+
+Composing a model with <code> from scratch is a lot of work, and reusing existing building blocks such as layers and helper functions can drastically speed up model development. As of TensorFlow 2.9, all Keras Layers under <code> accepts DTensor layouts as their arguments, and can be used to build DTensor models. You can even directly reuse a Keras model with DTensor without modifying the model implementation. Refer to the DTensor Keras Integration Tutorial for information on using DTensor Keras.

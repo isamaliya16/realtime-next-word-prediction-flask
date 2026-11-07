@@ -1,0 +1,215 @@
+Migrating Keras 2 code to multi-backend Keras 3.
+
+This guide will help you migrate TensorFlow-only Keras 2 code to multi-backend Keras 3 code. The overhead for the migration is minimal. Once you have migrated, you can run Keras workflows on top of either JAX, TensorFlow, or PyTorch.
+
+This guide has two parts:
+
+Migrating your legacy Keras 2 code to Keras 3, running on top of the TensorFlow backend. This is generally very easy, though there are minor issues to be mindful of, that we will go over in detail.
+
+Further migrating your Keras 3 + TensorFlow code to multi-backend Keras 3, so that it can run on JAX and PyTorch.
+
+Let's get started.
+
+Setup.
+
+First, lets install <code>.
+
+This example uses the TensorFlow backend (<code>). After you've migrated your code, you can change the <code> string to <code> or <code> and click "Restart runtime" in Colab, and your code will run on the JAX or PyTorch backend.
+
+Going from Keras 2 to Keras 3 with the TensorFlow backend.
+
+First, replace your imports:
+
+Replace <code> to <code>.
+
+Replace <code> (e.g. <code>) to <code> (e.g. <code>).
+
+Replace <code> to <code>.
+
+Next, start running your tests. Most of the time, your code will execute on Keras 3 just fine. All issues you might encounter are detailed below, with their fixes.
+
+<code> is set to <code> by default on GPU.
+
+The default value of the <code> argument to the <code> constructor has been set to <code> on GPU in Keras 3. This means that models will be compiled with Just-In-Time (JIT) compilation by default on GPU.
+
+JIT compilation can improve the performance of some models. However, it may not work with all TensorFlow operations. If you are using a custom model or layer and you see an XLA-related error, you may need to set the <code> argument to <code>. Here is a list of known issues encountered when using XLA with TensorFlow. In addition to these issues, there are some ops that are not supported by XLA.
+
+The error message you could encounter would be as follows:
+
+For example, the following snippet of code will reproduce the above error:
+
+How to fix it: set <code> in <code>, or set the <code> attribute to <code>, like this:
+
+Saving a model in the TF SavedModel format.
+
+Saving to the TF SavedModel format via <code> is no longer supported in Keras 3.
+
+The error message you could encounter would be as follows:
+
+The following snippet of code will reproduce the above error:
+
+How to fix it: use <code> instead of <code>.
+
+Loading a TF SavedModel.
+
+Loading a TF SavedModel file via <code> is no longer supported If you try to use <code> with a TF SavedModel, you will get the following error:
+
+The following snippet of code will reproduce the above error:
+
+How to fix it: Use <code> to reload a TF SavedModel as a Keras layer. This is not limited to SavedModels that originate from Keras -- it will work with any SavedModel, e.g. TF-Hub models.
+
+Using deeply nested inputs in Functional Models.
+
+<code> can no longer be passed deeply nested inputs/outputs (nested more than 1 level deep, e.g. lists of lists of tensors).
+
+You would encounter errors as follows:
+
+The following snippet of code will reproduce the above error:
+
+How to fix it: replace nested input with either dicts, lists, and tuples of input tensors.
+
+TF autograph.
+
+In Keras 2, TF autograph is enabled by default on the <code> method of custom layers. In Keras 3, it is not. This means you may have to use cond ops if you're using control flow, or alternatively you can decorate your <code> method with <code>.
+
+You would encounter an error as follows:
+
+The following snippet of code will reproduce the above error:
+
+How to fix it: decorate your <code> method with <code>.
+
+Calling TF ops with a <code>.
+
+Using a TF op on a Keras tensor during functional model construction is disallowed: "A KerasTensor cannot be used as input to a TensorFlow function".
+
+The error you would encounter would be as follows:
+
+The following snippet of code will reproduce the error:
+
+How to fix it: use an equivalent op from <code>.
+
+Multi-output model <code>.
+
+The <code> method of a multi-output model no longer returns individual output losses separately. Instead, you should utilize the <code> argument in the <code> method to keep track of these losses.
+
+When dealing with multiple named outputs, such as outputa and outputb, the legacy <code> would include _loss, _loss, and similar entries in metrics. However, in keras 3.0, these entries are not automatically added to metrics. They must be explicitly provided in the metrics list for each individual output.
+
+The following snippet of code will reproduce the above behavior:
+
+TensorFlow variables tracking.
+
+Setting a <code> as an attribute of a Keras 3 layer or model will not automatically track the variable, unlike in Keras 2. The following snippet of code will show that the <code> are not being tracked.
+
+You will see the following warning:
+
+How to fix it: use <code> method or opt for a <code> instead. If you are currently using <code>, you can switch to <code>.
+
+<code> entries in nested <code> arguments.
+
+<code> entries are not allowed as part of nested (e.g. list/tuples) tensor arguments in <code>, nor as part of <code>'s nested return values.
+
+If the <code> in the argument is intentional and serves a specific purpose, ensure that the argument is optional and structure it as a separate parameter. For example, consider defining the <code> method with optional argument.
+
+The following snippet of code will reproduce the error.
+
+How to fix it:
+
+Solution 1: Replace <code> with a value, like this:
+
+Solution 2: Define the call method with an optional argument. Here is an example of this fix:
+
+State-building issues.
+
+Keras 3 is significantly stricter than Keras 2 about when state (e.g. numerical weight variables) can be created. Keras 3 wants all state to be created before the model can be trained. This is a requirement for using JAX (whereas TensorFlow was very lenient about state creation timing).
+
+Keras layers should create their state either in their constructor (<code> method) or in their <code> method. They should avoid creating state in <code>.
+
+If you ignore this recommendation and create state in <code> anyway (e.g. by calling a previously unbuilt layer), then Keras will attempt to build the layer automatically by calling the <code> method on symbolic inputs before training. However, this attempt at automatic state creation may fail in certain cases. This will cause an error that looks like like this:
+
+You could reproduce this error with the following layer, when used with the JAX backend:
+
+How to fix it: Do exactly what the error message asks. First, try to run the layer eagerly to see if the <code> method is in fact correct (note: if it was working in Keras 2, then it is correct and does not need to be changed). If it is indeed correct, then you should implement a <code> method that creates all of the layer's state, including the state of sublayers. Here's the fix as applied for the layer above (note the <code> method):
+
+Removed features.
+
+A small number of legacy features with very low usage were removed from Keras 3 as a cleanup measure:
+
+<code> is removed. Instead, you can simply use the <code> layer with the argument <code>.
+
+Symbolic <code>: Symbolic <code> is removed (you can still use <code> inside the <code> method of a layer/model).
+
+Locally connected layers (<code>, <code> are removed due to very low usage. To use locally connected layers, copy the layer implementation into your own codebase.
+
+<code> is removed due to very low usage. To use it, copy the layer implementation into your own codebase.
+
+Removed layer attributes: Layer attributes <code>, <code> are removed. <code> is still available on the <code> class.
+
+The <code> and <code> arguments in RNN layers are removed. The <code> argument was a remnant of Theano and had very low usage. The <code> argument also had very low usage.
+
+<code> argument: The <code> argument is removed from <code> methods. This argument had very low usage.
+
+The <code> object is removed. This object had very low usage.
+
+Transitioning to backend-agnostic Keras 3.
+
+Keras 3 code with the TensorFlow backend will work with native TensorFlow APIs. However, if you want your code to be backend-agnostic, you will need to:
+
+Replace all of the <code> API calls with their equivalent Keras APIs.
+
+Convert your custom <code>/<code> methods to a multi-framework implementation.
+
+Make sure you're using stateless <code> ops correctly in your layers.
+
+Let's go over each point in detail.
+
+Switching to Keras ops.
+
+In many cases, this is the only thing you need to do to start being able to run your custom layers and metrics with JAX and PyTorch: replace any <code>, <code>, <code>, etc. with <code>. Most TF ops should be consistent with Keras 3. If the names different, they will be highlighted in this guide.
+
+NumPy ops.
+
+Keras implements the NumPy API as part of <code>.
+
+The table below only lists a small subset of TensorFlow and Keras ops; ops not listed are usually named the same in both frameworks (e.g. <code>, <code>, <code>, etc.).
+
+Others ops.
+
+Custom <code> methods.
+
+Your models may include a custom <code> or <code> method, which rely on TensorFlow-only APIs -- for instance, your <code> method may leverage TensorFlow's <code>. To convert such models to run on JAX or PyTorch, you will have a write a different <code> implementation for each backend you want to support.
+
+In some cases, you might be able to simply override the <code> method and make it fully backend-agnostic, instead of overriding <code>. Here's an example of a layer with a custom <code> method which works across JAX, TensorFlow, and PyTorch:
+
+If you need to modify the optimization mechanism itself, beyond the loss computation, then you will need to override <code>, and implement one <code> method per backend, like below.
+
+See the following guides for details on how each backend should be handled:
+
+Customizing what happens in <code> with JAX.
+
+Customizing what happens in <code> with TensorFlow.
+
+Customizing what happens in <code> with PyTorch.
+
+RNG-using layers.
+
+Keras 3 has a new <code> namespace, containing:
+
+<code>.
+
+<code>.
+
+<code>.
+
+etc.
+
+These operations are stateless, which means that if you pass a <code> argument, they will return the same result every time. Like this:
+
+Crucially, this differs from the behavior of stateful <code> ops:
+
+When you write a RNG-using layer, such as a custom dropout layer, you are going to want to use a different seed value at layer call. However, you cannot just increment a Python integer and pass it, because while this would work fine when executed eagerly, it would not work as expected when using compilation (which is available with JAX, TensorFlow, and PyTorch). When compiling the layer, the first Python integer seed value seen by the layer would be hardcoded into the compiled graph.
+
+To address this, you should pass as the <code> argument an instance of a stateful <code> object, like this:
+
+So when writing a RNG using layer, you would use the following pattern:
+
+Such a layer is safe to use in any setting -- in eager execution or in a compiled model. Each layer call will be using a different seed value, as expected.

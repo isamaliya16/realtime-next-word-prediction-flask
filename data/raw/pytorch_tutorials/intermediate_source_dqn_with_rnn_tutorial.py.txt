@@ -1,0 +1,111 @@
+Recurrent DQN: Training recurrent policies.
+
+Overview.
+
+Memory-based policies are crucial not only when the observations are partially observable but also when the time dimension must be taken into account to make informed decisions.
+
+Recurrent neural network have long been a popular tool for memory-based policies. The idea is to keep a recurrent state in memory between two consecutive steps, and use this as an input to the policy along with the current observation.
+
+This tutorial shows how to incorporate an RNN in a policy using TorchRL.
+
+Key learnings:
+
+Incorporating an RNN in an actor in TorchRL;
+
+Using that memory-based policy with a replay buffer and a loss module.
+
+The core idea of using RNNs in TorchRL is to use TensorDict as a data carrier for the hidden states from one step to another. We'll build a policy that reads the previous recurrent state from the current TensorDict, and writes the current recurrent states in the TensorDict of the next state:
+
+As this figure shows, our environment populates the TensorDict with zeroed recurrent states which are read by the policy together with the observation to produce an action, and recurrent states that will be used for the next step. When the torchrl.envs.utils.step_mdp function is called, the recurrent states from the next state are brought to the current TensorDict. Let's see how this is implemented in practice.
+
+If you are running this in Google Colab, make sure you install the following dependencies:
+
+Setup.
+
+Environment.
+
+As usual, the first step is to build our environment: it helps us define the problem and build the policy network accordingly. For this tutorial, we'll be running a single pixel-based instance of the CartPole gym environment with some custom transforms: turning to grayscale, resizing to 84x84, scaling down the rewards and normalizing the observations.
+
+Two transforms are important for the purpose of this tutorial:
+
+torchrl.envs.transforms.InitTracker will stamp the calls to torchrl.envs.EnvBase.reset by adding a <code> boolean mask in the TensorDict that will track which steps require a reset of the RNN hidden states.
+
+The torchrl.envs.transforms.TensorDictPrimer transform is a bit more technical. It is not required to use RNN policies. However, it instructs the environment (and subsequently the collector) that some extra keys are to be expected. Once added, a call to <code> will populate the entries indicated in the primer with zeroed tensors. Knowing that these tensors are expected by the policy, the collector will pass them on during collection. Eventually, we'll be storing our hidden states in the replay buffer, which will help us bootstrap the computation of the RNN operations in the loss module (which would otherwise be initiated with 0s). In summary: not including this transform will not impact hugely the training of our policy, but it will make the recurrent keys disappear from the collected data and the replay buffer, which will in turn lead to a slightly less optimal training. Fortunately, the torchrl.modules.LSTMModule we propose is equipped with a helper method to build just that transform for us, so we can wait until we build it!
+
+As always, we need to initialize manually our normalization constants:
+
+Policy.
+
+Our policy will have 3 components: a torchrl.modules.ConvNet backbone, an torchrl.modules.LSTMModule memory layer and a shallow torchrl.modules.MLP block that will map the LSTM output onto the action values.
+
+Convolutional network.
+
+We build a convolutional network flanked with a torch.nn.AdaptiveAvgPool2d that will squash the output in a vector of size 64. The torchrl.modules.ConvNet can assist us with this:
+
+we execute the first module on a batch of data to gather the size of the output vector:
+
+LSTM Module.
+
+TorchRL provides a specialized torchrl.modules.LSTMModule class to incorporate LSTMs in your code-base. It is a tensordict.nn.TensorDictModuleBase subclass: as such, it has a set of <code> and <code> that indicate what values should be expected to be read and written/updated during the execution of the module. The class comes with customizable predefined values for these attributes to facilitate its construction.
+
+Let us look at the LSTM Module class, specifically its in and out_keys:
+
+We can see that these values contain the key we indicated as the inkey (and outkey) as well as recurrent key names. The outkeys are preceded by a "next" prefix that indicates that they will need to be written in the "next" TensorDict. We use this convention (which can be overridden by passing the inkeys/outkeys arguments) to make sure that a call to torchrl.envs.utils.stepmdp will move the recurrent state to the root TensorDict, making it available to the RNN during the following call (see figure in the intro).
+
+As mentioned earlier, we have one more optional transform to add to our environment to make sure that the recurrent states are passed to the buffer. The torchrl.modules.LSTMModule.maketensordictprimer method does exactly that:
+
+and that's it! We can print the environment to check that everything looks good now that we have added the primer:
+
+MLP.
+
+We use a single-layer MLP to represent the action values we'll be using for our policy.
+
+and fill the bias with zeros:
+
+Using the Q-Values to select an action.
+
+The last part of our policy is the Q-Value Module. The Q-Value module torchrl.modules.tensordict_module.QValueModule will read the <code> key that is produced by our MLP and from it, gather the action that has the maximum value. The only thing we need to do is to specify the action space, which can be done either by passing a string or an action-spec. This allows us to use Categorical (sometimes called "sparse") encoding or the one-hot version of it.
+
+We can now put things together in a tensordict.nn.TensorDictSequential.
+
+DQN being a deterministic algorithm, exploration is a crucial part of it. We'll be using an \epsilon-greedy policy with an epsilon of 0.2 decaying progressively to 0. This decay is achieved via a call to torchrl.modules.EGreedyModule.step (see training loop below).
+
+Using the model for the loss.
+
+The model as we've built it is well equipped to be used in sequential settings. However, the class torch.nn.LSTM can use a cuDNN-optimized backend to run the RNN sequence faster on GPU device. We would not want to miss such an opportunity to speed up our training loop! To use it, we just need to tell the LSTM module to run on "recurrent-mode" when used by the loss. As we'll usually want to have two copies of the LSTM module, we do this by calling a torchrl.modules.LSTMModule.setrecurrentmode method that will return a new instance of the LSTM (with shared weights) that will assume that the input data is sequential in nature.
+
+Because we still have a couple of uninitialized parameters we should initialize them before creating an optimizer and such.
+
+DQN Loss.
+
+Out DQN loss requires us to pass the policy and, again, the action-space. While this may seem redundant, it is important as we want to make sure that the torchrl.objectives.DQNLoss and the torchrl.modules.tensordict_module.QValueModule classes are compatible, but aren't strongly dependent on each other.
+
+To use the Double-DQN, we ask for a <code> argument that will create a non-differentiable copy of the network parameters to be used as a target network.
+
+Since we are using a double DQN, we need to update the target parameters. We'll use a torchrl.objectives.SoftUpdate instance to carry out this work.
+
+Collector and replay buffer.
+
+We build the simplest data collector there is. We'll try to train our algorithm with a million frames, extending the buffer with 50 frames at a time. The buffer will be designed to store 20 thousands trajectories of 50 steps each. At each optimization step (16 per data collection), we'll collect 4 items from our buffer, for a total of 200 transitions. We'll use a torchrl.data.replay_buffers.LazyMemmapStorage storage to keep the data on disk.
+
+Training loop.
+
+To keep track of the progress, we will run the policy in the environment once every 50 data collection, and plot the results after training.
+
+Let's plot our results:
+
+Conclusion.
+
+We have seen how an RNN can be incorporated in a policy in TorchRL. You should now be able:
+
+Create an LSTM module that acts as a tensordict.nn.TensorDictModule.
+
+Indicate to the LSTM module that a reset is needed via an torchrl.envs.transforms.InitTracker transform.
+
+Incorporate this module in a policy and in a loss module.
+
+Make sure that the collector is made aware of the recurrent state entries such that they can be stored in the replay buffer along with the rest of the data.
+
+Further Reading.
+
+The TorchRL documentation can be found here.

@@ -1,0 +1,111 @@
+Distributed training with Core APIs and DTensor.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Introduction.
+
+This notebook uses the TensorFlow Core low-level APIs and DTensor to demonstrate a data parallel distributed training example. Visit the Core APIs overview to learn more about TensorFlow Core and its intended use cases. Refer to the DTensor Overview guide and Distributed Training with DTensors tutorial to learn more about DTensor.
+
+This example uses the same model and optimizer shown in the multilayer perceptrons tutorial. See this tutorial first to get comfortable with writing an end-to-end machine learning workflow with the Core APIs.
+
+Note: DTensor is still an experimental TensorFlow API which means that its features are available for testing, and it is intended for use in test environments only.
+
+Overview of data parallel training with DTensor.
+
+Before building an MLP that supports distribution, take a moment to explore the fundamentals of DTensor for data parallel training.
+
+DTensor allows you to run distributed training across devices to improve efficiency, reliability and scalability. DTensor distributes the program and tensors according to the sharding directives through a procedure called Single program, multiple data (SPMD) expansion. A variable of a <code> aware layer is created as <code>, and the constructors of <code> aware layer objects take additional <code> inputs in addition to the usual layer parameters.
+
+The main ideas for data parallel training are as follows:
+
+Model variables are replicated on N devices each.
+
+A global batch is split into N per-replica batches.
+
+Each per-replica batch is trained on the replica device.
+
+The gradient is reduced before weight up data is collectively performed on all replicas.
+
+Data parallel training provides nearly linear speed with respect to the number of devices.
+
+Setup.
+
+DTensor is part of TensorFlow 2.9.0 release.
+
+Configure 8 virtual CPUs for this experiment. DTensor can also be used with GPU or TPU devices. Given that this notebook uses virtual devices, the speedup gained from distributed training is not noticeable.
+
+The MNIST Dataset.
+
+The dataset is available from TensorFlow Datasets. Split the data into training and testing sets. Only use 5000 examples for training and testing to save time.
+
+Preprocessing the data.
+
+Preprocess the data by reshaping it to be 2-dimensional and by rescaling it to fit into the unit interval, [0,1].
+
+Build the MLP.
+
+Build an MLP model with DTensor aware layers.
+
+The dense layer.
+
+Start by creating a dense layer module that supports DTensor. The <code> function can be used to call a function that takes in a DTensor input and produces a DTensor output. This is useful for initializing a DTensor variable, <code>, with a TensorFlow supported function.
+
+The MLP sequential model.
+
+Now create an MLP module that executes the dense layers sequentially.
+
+Performing "data-parallel" training with DTensor is equivalent to <code>. To do this each device will run the same model on a shard of the data batch. So you'll need the following:
+
+A <code> with a single <code> dimension.
+
+A <code> for all the weights that replicates them across the mesh (using <code> for each axis).
+
+A <code> for the data that splits the batch dimension across the mesh.
+
+Create a DTensor mesh that consists of a single batch dimension, where each device becomes a replica that receives a shard from the global batch. Use this mesh to instantiate an MLP mode with the following architecture:
+
+Forward Pass: ReLU(784 x 700) x ReLU(700 x 500) x Softmax(500 x 10).
+
+Training metrics.
+
+Use the cross-entropy loss function and accuracy metric for training.
+
+Optimizer.
+
+Using an optimizer can result in significantly faster convergence compared to standard gradient descent. The Adam optimizer is implemented below and has been configured to be compatible with DTensor. In order to use Keras optimizers with DTensor, refer to the experimental<code> module.
+
+Data packing.
+
+Start by writing a helper function for transferring data to the device. This function should use <code> to send (and only send) the shard of the global batch that is intended for a replica to the device backing the replica. For simplicity, assume a single-client application.
+
+Next, write a function that uses this helper function to pack the training data batches into DTensors sharded along the batch (first) axis. This ensures that DTensor evenly distributes the training data to the 'batch' mesh dimension. Note that in DTensor, the batch size always refers to the global batch size; therefore, the batch size should be chosen such that it can be divided evenly by the size of the batch mesh dimension. Additional DTensor APIs to simplify <code> integration are planned, so please stay tuned.
+
+Training.
+
+Write a traceable function that executes a single training step given a batch of data. This function does not require any special DTensor annotations. Also write a function that executes a test step and returns the appropriate performance metrics.
+
+Now, train the MLP model for 3 epochs with a batch size of 128.
+
+Performance evaluation.
+
+Start by writing a plotting function to visualize the model's loss and accuracy during training.
+
+Saving your model.
+
+The integration of <code> and DTensor is still under development. As of TensorFlow 2.9.0, tf.saved_model only accepts DTensor models with fully replicated variables. As a workaround, you can convert a DTensor model to a fully replicated one by reloading a checkpoint. However, after a model is saved, all DTensor annotations are lost and the saved signatures can only be used with regular Tensors. This tutorial will be updated to showcase the integration once it is solidified.
+
+Conclusion.
+
+This notebook provided an overview of distributed training with DTensor and the TensorFlow Core APIs. Here are a few more tips that may help:
+
+The TensorFlow Core APIs can be used to build highly-configurable machine learning workflows with support for distributed training.
+
+The DTensor concepts guide and Distributed training with DTensors tutorial contain the most up-to-date information about DTensor and its integrations.
+
+For more examples of using the TensorFlow Core APIs, check out the guide. If you want to learn more about loading and preparing data, see the tutorials on image data loading or CSV data loading.

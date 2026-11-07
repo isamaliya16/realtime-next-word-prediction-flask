@@ -1,0 +1,57 @@
+Classification with Neural Decision Forests.
+
+Introduction.
+
+This example provides an implementation of the Deep Neural Decision Forest model introduced by P. Kontschieder et al. for structured data classification. It demonstrates how to build a stochastic and differentiable decision tree model, train it end-to-end, and unify decision trees with deep representation learning.
+
+The dataset.
+
+This example uses the United States Census Income Dataset provided by the UC Irvine Machine Learning Repository. The task is binary classification to predict whether a person is likely to be making over USD 50,000 a year.
+
+The dataset includes 48,842 instances with 14 input features (such as age, work class, education, occupation, and so on): 5 numerical features and 9 categorical features.
+
+Setup.
+
+Prepare the data.
+
+Remove the first record (because it is not a valid data example) and a trailing 'dot' in the class labels.
+
+We store the training and test data splits locally as CSV files.
+
+Define dataset metadata.
+
+Here, we define the metadata of the dataset that will be useful for reading and parsing and encoding input features.
+
+Create <code> objects for training and validation.
+
+We create an input function to read and parse the file, and convert features and labels into a <code> for training and validation. We also preprocess the input by mapping the target label to an index.
+
+Create model inputs.
+
+Encode input features.
+
+Deep Neural Decision Tree.
+
+A neural decision tree model has two sets of weights to learn. The first set is <code>, which represents the probability distribution of the classes in the tree leaves. The second set is the weights of the routing layer <code>, which represents the probability of going to each leave. The forward pass of the model works as follows:
+
+The model expects input <code> as a single vector encoding all the features of an instance in the batch. This vector can be generated from a Convolution Neural Network (CNN) applied to images or dense transformations applied to structured data features.
+
+The model first applies a <code> to randomly select a subset of input features to use.
+
+Then, the model computes the probabilities (<code>) for the input instances to reach the tree leaves by iteratively performing a stochastic routing throughout the tree levels.
+
+Finally, the probabilities of reaching the leaves are combined by the class probabilities at the leaves to produce the final <code>.
+
+Deep Neural Decision Forest.
+
+The neural decision forest model consists of a set of neural decision trees that are trained simultaneously. The output of the forest model is the average outputs of its trees.
+
+Finally, let's set up the code that will train and evaluate the model.
+
+Experiment 1: train a decision tree model.
+
+In this experiment, we train a single neural decision tree model where we use all input features.
+
+Experiment 2: train a forest model.
+
+In this experiment, we train a neural decision forest with <code> trees where each tree uses randomly selected 50% of the input features. You can control the number of features to be used in each tree by setting the <code> variable. In addition, we set the depth to 5 instead of 10 compared to the previous experiment.

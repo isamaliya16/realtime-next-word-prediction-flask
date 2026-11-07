@@ -1,0 +1,9 @@
+(beta) Utilizing Torch Function modes with torch.compile.
+
+This recipe covers how to use a key torch extensibility point, torch function modes, in tandem with <code> to override the behavior of torch operators, also know as ops, at trace time, with no runtime overhead.
+
+Rewriting a torch op (torch.add -> torch.mul) For this example, we'll use torch function modes to rewrite occurences of addition with multiply instead. This type of override can be common if a certain backend has a custom implementation that should be dispatched for a given op.
+
+Conclusion In this recipe we demonstrated how to override the behavior of <code> operators using torch function modes from within <code>. This enables users to utilize the extensibility benefits of torch function modes without the runtime overhead of calling torch function on every op invocation.
+
+See Extending Torch API with Modes for other examples and background on Torch Function modes.

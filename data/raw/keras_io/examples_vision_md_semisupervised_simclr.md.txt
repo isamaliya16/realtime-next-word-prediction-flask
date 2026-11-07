@@ -1,0 +1,161 @@
+Semi-supervised image classification using contrastive pretraining with SimCLR.
+
+Introduction.
+
+Semi-supervised learning.
+
+Semi-supervised learning is a machine learning paradigm that deals with partially labeled datasets. When applying deep learning in the real world, one usually has to gather a large dataset to make it work well. However, while the cost of labeling scales linearly with the dataset size (labeling each example takes a constant time), model performance only scales sublinearly with it. This means that labeling more and more samples becomes less and less cost-efficient, while gathering unlabeled data is generally cheap, as it is usually readily available in large quantities.
+
+Semi-supervised learning offers to solve this problem by only requiring a partially labeled dataset, and by being label-efficient by utilizing the unlabeled examples for learning as well.
+
+In this example, we will pretrain an encoder with contrastive learning on the STL-10 semi-supervised dataset using no labels at all, and then fine-tune it using only its labeled subset.
+
+Contrastive learning.
+
+On the highest level, the main idea behind contrastive learning is to learn representations that are invariant to image augmentations in a self-supervised manner. One problem with this objective is that it has a trivial degenerate solution: the case where the representations are constant, and do not depend at all on the input images.
+
+Contrastive learning avoids this trap by modifying the objective in the following way: it pulls representations of augmented versions/views of the same image closer to each other (contracting positives), while simultaneously pushing different images away from each other (contrasting negatives) in representation space.
+
+One such contrastive approach is SimCLR, which essentially identifies the core components needed to optimize this objective, and can achieve high performance by scaling this simple approach.
+
+Another approach is SimSiam (Keras example), whose main difference from SimCLR is that the former does not use any negatives in its loss. Therefore, it does not explicitly prevent the trivial solution, and, instead, avoids it implicitly by architecture design (asymmetric encoding paths using a predictor network and batch normalization (BatchNorm) are applied in the final layers).
+
+For further reading about SimCLR, check out the official Google AI blog post, and for an overview of self-supervised learning across both vision and language check out this blog post.
+
+Setup.
+
+Hyperparameter setup.
+
+Dataset.
+
+During training we will simultaneously load a large batch of unlabeled images along with a smaller batch of labeled images.
+
+Image augmentations.
+
+The two most important image augmentations for contrastive learning are the following:
+
+Cropping: forces the model to encode different parts of the same image similarly, we implement it with the RandomTranslation and RandomZoom layers.
+
+Color jitter: prevents a trivial color histogram-based solution to the task by distorting color histograms. A principled way to implement that is by affine transformations in color space.
+
+In this example we use random horizontal flips as well. Stronger augmentations are applied for contrastive learning, along with weaker ones for supervised classification to avoid overfitting on the few labeled examples.
+
+We implement random color jitter as a custom preprocessing layer. Using preprocessing layers for data augmentation has the following two advantages:
+
+The data augmentation will run on GPU in batches, so the training will not be bottlenecked by the data pipeline in environments with constrained CPU resources (such as a Colab Notebook, or a personal machine).
+
+Deployment is easier as the data preprocessing pipeline is encapsulated in the model, and does not have to be reimplemented when deploying it.
+
+Encoder architecture.
+
+Supervised baseline model.
+
+A baseline supervised model is trained using random initialization.
+
+Self-supervised model for contrastive pretraining.
+
+We pretrain an encoder on unlabeled images with a contrastive loss. A nonlinear projection head is attached to the top of the encoder, as it improves the quality of representations of the encoder.
+
+We use the InfoNCE/NT-Xent/N-pairs loss, which can be interpreted in the following way:
+
+We treat each image in the batch as if it had its own class.
+
+Then, we have two examples (a pair of augmented views) for each "class".
+
+Each view's representation is compared to every possible pair's one (for both augmented versions).
+
+We use the temperature-scaled cosine similarity of compared representations as logits.
+
+Finally, we use categorical cross-entropy as the "classification" loss.
+
+The following two metrics are used for monitoring the pretraining performance:
+
+Contrastive accuracy (SimCLR Table 5): Self-supervised metric, the ratio of cases in which the representation of an image is more similar to its differently augmented version's one, than to the representation of any other image in the current batch. Self-supervised metrics can be used for hyperparameter tuning even in the case when there are no labeled examples.
+
+Linear probing accuracy: Linear probing is a popular metric to evaluate self-supervised classifiers. It is computed as the accuracy of a logistic regression classifier trained on top of the encoder's features. In our case, this is done by training a single dense layer on top of the frozen encoder. Note that contrary to traditional approach where the classifier is trained after the pretraining phase, in this example we train it during pretraining. This might slightly decrease its accuracy, but that way we can monitor its value during training, which helps with experimentation and debugging.
+
+Another widely used supervised metric is the KNN accuracy, which is the accuracy of a KNN classifier trained on top of the encoder's features, which is not implemented in this example.
+
+Model: "encoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ conv2d4 ( Conv2D ) │ ? │ 0 │ │ │ │ (unbuilt) │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d5 ( Conv2D ) │ ? │ 0 │ │ │ │ (unbuilt) │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d6 ( Conv2D ) │ ? │ 0 │ │ │ │ (unbuilt) │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d7 ( Conv2D ) │ ? │ 0 │ │ │ │ (unbuilt) │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ flatten1 ( Flatten ) │ ? │ 0 │ │ │ │ (unbuilt) │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense2 ( Dense ) │ ? │ 0 │ │ │ │ (unbuilt) │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 0 (0.00 B).
+
+Trainable params: 0 (0.00 B).
+
+Non-trainable params: 0 (0.00 B).
+
+Model: "projection_head".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ dense3 ( Dense ) │ ( None , 128 ) │ 16,512 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense4 ( Dense ) │ ( None , 128 ) │ 16,512 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 33,024 (129.00 KB).
+
+Trainable params: 33,024 (129.00 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Model: "linear_probe".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ dense_5 ( Dense ) │ ( None , 10 ) │ 1,290 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 1,290 (5.04 KB).
+
+Trainable params: 1,290 (5.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Supervised finetuning of the pretrained encoder.
+
+We then finetune the encoder on the labeled examples, by attaching a single randomly initalized fully connected classification layer on its top.
+
+Comparison against the baseline.
+
+By comparing the training curves, we can see that when using contrastive pretraining, a higher validation accuracy can be reached, paired with a lower validation loss, which means that the pretrained network was able to generalize better when seeing only a small amount of labeled examples.
+
+Improving further.
+
+Architecture.
+
+The experiment in the original paper demonstrated that increasing the width and depth of the models improves performance at a higher rate than for supervised learning. Also, using a ResNet-50 encoder is quite standard in the literature. However keep in mind, that more powerful models will not only increase training time but will also require more memory and will limit the maximal batch size you can use.
+
+It has been reported that the usage of BatchNorm layers could sometimes degrade performance, as it introduces an intra-batch dependency between samples, which is why I did not have used them in this example. In my experiments however, using BatchNorm, especially in the projection head, improves performance.
+
+Hyperparameters.
+
+The hyperparameters used in this example have been tuned manually for this task and architecture. Therefore, without changing them, only marginal gains can be expected from further hyperparameter tuning.
+
+However for a different task or model architecture these would need tuning, so here are my notes on the most important ones:
+
+Batch size: since the objective can be interpreted as a classification over a batch of images (loosely speaking), the batch size is actually a more important hyperparameter than usual. The higher, the better.
+
+Temperature: the temperature defines the "softness" of the softmax distribution that is used in the cross-entropy loss, and is an important hyperparameter. Lower values generally lead to a higher contrastive accuracy. A recent trick (in ALIGN) is to learn the temperature's value as well (which can be done by defining it as a tf.Variable, and applying gradients on it). Even though this provides a good baseline value, in my experiments the learned temperature was somewhat lower than optimal, as it is optimized with respect to the contrastive loss, which is not a perfect proxy for representation quality.
+
+Image augmentation strength: during pretraining stronger augmentations increase the difficulty of the task, however after a point too strong augmentations will degrade performance. During finetuning stronger augmentations reduce overfitting while in my experience too strong augmentations decrease the performance gains from pretraining. The whole data augmentation pipeline can be seen as an important hyperparameter of the algorithm, implementations of other custom image augmentation layers in Keras can be found in this repository.
+
+Learning rate schedule: a constant schedule is used here, but it is quite common in the literature to use a cosine decay schedule, which can further improve performance.
+
+Optimizer: Adam is used in this example, as it provides good performance with default parameters. SGD with momentum requires more tuning, however it could slightly increase performance.
+
+Related works.
+
+Other instance-level (image-level) contrastive learning methods:
+
+MoCo (v2, v3): uses a momentum-encoder as well, whose weights are an exponential moving average of the target encoder.
+
+SwAV: uses clustering instead of pairwise comparison.
+
+BarlowTwins: uses a cross correlation-based objective instead of pairwise comparison.
+
+Keras implementations of MoCo and BarlowTwins can be found in this repository, which includes a Colab notebook.
+
+There is also a new line of works, which optimize a similar objective, but without the use of any negatives:
+
+BYOL: momentum-encoder + no negatives.
+
+SimSiam (Keras example): no momentum-encoder + no negatives.
+
+In my experience, these methods are more brittle (they can collapse to a constant representation, I could not get them to work using this encoder architecture). Even though they are generally more dependent on the model architecture, they can improve performance at smaller batch sizes.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.

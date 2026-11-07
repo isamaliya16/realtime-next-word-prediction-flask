@@ -1,0 +1,21 @@
+End-of-chapter quiz.
+
+Let's test what you learned in this chapter!
+
+1. What can you use Argilla for?
+
+2. Argilla ONLY works in the Hugging Face Spaces and with Hugging Face Datasets.
+
+3. You need a Hugging Face token to connect the Python SDK to your Argilla server.
+
+4. What are fields in Argilla? How many fields can you use?
+
+5. What's the best type of question for a token classification task?
+
+6. What is the purpose of the "Save as draft" button?
+
+7. Argilla does not offer suggested labels automatically, you need to provide that data yourself.
+
+8. Select all the necessary steps to export an Argilla dataset in full to the Hub:
+
+client= rg.Argilla(apiurl='...', apikey='...')</code>", explain: "Yes, to interact with your server you'll need to instantiate it first.", correct: true }, { text: "Import the dataset from the hub: <code>dataset = rg.Dataset.fromhub(repoid='argilla/agnewsannotated')</code>", explain: "No. This is to import a dataset from the Hub into your Argilla instance.", }, { text: "Load the dataset: <code>dataset = client.datasets(name='mydataset')</code>", explain: "Yes, you'll need this for further operations", correct: true }, { text: "Convert the Argilla dataset into a Datasets dataset: <code>dataset = dataset.todatasets()</code>", explain: "This is not needed if you export the full dataset. Argilla will take care of this for you. However, you might need it if you're working with a subset of records." }, { text: "Use the </code>tohub</code> method to export the dataset: <code>dataset.tohub(repoid='myusername/dataset_name')</code>", explain: "This will push the dataset to the indicated repo id, and create a new repo if it doesn't exist.", correct: true }, ]} />.

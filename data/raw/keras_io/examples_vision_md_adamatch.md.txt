@@ -1,0 +1,81 @@
+Semi-supervision and domain adaptation with AdaMatch.
+
+Introduction.
+
+In this example, we will implement the AdaMatch algorithm, proposed in AdaMatch: A Unified Approach to Semi-Supervised Learning and Domain Adaptation by Berthelot et al. It sets a new state-of-the-art in unsupervised domain adaptation (as of June 2021). AdaMatch is particularly interesting because it unifies semi-supervised learning (SSL) and unsupervised domain adaptation (UDA) under one framework. It thereby provides a way to perform semi-supervised domain adaptation (SSDA).
+
+Before we proceed, let's review a few preliminary concepts underlying this example.
+
+Preliminaries.
+
+In semi-supervised learning (SSL), we use a small amount of labeled data to train models on a bigger unlabeled dataset. Popular semi-supervised learning methods for computer vision include FixMatch, MixMatch, Noisy Student Training, etc. You can refer to this example to get an idea of what a standard SSL workflow looks like.
+
+In unsupervised domain adaptation, we have access to a source labeled dataset and a target unlabeled dataset. Then the task is to learn a model that can generalize well to the target dataset. The source and the target datasets vary in terms of distribution. The following figure provides an illustration of this idea. In the present example, we use the MNIST dataset as the source dataset, while the target dataset is SVHN, which consists of images of house numbers. Both datasets have various varying factors in terms of texture, viewpoint, appearance, etc.: their domains, or distributions, are different from one another.
+
+Popular domain adaptation algorithms in deep learning include Deep CORAL, Moment Matching, etc.
+
+Setup.
+
+To run this example, ensure you have the following dependencies installed:
+
+Prepare the data.
+
+Define constants and hyperparameters.
+
+Data Loading and Augmentation Utilities.
+
+For custom data loading and preprocessing in Keras 3, it is recommended to use <code>. It ensures thread-safe data iteration and multi-backend compatibility.
+
+A standard element of SSL algorithms is to feed weakly and strongly augmented versions of the same images to the model to ensure consistent predictions. For strong augmentation, RandAugment is used. For weak augmentation, we use horizontal flipping and random translation.
+
+Subclassed model for AdaMatch training.
+
+The figure below presents the overall workflow of AdaMatch (taken from the original paper):
+
+Here's a brief step-by-step breakdown of the workflow:
+
+We first retrieve the weakly and strongly augmented pairs of images from the source and target datasets.
+
+We prepare two concatenated copies: i. One where both pairs are concatenated. ii. One where only the source data image pair is concatenated.
+
+We run two forward passes through the model: i. The first forward pass uses the concatenated copy obtained from 2.i. In this forward pass, the Batch Normalization statistics are updated. ii. In the second forward pass, we only use the concatenated copy obtained from 2.ii. Batch Normalization layers are run in inference mode.
+
+The respective logits are computed for both the forward passes.
+
+The logits go through a series of transformations, introduced in the paper (which we will discuss shortly).
+
+We compute the loss and update the gradients of the underlying model.
+
+The authors introduce three improvements in the paper:
+
+In AdaMatch, we perform two forward passes, and only one of them is respsonsible for updating the Batch Normalization statistics. This is done to account for distribution shifts in the target dataset. In the other forward pass, we only use the source sample, and the Batch Normalization layers are run in inference mode. Logits for the source samples (weakly and strongly augmented versions) from these two passes are slightly different from one another because of how Batch Normalization layers are run. Final logits for the source samples are computed by linearly interpolating between these two different pairs of logits. This induces a form of consistency regularization. This step is referred to as random logit interpolation.
+
+Distribution alignment is used to align the source and target label distributions. This further helps the underlying model learn domain-invariant representations. In case of unsupervised domain adaptation, we don't have access to any labels of the target dataset. This is why pseudo labels are generated from the underlying model.
+
+The underlying model generates pseudo-labels for the target samples. It's likely that the model would make faulty predictions. Those can propagate back as we make progress in the training, and hurt the overall performance. To compensate for that, we filter the high-confidence predictions based on a threshold (hence the use of <code> inside <code>). In AdaMatch, this threshold is relatively adjusted which is why it is called relative confidence thresholding.
+
+For more details on these methods and to know how each of them contribute please refer to the paper.
+
+About <code>:
+
+Rather than using a fixed scalar quantity, a varying scalar is used in AdaMatch. It denotes the weight of the loss contibuted by the target samples. Visually, the weight scheduler look like so:
+
+This scheduler increases the weight of the target domain loss from 0 to 1 for the first half of the training. Then it keeps that weight at 1 for the second half of the training.
+
+Instantiate a Wide-ResNet-28-2.
+
+The authors use a WideResNet-28-2 for the dataset pairs we are using in this example. Most of the following code has been referred from this script. Note that the following model has a scaling layer inside it that scales the pixel values to [0, 1].
+
+We can now instantiate a Wide ResNet model like so. Note that the purpose of using a Wide ResNet here is to keep the implementation as close to the original one as possible.
+
+Instantiate AdaMatch model and compile it.
+
+Model training.
+
+Evaluation on the target and source test sets.
+
+With more training, this score improves. When this same network is trained with standard classification objective, it yields an accuracy of 7.20% which is significantly lower than what we got with AdaMatch. You can check out this notebook to learn more about the hyperparameters and other experimental details.
+
+You can reproduce the results by using these model weights.
+
+Example available on HuggingFace.

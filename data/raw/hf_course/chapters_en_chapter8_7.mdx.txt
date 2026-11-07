@@ -1,0 +1,23 @@
+End-of-chapter quiz.
+
+Let's test what you learned in this chapter!
+
+1. In which order should you read a Python traceback?
+
+2. What is a minimal reproducible example?
+
+3. Suppose you try to run the following code, which throws an error:
+
+Which of the following might be a good choice for the title of a forum topic to ask for help?
+
+ImportError: cannot import name 'GPT3ForSequenceClassification' from 'transformers' (/Users/lewtun/miniconda3/envs/huggingface/lib/python3.8/site-packages/transformers/init.py)</code>", explain: "Including the last line of the traceback can be descriptive, but this is better reserved for the main body of the topic. Try again!" }, { text: "Problem with <code>from transformers import GPT3ForSequenceClassification</code>", explain: "Try again -- although this provides useful information, it's probably best reserved for the main body of the text.", }, { text: "Why can't I import <code>GPT3ForSequenceClassification</code>?", explain: "Good choice! This title is concise and gives the reader a clue about what might be wrong (i.e., that GPT-3 is not supported in 🤗 Transformers).", correct: true }, { text: "Is GPT-3 supported in 🤗 Transformers?", explain: "Good one! Using questions as topic titles is a great way to communicate the problem to the community.", correct: true } ]} />.
+
+4. Suppose you've tried to run <code> and are faced with a cryptic error that doesn't tell you exactly where the error is coming from. Which of the following is the first place you should look for errors in your training pipeline?
+
+5. What is the best way to debug a CUDA error?
+
+6. What is the best way to get an issue on GitHub fixed?
+
+7. Why is overfitting to one batch usually a good debugging technique?
+
+8. Why is it a good idea to include details on your compute environment with <code> when creating a new issue in the 🤗 Transformers repo?

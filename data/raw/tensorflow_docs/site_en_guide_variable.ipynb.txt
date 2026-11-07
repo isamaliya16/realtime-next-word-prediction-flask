@@ -1,0 +1,63 @@
+Introduction to Variables.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+A TensorFlow variable is the recommended way to represent shared, persistent state your program manipulates. This guide covers how to create, update, and manage instances of <code> in TensorFlow.
+
+Variables are created and tracked via the <code> class. A <code> represents a tensor whose value can be changed by running ops on it. Specific ops allow you to read and modify the values of this tensor. Higher level libraries like <code> use <code> to store model parameters.
+
+Setup.
+
+This notebook discusses variable placement. If you want to see on what device your variables are placed, uncomment this line.
+
+Create a variable.
+
+To create a variable, provide an initial value. The <code> will have the same <code> as the initialization value.
+
+A variable looks and acts like a tensor, and, in fact, is a data structure backed by a <code>. Like tensors, they have a <code> and a shape, and can be exported to NumPy.
+
+Most tensor operations work on variables as expected, although variables cannot be reshaped.
+
+As noted above, variables are backed by tensors. You can reassign the tensor using <code>. Calling <code> does not (usually) allocate a new tensor; instead, the existing tensor's memory is reused.
+
+If you use a variable like a tensor in operations, you will usually operate on the backing tensor.
+
+Creating new variables from existing variables duplicates the backing tensors. Two variables will not share the same memory.
+
+Lifecycles, naming, and watching.
+
+In Python-based TensorFlow, <code> instance have the same lifecycle as other Python objects. When there are no references to a variable it is automatically deallocated.
+
+Variables can also be named which can help you track and debug them. You can give two variables the same name.
+
+Variable names are preserved when saving and loading models. By default, variables in models will acquire unique variable names automatically, so you don't need to assign them yourself unless you want to.
+
+Although variables are important for differentiation, some variables will not need to be differentiated. You can turn off gradients for a variable by setting <code> to false at creation. An example of a variable that would not need gradients is a training step counter.
+
+Placing variables and tensors.
+
+For better performance, TensorFlow will attempt to place tensors and variables on the fastest device compatible with its <code>. This means most variables are placed on a GPU if one is available.
+
+However, you can override this. In this snippet, place a float tensor and a variable on the CPU, even if a GPU is available. By turning on device placement logging (see Setup), you can see where the variable is placed.
+
+Note: Although manual placement works, using distribution strategies can be a more convenient and scalable way to optimize your computation.
+
+If you run this notebook on different backends with and without a GPU you will see different logging. Note that logging device placement must be turned on at the start of the session.
+
+It's possible to set the location of a variable or tensor on one device and do the computation on another device. This will introduce delay, as data needs to be copied between the devices.
+
+You might do this, however, if you had multiple GPU workers but only want one copy of the variables.
+
+Note: Because <code> is turned on by default, even if you run this code on a device without a GPU, it will still run. The multiplication step will happen on the CPU.
+
+For more on distributed training, refer to the guide.
+
+Next steps.
+
+To understand how variables are typically used, see our guide on automatic differentiation.

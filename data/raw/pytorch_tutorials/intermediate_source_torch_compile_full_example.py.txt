@@ -1,0 +1,45 @@
+<code> End-to-End Tutorial Author: William Wen.
+
+<code> is the new way to speed up your PyTorch code! <code> makes PyTorch code run faster by JIT-compiling PyTorch code into optimized kernels, while requiring minimal code changes.
+
+This tutorial covers an end-to-end example of training and evaluating a real model with <code>. For a gentle introduction to <code>, please check out the introduction to torch.compile tutorial.
+
+Required pip Dependencies.
+
+<code>.
+
+<code>.
+
+Let's demonstrate how using <code> can speed up a real model. We will compare standard eager mode and <code> by evaluating and training a <code> model on random data.
+
+Before we start, we need to define some utility functions.
+
+First, let's compare inference.
+
+Note that in the call to <code>, we have the additional <code> argument, which we will discuss below.
+
+Notice that <code> takes a lot longer to complete compared to eager. This is because <code> compiles the model into optimized kernels as it executes. In our example, the structure of the model doesn't change, and so recompilation is not needed. So if we run our optimized model several more times, we should see a significant improvement compared to eager.
+
+And indeed, we can see that running our model with <code> results in a significant speedup. Speedup mainly comes from reducing Python overhead and GPU read/writes, and so the observed speedup may vary on factors such as model architecture and batch size. For example, if a model's architecture is simple and the amount of data is large, then the bottleneck would be GPU compute and the observed speedup may be less significant.
+
+You may also see different speedup results depending on the chosen <code> argument. The <code> mode uses CUDA graphs to further reduce the overhead of Python. For your own models, you may need to experiment with different modes to maximize speedup. You can read more about modes here.
+
+You may might also notice that the second time we run our model with <code> is significantly slower than the other runs, although it is much faster than the first run. This is because the <code> mode runs a few warm-up iterations for CUDA graphs.
+
+Now, let's consider comparing training.
+
+Again, we can see that <code> takes longer in the first iteration, as it must compile the model, but in subsequent iterations, we see significant speedups compared to eager.
+
+We remark that the speedup numbers presented in this tutorial are for demonstration purposes only. Official speedup values can be seen at the TorchInductor performance dashboard.
+
+Conclusion.
+
+In this tutorial, we applied <code> to training and inference on a real model, demonstrating speedups.
+
+Importantly, we note that the first few iterations of a compiled model are slower than eager mode due to compilation overhead, but subsequent iterations are expected to have speedups.
+
+For a gentle introduction to <code>, please check out the introduction to torch.compile tutorial.
+
+To troubleshoot issues and to gain a deeper understanding of how to apply <code> to your code, check out the torch.compile programming model.
+
+We hope that you will give <code> a try!

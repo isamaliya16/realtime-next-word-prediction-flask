@@ -1,0 +1,107 @@
+Naive Bayes.
+
+Throughout the previous sections, we learned about the theory of probability and random variables. To put this theory to work, let's introduce the naive Bayes classifier. This uses nothing but probabilistic fundamentals to allow us to perform classification of digits.
+
+Learning is all about making assumptions. If we want to classify a new data example that we have never seen before we have to make some assumptions about which data examples are similar to each other. The naive Bayes classifier, a popular and remarkably clear algorithm, assumes all features are independent from each other to simplify the computation. In this section, we will apply this model to recognize characters in images.
+
+Optical Character Recognition.
+
+MNIST is one of widely used datasets. It contains 60,000 images for training and 10,000 images for validation. Each image contains a handwritten digit from 0 to 9. The task is classifying each image into the corresponding digit.
+
+Gluon provides a <code> class in the <code> module to automatically retrieve the dataset from the Internet. Subsequently, Gluon will use the already-downloaded local copy. We specify whether we are requesting the training set or the test set by setting the value of the parameter <code> to <code> or <code>, respectively. Each image is a grayscale image with both width and height of <math> with shape (<math>,<math>,<math>). We use a customized transformation to remove the last channel dimension. In addition, the dataset represents each pixel by an unsigned <math>-bit integer. We quantize them into binary features to simplify the problem.
+
+We can access a particular example, which contains the image and the corresponding label.
+
+Our example, stored here in the variable <code>, corresponds to an image with a height and width of <math> pixels.
+
+Our code stores the label of each image as a scalar. Its type is a <math>-bit integer.
+
+We can also access multiple examples at the same time.
+
+Let's visualize these examples.
+
+The Probabilistic Model for Classification.
+
+In a classification task, we map an example into a category. Here an example is a grayscale <math> image, and a category is a digit. (Refer to section <num> for a more detailed explanation.) One natural way to express the classification task is via the probabilistic question: what is the most likely label given the features (i.e., image pixels)? Denote by <math> the features of the example and <math> the label. Here features are image pixels, where we can reshape a <math>-dimensional image to a vector so that <math>, and labels are digits. The probability of the label given the features is <math>. If we are able to compute these probabilities, which are <math> for <math> in our example, then the classifier will output the prediction <math> given by the expression:
+
+<math>.
+
+Unfortunately, this requires that we estimate <math> for every value of <math>. Imagine that each feature could take one of <math> values. For example, the feature <math> might signify that the word apple appears in a given document and <math> would signify that it does not. If we had <math> such binary features, that would mean that we need to be prepared to classify any of <math> (over 1 billion!) possible values of the input vector <math>.
+
+Moreover, where is the learning? If we need to see every single possible example in order to predict the corresponding label then we are not really learning a pattern but just memorizing the dataset.
+
+The Naive Bayes Classifier.
+
+Fortunately, by making some assumptions about conditional independence, we can introduce some inductive bias and build a model capable of generalizing from a comparatively modest selection of training examples. To begin, let's use Bayes theorem, to express the classifier as.
+
+<math>.
+
+Note that the denominator is the normalizing term <math> which does not depend on the value of the label <math>. As a result, we only need to worry about comparing the numerator across different values of <math>. Even if calculating the denominator turned out to be intractable, we could get away with ignoring it, so long as we could evaluate the numerator. Fortunately, even if we wanted to recover the normalizing constant, we could. We can always recover the normalization term since <math>.
+
+Now, let's focus on <math>. Using the chain rule of probability, we can express the term <math> as.
+
+<math>.
+
+By itself, this expression does not get us any further. We still must estimate roughly <math> parameters. However, if we assume that the features are conditionally independent of each other, given the label, then suddenly we are in much better shape, as this term simplifies to <math>, giving us the predictor.
+
+<math>.
+
+If we can estimate <math> for every <math> and <math>, and save its value in <math>, here <math> is a <math> matrix with <math> being the number of classes and <math>, then we can also use this to estimate <math>, i.e.
+
+<math>.
+
+In addition, we estimate <math> for every <math> and save it in <math>, with <math> a <math>-length vector. Then, for any new example <math>, we could compute.
+
+<math>.
+
+for any <math>. So our assumption of conditional independence has taken the complexity of our model from an exponential dependence on the number of features <math> to a linear dependence, which is <math>.
+
+Training.
+
+The problem now is that we do not know <math> and <math>. So we need to estimate their values given some training data first. This is training the model. Estimating <math> is not too hard. Since we are only dealing with <math> classes, we may count the number of occurrences <math> for each of the digits and divide it by the total amount of data <math>. For instance, if digit 8 occurs <math> times and we have a total of <math> images, the probability estimate is <math>.
+
+Now on to slightly more difficult things <math>. Since we picked black and white images, <math> denotes the probability that pixel <math> is switched on for class <math>. Just like before we can go and count the number of times <math> such that an event occurs and divide it by the total number of occurrences of <math>, i.e., <math>. But there is something slightly troubling: certain pixels may never be black (e.g., for well cropped images the corner pixels might always be white). A convenient way for statisticians to deal with this problem is to add pseudo counts to all occurrences. Hence, rather than <math> we use <math> and instead of <math> we use <math> (since there are two possible values pixel <math> can take - it can either be black or white). This is also called Laplace Smoothing. It may seem ad-hoc, however it can be motivated from a Bayesian point-of-view by a Beta-binomial model.
+
+By visualizing these <math> probabilities (for each pixel for each class) we could get some mean looking digits.
+
+Now we can use <num> to predict a new image. Given <math>, the following functions computes <math> for every <math>.
+
+This went horribly wrong! To find out why, let's look at the per pixel probabilities. They are typically numbers between <math> and <math>. We are multiplying <math> of them. At this point it is worth mentioning that we are calculating these numbers on a computer, hence with a fixed range for the exponent. What happens is that we experience numerical underflow, i.e., multiplying all the small numbers leads to something even smaller until it is rounded down to zero. We discussed this as a theoretical issue in section <num>, but we see the phenomena clearly here in practice.
+
+As discussed in that section, we fix this by use the fact that <math>, i.e., we switch to summing logarithms. Even if both <math> and <math> are small numbers, the logarithm values should be in a proper range.
+
+Since the logarithm is an increasing function, we can rewrite <num> as.
+
+<math>.
+
+We can implement the following stable version:
+
+We may now check if the prediction is correct.
+
+If we now predict a few validation examples, we can see the Bayes classifier works pretty well.
+
+Finally, let's compute the overall accuracy of the classifier.
+
+Modern deep networks achieve error rates of less than <math>. The relatively poor performance is due to the incorrect statistical assumptions that we made in our model: we assumed that each and every pixel are independently generated, depending only on the label. This is clearly not how humans write digits, and this wrong assumption led to the downfall of our overly naive (Bayes) classifier.
+
+Summary.
+
+Using Bayes' rule, a classifier can be made by assuming all observed features are independent.
+
+This classifier can be trained on a dataset by counting the number of occurrences of combinations of labels and pixel values.
+
+This classifier was the gold standard for decades for tasks such as spam detection.
+
+Exercises.
+
+Consider the dataset <math> with labels given by the XOR of the two elements <math>. What are the probabilities for a Naive Bayes classifier built on this dataset. Does it successfully classify our points? If not, what assumptions are violated?
+
+Suppose that we did not use Laplace smoothing when estimating probabilities and a data example arrived at testing time which contained a value never observed in training. What would the model output?
+
+The naive Bayes classifier is a specific example of a Bayesian network, where the dependence of random variables are encoded with a graph structure. While the full theory is beyond the scope of this section (see for full details), explain why allowing explicit dependence between the two input variables in the XOR model allows for the creation of a successful classifier.
+
+Discussions.
+
+Discussions.
+
+Discussions.

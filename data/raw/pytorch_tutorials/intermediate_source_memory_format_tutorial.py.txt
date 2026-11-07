@@ -1,0 +1,93 @@
+Channels Last Memory Format in PyTorch Author: Vitaly Fedyunin.
+
+Overview - What is channels last?
+
+The channels last memory format is an alternative way of ordering NCHW tensors in memory preserving dimensions ordering. Channels last tensors ordered in such a way that channels become the densest dimension (aka storing images pixel-per-pixel).
+
+For example, classic (contiguous) storage of NCHW tensor (in our case it is two 4x4 images with 3 color channels) look like this:
+
+Channels last memory format orders data differently:
+
+Pytorch supports memory formats by utilizing the existing strides structure. For example, 10x3x16x16 batch in Channels last format will have strides equal to (768, 1, 48, 3).
+
+Channels last memory format is implemented for 4D NCHW Tensors only.
+
+Memory Format API.
+
+Here is how to convert tensors between contiguous and channels last memory formats.
+
+Classic PyTorch contiguous tensor.
+
+Conversion operator.
+
+Back to contiguous.
+
+Alternative option.
+
+Format checks.
+
+There are minor difference between the two APIs <code> and <code>. We suggest to stick with <code> when explicitly converting memory format of tensor.
+
+For general cases the two APIs behave the same. However in special cases for a 4D tensor with size <code> when either: <code> or <code>, only <code> would generate a proper stride to represent channels last memory format.
+
+This is because in either of the two cases above, the memory format of a tensor is ambiguous, i.e. a contiguous tensor with size <code> is both <code> and channels last in memory storage. Therefore, they are already considered as <code> for the given memory format and hence <code> call becomes a no-op and would not update the stride. On the contrary, <code> would restride tensor with a meaningful stride on dimensions whose sizes are 1 in order to properly represent the intended memory format.
+
+Same thing applies to explicit permutation API <code>. In special case where ambiguity could occur, <code> does not guarantee to produce a stride that properly carry the intended memory format. We suggest to use <code> with explicit memory format to avoid unintended behavior.
+
+And a side note that in the extreme case, where three non-batch dimensions are all equal to <code> (<code>), current implementation cannot mark a tensor as channels last memory format.
+
+Create as channels last.
+
+<code> preserves memory format.
+
+<code>, <code>, <code> ... preserves memory format.
+
+<code>, <code> operators preserves memory format.
+
+Pointwise operators preserves memory format.
+
+<code>, <code> modules using <code> backends support channels last (only works for cuDNN >= 7.6). Convolution modules, unlike binary p-wise operator, have channels last as the dominating memory format. If all inputs are in contiguous memory format, the operator produces output in contiguous memory format. Otherwise, output will be in channels last memory format.
+
+When input tensor reaches a operator without channels last support, a permutation should automatically apply in the kernel to restore contiguous on input tensor. This introduces overhead and stops the channels last memory format propagation. Nevertheless, it guarantees correct output.
+
+Performance Gains Channels last memory format optimizations are available on both GPU and CPU. On GPU, the most significant performance gains are observed on NVIDIA's hardware with Tensor Cores support running on reduced precision (<code>). We were able to archive over 22% performance gains with channels last comparing to contiguous format, both while utilizing 'AMP (Automated Mixed Precision)' training scripts. Our scripts uses AMP supplied by NVIDIA.
+
+<code>.
+
+Passing <code> allows running a model in Channels last format with observed 22% performance gain.
+
+<code>.
+
+The following list of models has the full support of Channels last and showing 8%-35% performance gains on Volta devices: <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>.
+
+The following list of models has the full support of Channels last and showing 26%-76% performance gains on Intel(R) Xeon(R) Ice Lake (or newer) CPUs: <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>, <code>.
+
+Converting existing models.
+
+Channels last support is not limited by existing models, as any model can be converted to channels last and propagate format through the graph as soon as input (or certain weight) is formatted correctly.
+
+However, not all operators fully converted to support channels last (usually returning contiguous output instead). In the example posted above, layers that does not support channels last will stop the memory format propagation. In spite of that, as we have converted the model to channels last format, that means each convolution layer, which has its 4 dimensional weight in channels last memory format, will restore channels last memory format and benefit from faster kernels.
+
+But operators that does not support channels last does introduce overhead by permutation. Optionally, you can investigate and identify operators in your model that does not support channels last, if you want to improve the performance of converted model.
+
+That means you need to verify the list of used operators against supported operators list or introduce memory format checks into eager execution mode and run your model.
+
+After running the code below, operators will raise an exception if the output of the operator doesn't match the memory format of the input.
+
+If you found an operator that doesn't support channels last tensors and you want to contribute, feel free to use following developers guide.
+
+Code below is to recover the attributes of torch.
+
+Work to do There are still many things to do, such as:
+
+Resolving ambiguity of <code> and <code> Tensors;
+
+Testing of Distributed Training support;
+
+Improving operators coverage.
+
+If you have feedback and/or suggestions for improvement, please let us know by creating an issue.
+
+Conclusion.
+
+This tutorial introduced the "channels last" memory format and demonstrated how to use it for performance gains. For a practical example of accelerating vision models using channels last, see the post here.

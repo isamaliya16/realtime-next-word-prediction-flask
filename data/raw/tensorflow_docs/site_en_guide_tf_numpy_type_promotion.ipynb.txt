@@ -1,0 +1,633 @@
+TF-NumPy Type Promotion.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+There are 4 options for type promotion in TensorFlow.
+
+By default, TensorFlow raises errors instead of promoting types for mixed type operations.
+
+Running <code> switches TensorFlow to use NumPy type promotion rules.
+
+This doc describes two new options that will be available in TensorFlow 2.15 (or currently in <code>):
+
+Note: <code> changes the behavior of all of TensorFlow.
+
+Setup.
+
+Enabling the new type promotion.
+
+In order to use the JAX-like type promotion in TF-Numpy, specify either <code> or <code> as the dtype conversion mode when enabling NumPy behavior for TensorFlow.
+
+This new system (with <code>) is associative, commutative, and makes it easy to control what width of float you end up with (it doesn't automatically convert to wider floats). It does introduce some risks of overflows and precision loss, but <code> forces you to handle those cases explicitly. The two modes are explained more in detail in the next section.
+
+Two Modes : ALL mode vs SAFE mode.
+
+In the new type promotion system, we introduce two modes: <code> mode and <code> mode. <code> mode is used to mitigate the concerns of "risky" promotions that can result in precision loss or bit-widening.
+
+Dtypes.
+
+We will be using the following abbreviations for brevity.
+
+<code> means <code>.
+
+<code> means <code>.
+
+<code> means <code>.
+
+<code> means <code>.
+
+<code> means <code>.
+
+<code> means <code>.
+
+<code> means <code>.
+
+<code> means Python <code> or weakly-typed <code>.
+
+<code> means Python <code> or weakly-typed <code>.
+
+<code> means Python <code> or weakly-typed <code>.
+
+The asterisk ( ) denotes that the corresponding type is “weak” - such a dtype is temporarily inferred by the system, and could defer to other dtypes. This concept is explained more in detail here.
+
+Example of precision losing operations.
+
+In the following example, <code> + <code> is allowed in <code> mode but not in <code> mode due to the risk of precision loss.
+
+Example of bit-widening operations.
+
+In the following example, <code> + <code> is allowed in <code> mode but not in <code> mode due to bit-widening, which means using more bits than the number of bits in the inputs. Note that the new type promotion semantics only allows necessary bit-widening.
+
+A System Based on a Lattice.
+
+Type Promotion Lattice.
+
+The new type promotion behavior is determined via the following type promotion lattice:
+
+More specifically, promotion between any two types is determined by finding the first common child of the two nodes (including the nodes themselves).
+
+For example, in the diagram above, the first common child of <code> and <code> is <code> because the two nodes intersect for the first time at <code> when following the direction of the arrows.
+
+Similarly as another example, the result promotion type between <code> and <code> would be <code>.
+
+Type Promotion Table.
+
+Following the lattice generates the binary promotion table below:
+
+Note: <code> mode disallows the highlighted cells. <code> mode allows all cases.
+
+Advantages of The New Type Promotion.
+
+We adopt a JAX-like lattice-based system for our new type promotion, which offers the following advantages:
+
+Advantages of Lattice-Based System.
+
+First, using a lattice-based system ensures three very important properties:
+
+Existence: There is a unique result promotion type for any combinations of types.
+
+Commutativity: <code>.
+
+Associativity: <code>.
+
+These three properties are critical for constructing a type promotion semantics that is consistent and predictable.
+
+Advantages of JAX-like Lattice System.
+
+Another crucial advantage of the JAX-like lattice system is that outside unsigned ints, it avoids all wider-than-necessary promotions. This means you cannot get 64-bit results without 64-bit inputs. This is especially beneficial for working on accelerators as it avoids unnecessary 64-bit values, which was frequent in the old type promotion.
+
+However, this comes with a trade-off: mixed float/integer promotion is very prone to precision loss. For instance, in the example below, <code> + <code> results in promoting <code> to <code>.
+
+To migitage this concern, we introduced a <code> mode that will disallow these "risky" promotions.
+
+Note: To learn more about the design considerations in constructing the lattice system, please refer to the Design of Type Promotion Semantics for JAX.
+
+WeakTensor.
+
+Overview.
+
+Weak tensors are Tensors that are "weakly typed", similar to a concept in JAX.
+
+<code>'s dtype is temporarily inferred by the system, and could defer to other dtypes. This concept is introduced in the new type promotion to prevent unwanted type promotion within binary operations between TF values and values with no explicitly user-specified type, such as Python scalar literals.
+
+For instance, in the example below, <code> is considered "weak" because it doesn't have a specific dtype. Therefore, <code> defers to the type of <code>, resulting in a <code> output.
+
+WeakTensor Construction.
+
+WeakTensors are created if you create a tensor without specifying a dtype the result is a WeakTensor. You can check whether a Tensor is "weak" or not by checking the weak attribute at the end of the Tensor's string representation.
+
+First Case: When <code> is called with an input with no user-specified dtype.
+
+Second Case: When an input with no user-specified dtype is passed into a WeakTensor-supporting API.
+
+Effects of turning on the new type promotion.
+
+Below is a non-exhaustive list of changes that result from turning on the new type promotion.
+
+More consistent and predictable promotion results.
+
+Reduced risk of bit-widening.
+
+<code> mathematical dunder methods use new type promotion.
+
+<code> can return <code>.
+
+<code> allows implicit conversions when a Tensor input with a dtype different from the <code> arg is passed in.
+
+<code> in-place ops (<code>, <code>, <code>) allow implicit conversions.
+
+<code> and <code> returns 32-bit WeakTensor.
+
+<code>s will be created and used for WeakTensor-supporting unary and binary API's.
+
+More consistent and predictable promotion results.
+
+Using a lattice-based system allows the new type promotion to produce consistent and predictable type promotion results.
+
+Old Type Promotion.
+
+Changing the order of operations produces inconsistent results using old type promotion.
+
+New Type Promotion.
+
+New type promotion produces consistent results regardless of the order.
+
+Reduced risk of bit-widening.
+
+Old Type Promotion.
+
+Old type promotion often resulted in 64-bit results.
+
+New Type Promotion.
+
+New type promotion returns results with minimal number of bits necessary.
+
+tf.Tensor mathematical dunder methods.
+
+All <code> mathematical dunder methods will follow the new type promotion.
+
+tf.Variable in-place ops.
+
+Implicit conversions will be allowed in <code> in-place ops.
+
+Note: Any promotion that results in a dtype that is different from the variable's original dtype will be not allowed. This is because <code> cannot change its dtype.
+
+tf.constant implicit conversions.
+
+In the old type promotion, <code> required an input Tensor to have the same dtype as the dtype argument. However, in the new type promotion, we implicitly convert Tensor to the specified dtype.
+
+TF-NumPy Array.
+
+<code> defaults to <code> and <code> for python inputs using the new type promotion.
+
+Input Type Inference.
+
+This is how different inputs' types are inferred in the new type promotion.
+
+<code>: Since <code> has a dtype property, we don't do further inference.
+
+NumPy types: This includes types like <code>, <code>, and <code>. Since NumPy inputs also have a dtype property, we take the dtype property as the result inference type. Note that NumPy defaults to <code> and <code>.
+
+Python scalars/Nested types: This includes types like <code>, <code>, and <code>.
+
+Python <code> is inferred as <code>.
+
+Python <code> is inferred as <code>.
+
+Python <code> is inferred as <code>.
+
+If the input doesn't fall into any of the above categories but has a dtype property, we take the dtype property as the result inference type.
+
+Further Reading.
+
+The new type promotion closely resembles JAX-NumPy's type promotion. If you want to know more details about the new type promotion and the design choices, check out the resources below.
+
+JAX Type Promotion Semantics.
+
+Design of Type Promotion Semantics for JAX.
+
+Old TF-NumPy Promotion Semantics.
+
+References.
+
+WeakTensor-supporting APIs.
+
+Below is a list of APIs that supports <code>.
+
+For an unary op, this means that if an input with no user-specified type is passed in, it will return a <code>.
+
+For a binary op, it will follow the promotion table here. It may or may not return a <code> depending on the promotion result of the two inputs.
+
+Note: All mathematical operations (<code>, <code>, <code>, ...) are supported.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.

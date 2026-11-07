@@ -1,0 +1,91 @@
+Semantic Image Clustering.
+
+Introduction.
+
+This example demonstrates how to apply the Semantic Clustering by Adopting Nearest neighbors (SCAN) algorithm (Van Gansbeke et al., 2020) on the CIFAR-10 dataset. The algorithm consists of two phases:
+
+Self-supervised visual representation learning of images, in which we use the simCLR technique.
+
+Clustering of the learned visual representation vectors to maximize the agreement between the cluster assignments of neighboring vectors.
+
+Setup.
+
+Prepare the data.
+
+Define hyperparameters.
+
+Implement data preprocessing.
+
+The data preprocessing step resizes the input images to the desired <code> and applies feature-wise normalization. Note that, when using <code> as the visual encoder, resizing the images into 255 x 255 inputs would lead to more accurate results but require a longer time to train.
+
+Data augmentation.
+
+Unlike simCLR, which randomly picks a single data augmentation function to apply to an input image, we apply a set of data augmentation functions randomly to the input image. (You can experiment with other image augmentation techniques by following the data augmentation tutorial.).
+
+Display a random image.
+
+Display a sample of augmented versions of the image.
+
+Self-supervised representation learning.
+
+Implement the vision encoder.
+
+Implement the unsupervised contrastive loss.
+
+Train the model.
+
+Plot training loss.
+
+Compute the nearest neighbors.
+
+Generate the embeddings for the images.
+
+Find the k nearest neighbours for each embedding.
+
+Let's display some neighbors on each row.
+
+You notice that images on each row are visually similar, and belong to similar classes.
+
+Semantic clustering with nearest neighbours.
+
+Implement clustering consistency loss.
+
+This loss tries to make sure that neighbours have the same clustering assignments.
+
+Implement the clusters entropy loss.
+
+This loss tries to make sure that cluster distribution is roughly uniformed, to avoid assigning most of the instances to one cluster.
+
+Implement clustering model.
+
+This model takes a raw image as an input, generated its feature vector using the trained encoder, and produces a probability distribution of the clusters given the feature vector as the cluster assignments.
+
+Implement clustering learner.
+
+This model receives the input <code> image and its <code>, produces the clusters assignments for them using the <code>, and produces two outputs:
+
+<code>: the similarity between the cluster assignments of the <code> image and its <code>. This output is fed to the <code>.
+
+<code>: cluster assignments of the <code> images. This is fed to the <code>.
+
+Train model.
+
+Plot training loss.
+
+Cluster analysis.
+
+Assign images to clusters.
+
+Let's compute the cluster sizes.
+
+Visualize cluster images.
+
+Display the prototypes—instances with the highest clustering confidence—of each cluster:
+
+Compute clustering accuracy.
+
+First, we assign a label for each cluster based on the majority label of its images. Then, we compute the accuracy of each cluster by dividing the number of image with the majority label by the size of the cluster.
+
+Conclusion.
+
+To improve the accuracy results, you can: 1) increase the number of epochs in the representation learning and the clustering phases; 2) allow the encoder weights to be tuned during the clustering phase; and 3) perform a final fine-tuning step through self-labeling, as described in the original SCAN paper. Note that unsupervised image clustering techniques are not expected to outperform the accuracy of supervised image classification techniques, rather showing that they can learn the semantics of the images and group them into clusters that are similar to their original classes.

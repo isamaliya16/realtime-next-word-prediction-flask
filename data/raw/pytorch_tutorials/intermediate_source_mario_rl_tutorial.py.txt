@@ -1,0 +1,109 @@
+Train a Mario-playing RL Agent.
+
+This tutorial walks you through the fundamentals of Deep Reinforcement Learning. At the end, you will implement an AI-powered Mario (using Double Deep Q-Networks) that can play the game by itself.
+
+Although no prior knowledge of RL is necessary for this tutorial, you can familiarize yourself with these RL concepts, and have this handy cheatsheet as your companion. The full code is available here.
+
+pip install gym-super-mario-bros==7.4.0 pip install tensordict==0.3.0 pip install torchrl==0.3.0.
+
+RL Definitions.
+
+Environment The world that an agent interacts with and learns from.
+
+Action a : How the Agent responds to the Environment. The set of all possible Actions is called action-space.
+
+State s : The current characteristic of the Environment. The set of all possible States the Environment can be in is called state-space.
+
+Reward r : Reward is the key feedback from Environment to Agent. It is what drives the Agent to learn and to change its future action. An aggregation of rewards over multiple time steps is called Return.
+
+Optimal Action-Value function Q^ (s,a) : Gives the expected return if you start in state s, take an arbitrary action a, and then for each future time step take the action that maximizes returns. Q can be said to stand for the “quality” of the action in a state. We try to approximate this function.
+
+Environment.
+
+Initialize Environment.
+
+In Mario, the environment consists of tubes, mushrooms and other components.
+
+When Mario makes an action, the environment responds with the changed (next) state, reward and other info.
+
+Preprocess Environment.
+
+Environment data is returned to the agent in <code>. As you saw above, each state is represented by a <code> size array. Often that is more information than our agent needs; for instance, Mario’s actions do not depend on the color of the pipes or the sky!
+
+We use Wrappers to preprocess environment data before sending it to the agent.
+
+<code> is a common wrapper to transform an RGB image to grayscale; doing so reduces the size of the state representation without losing useful information. Now the size of each state: <code>.
+
+<code> downsamples each observation into a square image. New size: <code>.
+
+<code> is a custom wrapper that inherits from <code> and implements the <code> function. Because consecutive frames don’t vary much, we can skip n-intermediate frames without losing much information. The n-th frame aggregates rewards accumulated over each skipped frame.
+
+<code> is a wrapper that allows us to squash consecutive frames of the environment into a single observation point to feed to our learning model. This way, we can identify if Mario was landing or jumping based on the direction of his movement in the previous several frames.
+
+After applying the above wrappers to the environment, the final wrapped state consists of 4 gray-scaled consecutive frames stacked together, as shown above in the image on the left. Each time Mario makes an action, the environment responds with a state of this structure. The structure is represented by a 3-D array of size <code>.
+
+Agent.
+
+We create a class <code> to represent our agent in the game. Mario should be able to:
+
+Act according to the optimal action policy based on the current state (of the environment).
+
+Remember experiences. Experience = (current state, current action, reward, next state). Mario caches and later recalls his experiences to update his action policy.
+
+Learn a better action policy over time.
+
+In the following sections, we will populate Mario’s parameters and define his functions.
+
+Act.
+
+For any given state, an agent can choose to do the most optimal action (exploit) or a random action (explore).
+
+Mario randomly explores with a chance of <code>; when he chooses to exploit, he relies on <code> (implemented in <code> section) to provide the most optimal action.
+
+Cache and Recall.
+
+These two functions serve as Mario’s “memory” process.
+
+<code>: Each time Mario performs an action, he stores the <code> to his memory. His experience includes the current state, action performed, reward from the action, the next state, and whether the game is done.
+
+<code>: Mario randomly samples a batch of experiences from his memory, and uses that to learn the game.
+
+Learn.
+
+Mario uses the DDQN algorithm under the hood. DDQN uses two ConvNets - Q{online} and Q{target} - that independently approximate the optimal action-value function.
+
+In our implementation, we share feature generator <code> across Q{online} and Q{target}, but maintain separate FC classifiers for each. \theta{target} (the parameters of Q{target}) is frozen to prevent updating by backprop. Instead, it is periodically synced with \theta_{online} (more on this later).
+
+Neural Network.
+
+TD Estimate & TD Target.
+
+Two values are involved in learning:
+
+TD Estimate - the predicted optimal Q^ for a given state s.
+
+TD Target - aggregation of current reward and the estimated Q^ in the next state s'.
+
+Because we don’t know what next action a' will be, we use the action a' maximizes Q_{online} in the next state s'.
+
+Notice we use the @torch.nograd() decorator on <code> to disable gradient calculations here (because we don’t need to backpropagate on \theta{target}).
+
+Updating the model.
+
+As Mario samples inputs from his replay buffer, we compute TDt and TDe and backpropagate this loss down Q{online} to update its parameters \theta{online} (\alpha is the learning rate <code> passed to the <code>).
+
+\theta{target} does not update through backpropagation. Instead, we periodically copy \theta{online} to \theta_{target}.
+
+Save checkpoint.
+
+Putting it all together.
+
+Logging.
+
+Let’s play!
+
+In this example we run the training loop for 40 episodes, but for Mario to truly learn the ways of his world, we suggest running the loop for at least 40,000 episodes!
+
+Conclusion.
+
+In this tutorial, we saw how we can use PyTorch to train a game-playing AI. You can use the same methods to train an AI to play any of the games at the OpenAI gym. Hope you enjoyed this tutorial, feel free to reach us at our github!

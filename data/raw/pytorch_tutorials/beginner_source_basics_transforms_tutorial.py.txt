@@ -1,0 +1,23 @@
+Learn the Basics || Quickstart || Tensors || Datasets & DataLoaders || Transforms || Build Model || Autograd || Optimization || Save & Load Model.
+
+Transforms.
+
+Data does not always come in its final processed form that is required for training machine learning algorithms. We use transforms to perform some manipulation of the data and make it suitable for training.
+
+All TorchVision datasets have two parameters -<code> to modify the features and <code> to modify the labels - that accept callables containing the transformation logic. The torchvision.transforms module offers several commonly-used transforms out of the box.
+
+The FashionMNIST features are in PIL Image format, and the labels are integers. For training, we need the features as normalized tensors, and the labels as one-hot encoded tensors. To make these transformations, we use the <code> API along with <code>.
+
+ToImage() and ToDtype().
+
+The <code> API replaces the legacy <code> transform with a two-step pipeline. v2.ToImage converts a PIL image or NumPy <code> into a <code> tensor, and v2.ToDtype with <code> casts it to <code> and scales the pixel intensity values to the range [0., 1.].
+
+Lambda Transforms.
+
+Lambda transforms apply any user-defined lambda function. Here, we use torch.nn.functional.one_hot to turn the integer label into a one-hot encoded tensor of size 10 (the number of labels in our dataset), then cast it to <code> to match the expected dtype.
+
+Further Reading.
+
+Getting started with transforms v2.
+
+torchvision.transforms.v2 API.

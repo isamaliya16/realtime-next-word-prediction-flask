@@ -1,0 +1,121 @@
+Using DTensors with Keras.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+In this tutorial, you will learn how to use DTensors with Keras.
+
+Through DTensor integration with Keras, you can reuse your existing Keras layers and models to build and train distributed machine learning models.
+
+You will train a multi-layer classification model with the MNIST data. Setting the layout for subclassing model, Sequential model, and functional model will be demonstrated.
+
+This tutorial assumes that you have already read the DTensor programing guide, and are familiar with basic DTensor concepts like <code> and <code>.
+
+This tutorial is based on Training a neural network on MNIST with Keras.
+
+Setup.
+
+DTensor (<code>) has been part of TensorFlow since the 2.9.0 release.
+
+First, install or upgrade TensorFlow Datasets:
+
+Next, import TensorFlow and <code>, and configure TensorFlow to use 8 virtual CPUs.
+
+Even though this example uses virtual CPUs, DTensor works the same way on CPU, GPU or TPU devices.
+
+Deterministic pseudo-random number generators.
+
+One thing you should note is that DTensor API requires each of the running client to have the same random seeds, so that it could have deterministic behavior for initializing the weights. You can achieve this by setting the global seeds in keras via <code>.
+
+Creating a Data Parallel Mesh.
+
+This tutorial demonstrates Data Parallel training. Adapting to Model Parallel training and Spatial Parallel training can be as simple as switching to a different set of <code> objects. Refer to the Distributed training with DTensors tutorial for more information on distributed training beyond Data Parallel.
+
+Data Parallel training is a commonly used parallel training scheme, also used by, for example, <code>.
+
+With DTensor, a Data Parallel training loop uses a <code> that consists of a single 'batch' dimension, where each device runs a replica of the model that receives a shard from the global batch.
+
+As each device runs a full replica of the model, the model variables shall be fully replicated across the mesh (unsharded). As an example, a fully replicated Layout for a rank-2 weight on this <code> would be as follows:
+
+A layout for a rank-2 data tensor on this <code> would be sharded along the first dimension (sometimes known as <code>).
+
+Create Keras layers with layout.
+
+In the data parallel scheme, you usually create your model weights with a fully replicated layout, so that each replica of the model can do calculations with the sharded input data.
+
+In order to configure the layout information for your layers' weights, Keras has exposed an extra parameter in the layer constructor for most of the built-in layers.
+
+The following example builds a small image classification model with fully replicated weight layout. You can specify layout information <code> and <code> in <code> via arguments <code> and <code>. Most of the built-in keras layers are ready for explicitly specifying the <code> for the layer weights.
+
+You can check the layout information by examining the <code> property on the weights.
+
+Load a dataset and build input pipeline.
+
+Load a MNIST dataset and configure some pre-processing input pipeline for it. The dataset itself is not associated with any DTensor layout information.
+
+Define the training logic for the model.
+
+Next, define the training and evaluation logic for the model.
+
+As of TensorFlow 2.9, you have to write a custom-training-loop for a DTensor-enabled Keras model. This is to pack the input data with proper layout information, which is not integrated with the standard <code> or <code> functions from Keras. you will get more <code> support in the upcoming release.
+
+Metrics and optimizers.
+
+When using DTensor API with Keras <code> and <code>, you will need to provide the extra mesh information, so that any internal state variables and tensors can work with variables in the model.
+
+For an optimizer, DTensor introduces a new experimental namespace <code>, where many existing Keras Optimizers are extended to receive an additional <code> argument. In future releases, it may be merged with Keras core optimizers.
+
+For metrics, you can directly specify the <code> to the constructor as an argument to make it a DTensor compatible <code>.
+
+Train the model.
+
+The following example demonstrates how to shard the data from input pipeline on the batch dimension, and train with the model, which has fully replicated weights.
+
+After 3 epochs, the model should achieve about 97% of accuracy:
+
+Specify Layout for existing model code.
+
+Often you have models that work well for your use case. Specifying <code> information to each individual layer within the model will be a large amount of work requiring a lot of edits.
+
+To help you easily convert your existing Keras model to work with DTensor API you can use the new <code> API that allow you to specify the <code> from a global point of view.
+
+First, you need to create a <code> instance, which is a dictionary-like object that contains all the <code> you would like to specify for your model weights.
+
+<code> needs a <code> instance at init, which can be used to provide default replicated <code> for any weights that doesn't have Layout configured. In case you would like all your model weights to be just fully replicated, you can provide empty <code>, and the default mesh will be used to create replicated <code>.
+
+<code> uses a string as key and a <code> as value. There is a behavior difference between a normal Python dict and this class. The string key will be treated as a regex when retrieving the value.
+
+Subclassed Model.
+
+Consider the following model defined using the Keras subclassing Model syntax.
+
+There are 4 weights in this model, which are <code> and <code> for two <code> layers. Each of them are mapped based on the object path:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+Note: For subclassed Models, the attribute name, rather than the <code> attribute of the layer, is used as the key to retrieve the Layout from the mapping. This is consistent with the convention followed by <code> checkpointing. For complex models with more than a few layers, you can manually inspect checkpoints to view the attribute mappings.
+
+Now define the following <code> and apply it to the model:
+
+The model weights are created on the first call, so call the model with a DTensor input and confirm the weights have the expected layouts:
+
+With this, you can quickly map the <code> to your models without updating any of your existing code.
+
+Sequential and Functional Models.
+
+For Keras Functional and Sequential models, you can use <code> as well.
+
+Note: For Functional and Sequential models, the mappings are slightly different. The layers in the model don't have a public attribute attached to the model (though you can access them via <code> as a list). Use the string name as the key in this case. The string name is guaranteed to be unique within a model.

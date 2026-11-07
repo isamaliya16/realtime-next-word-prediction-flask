@@ -1,0 +1,61 @@
+Estimating required sample size for model training.
+
+Introduction.
+
+In many real-world scenarios, the amount image data available to train a deep learning model is limited. This is especially true in the medical imaging domain, where dataset creation is costly. One of the first questions that usually comes up when approaching a new problem is: "how many images will we need to train a good enough machine learning model?".
+
+In most cases, a small set of samples is available, and we can use it to model the relationship between training data size and model performance. Such a model can be used to estimate the optimal number of images needed to arrive at a sample size that would achieve the required model performance.
+
+A systematic review of Sample-Size Determination Methodologies by Balki et al. provides examples of several sample-size determination methods. In this example, a balanced subsampling scheme is used to determine the optimal sample size for our model. This is done by selecting a random subsample consisting of Y number of images and training the model using the subsample. The model is then evaluated on an independent test set. This process is repeated N times for each subsample with replacement to allow for the construction of a mean and confidence interval for the observed performance.
+
+Setup.
+
+Load TensorFlow dataset and convert to NumPy arrays.
+
+We'll be using the TF Flowers dataset.
+
+Plot a few examples from the test set.
+
+Augmentation.
+
+Define image augmentation using keras preprocessing layers and apply them to the training set.
+
+Define model building & training functions.
+
+We create a few convenience functions to build a transfer-learning model, compile and train it and unfreeze layers for fine-tuning.
+
+Define iterative training function.
+
+To train a model over several subsample sets we need to create an iterative training function.
+
+Train models iteratively.
+
+Now that we have model building functions and supporting iterative functions we can train the model over several subsample splits.
+
+We select the subsample splits as 5%, 10%, 25% and 50% of the downloaded dataset. We pretend that only 50% of the actual data is available at present.
+
+We train the model 5 times from scratch at each split and record the accuracy values.
+
+Note that this trains 20 models and will take some time. Make sure you have a GPU runtime active.
+
+To keep this example lightweight, sample data from a previous training run is provided.
+
+Learning curve.
+
+We now plot the learning curve by fitting an exponential curve through the mean accuracy points. We use TF to fit an exponential function through the data.
+
+We then extrapolate the learning curve to the predict the accuracy of a model trained on the whole training set.
+
+From the extrapolated curve we can see that 3303 images will yield an estimated accuracy of about 95%.
+
+Now, let's use all the data (3303 images) and train the model to see if our prediction was accurate!
+
+Conclusion.
+
+We see that a model accuracy of about 94-96% is reached using 3303 images. This is quite close to our estimate!
+
+Even though we used only 50% of the dataset (1651 images) we were able to model the training behaviour of our model and predict the model accuracy for a given amount of images. This same methodology can be used to predict the amount of images needed to reach a desired accuracy. This is very useful when a smaller set of data is available, and it has been shown that convergence on a deep learning model is possible, but more images are needed. The image count prediction can be used to plan and budget for further image collection initiatives.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 5: Fundamentals of machine learning.

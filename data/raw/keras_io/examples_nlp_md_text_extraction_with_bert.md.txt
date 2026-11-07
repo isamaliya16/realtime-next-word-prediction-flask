@@ -1,0 +1,47 @@
+Text Extraction with BERT.
+
+Introduction.
+
+This demonstration uses SQuAD (Stanford Question-Answering Dataset). In SQuAD, an input consists of a question, and a paragraph for context. The goal is to find the span of text in the paragraph that answers the question. We evaluate our performance on this data with the "Exact Match" metric, which measures the percentage of predictions that exactly match any one of the ground-truth answers.
+
+We fine-tune a BERT model to perform this task as follows:
+
+Feed the context and the question as inputs to BERT.
+
+Take two vectors S and T with dimensions equal to that of hidden states in BERT.
+
+Compute the probability of each token being the start and end of the answer span. The probability of a token being the start of the answer is given by a dot product between S and the representation of the token in the last layer of BERT, followed by a softmax over all tokens. The probability of a token being the end of the answer is computed similarly with the vector T.
+
+Fine-tune BERT and learn S and T along the way.
+
+References:
+
+BERT.
+
+SQuAD.
+
+Setup.
+
+Set-up BERT tokenizer.
+
+Load the data.
+
+Preprocess the data.
+
+Go through the JSON file and store every record as a <code> object.
+
+Go through each <code> and create <code>.
+
+Create the Question-Answering Model using BERT and Functional API.
+
+This code should preferably be run on Google Colab TPU runtime. With Colab TPUs, each epoch will take 5-6 minutes.
+
+Create evaluation Callback.
+
+This callback will compute the exact match score using the validation data after every epoch.
+
+Train and Evaluate.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.

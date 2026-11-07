@@ -1,0 +1,173 @@
+End-to-end Masked Language Modeling with BERT.
+
+Introduction.
+
+Masked Language Modeling is a fill-in-the-blank task, where a model uses the context words surrounding a mask token to try to predict what the masked word should be.
+
+For an input that contains one or more mask tokens, the model will generate the most likely substitution for each.
+
+Example:
+
+Input: "I have watched this [MASK] and it was awesome.".
+
+Output: "I have watched this movie and it was awesome.".
+
+Masked language modeling is a great way to train a language model in a self-supervised setting (without human-annotated labels). Such a model can then be fine-tuned to accomplish various supervised NLP tasks.
+
+This example teaches you how to build a BERT model from scratch, train it with the masked language modeling task, and then fine-tune this model on a sentiment classification task.
+
+We will use the Keras <code> and <code> layers to create a BERT Transformer-Encoder network architecture.
+
+Note: This example should be run with <code>.
+
+Setup.
+
+Install <code> via <code>.
+
+Set-up Configuration.
+
+Load the data.
+
+We will first download the IMDB data and load into a Pandas dataframe.
+
+Dataset preparation.
+
+We will use the <code> layer to vectorize the text into integer token ids. It transforms a batch of strings into either a sequence of token indices (one sample = 1D array of integer token indices, in order) or a dense representation (one sample = 1D array of float values encoding an unordered set of tokens).
+
+Below, we define 3 preprocessing functions.
+
+The <code> function builds the <code> layer.
+
+The <code> function encodes raw text into integer token ids.
+
+The <code> function will mask input token ids. It masks 15% of all input tokens in each sequence at random.
+
+Create BERT model (Pretraining Model) for masked language modeling.
+
+We will create a BERT-like pretraining model architecture using the <code> layer. It will take token ids as inputs (including masked tokens) and it will predict the correct ids for the masked input tokens.
+
+Model: "maskedbertmodel".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩ │ inputlayer │ ( None , 256 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ wordembedding │ ( None , 256 , 128 ) │ 3,840,000 │ inputlayer 0 │ │ ( Embedding ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ positionembedding │ ( None , 256 , 128 ) │ 32,768 │ wordembedding 0 … │ │ ( PositionEmbedding ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ add ( Add ) │ ( None , 256 , 128 ) │ 0 │ wordembedding[ 0 … │ │ │ │ │ positionembeddi… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ encoder0multihea… │ ( None , 256 , 128 ) │ 66,048 │ add[ 0 , │ │ ( MultiHeadAttentio… │ │ │ add 0 , │ │ │ │ │ add 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ encoder0attdrop… │ ( None , 256 , 128 ) │ 0 │ encoder0_multih… │ │ ( Dropout ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ add1 ( Add ) │ ( None , 256 , 128 ) │ 0 │ add 0 , │ │ │ │ │ encoder0_attdr… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ encoder0_attlaye… │ ( None , 256 , 128 ) │ 256 │ add1 0 │ │ ( LayerNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ encoder0ffn │ ( None , 256 , 128 ) │ 33,024 │ encoder0attla… │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ encoder0_ffndrop… │ ( None , 256 , 128 ) │ 0 │ encoder0_ffn[ 0 ]… │ │ ( Dropout ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ add2 ( Add ) │ ( None , 256 , 128 ) │ 0 │ encoder0_attla… │ │ │ │ │ encoder0_ffndr… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ encoder0_ffnlaye… │ ( None , 256 , 128 ) │ 256 │ add2 0 │ │ ( LayerNormalizatio… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ mlmcls ( Dense ) │ ( None , 256 , │ 3,870,000 │ encoder0_ffnla… │ │ │ 30000 ) │ │ │ └─────────────────────┴───────────────────┴────────────┴───────────────────┘.
+
+Total params: 7,842,352 (29.92 MB).
+
+Trainable params: 7,842,352 (29.92 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Train and Save.
+
+1/16 ━37m━━━━━━━━━━━━━━━━━━━ 3:02 12s/step - loss: 10.3103.
+
+2/16 ━━[37m━━━━━━━━━━━━━━━━━━ 3:31 15s/step - loss: 10.2979.
+
+3/16 ━━━[37m━━━━━━━━━━━━━━━━━ 3:25 16s/step - loss: 10.2859.
+
+4/16 ━━━━━[37m━━━━━━━━━━━━━━━ 3:14 16s/step - loss: 10.2727.
+
+5/16 ━━━━━━[37m━━━━━━━━━━━━━━ 2:57 16s/step - loss: 10.2564.
+
+6/16 ━━━━━━━[37m━━━━━━━━━━━━━ 2:42 16s/step - loss: 10.2378.
+
+7/16 ━━━━━━━━[37m━━━━━━━━━━━━ 2:26 16s/step - loss: 10.2182.
+
+8/16 ━━━━━━━━━━[37m━━━━━━━━━━ 2:10 16s/step - loss: 10.1975.
+
+9/16 ━━━━━━━━━━━[37m━━━━━━━━━ 1:55 16s/step - loss: 10.1745.
+
+10/16 ━━━━━━━━━━━━[37m━━━━━━━━ 1:39 17s/step - loss: 10.1503.
+
+11/16 ━━━━━━━━━━━━━[37m━━━━━━━ 1:23 17s/step - loss: 10.1254.
+
+12/16 ━━━━━━━━━━━━━━━[37m━━━━━ 1:07 17s/step - loss: 10.0993.
+
+13/16 ━━━━━━━━━━━━━━━━[37m━━━━ 50s 17s/step - loss: 10.0726.
+
+14/16 ━━━━━━━━━━━━━━━━━[37m━━━ 33s 17s/step - loss: 10.0452.
+
+15/16 ━━━━━━━━━━━━━━━━━━[37m━━ 16s 17s/step - loss: 10.0174.
+
+16/16 ━━━━━━━━━━━━━━━━━━━━ 0s 17s/step - loss: 9.9899.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 81ms/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 82ms/step.
+
+16/16 ━━━━━━━━━━━━━━━━━━━━ 261s 17s/step - loss: 9.9656.
+
+Fine-tune a sentiment classification model.
+
+We will fine-tune our self-supervised model on a downstream task of sentiment classification. To do this, let's create a classifier by adding a pooling layer and a <code> layer on top of the pretrained BERT features.
+
+Model: "classification".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputlayer2 ( InputLayer ) │ ( None , 256 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ functional3 ( Functional ) │ ( None , 256 , 128 ) │ 3,972,352 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalmaxpooling1d │ ( None , 128 ) │ 0 │ │ ( GlobalMaxPooling1D ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense2 ( Dense ) │ ( None , 64 ) │ 8,256 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense_3 ( Dense ) │ ( None , 1 ) │ 65 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 3,980,673 (15.19 MB).
+
+Trainable params: 8,321 (32.50 KB).
+
+Non-trainable params: 3,972,352 (15.15 MB).
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 140ms/step - accuracy: 0.5312 - loss: 0.7599.
+
+2/8 ━━━━━[37m━━━━━━━━━━━━━━━ 1s 184ms/step - accuracy: 0.5703 - loss: 0.7296.
+
+3/8 ━━━━━━━[37m━━━━━━━━━━━━━ 0s 164ms/step - accuracy: 0.5851 - loss: 0.7164.
+
+4/8 ━━━━━━━━━━[37m━━━━━━━━━━ 0s 161ms/step - accuracy: 0.5794 - loss: 0.7125.
+
+5/8 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 158ms/step - accuracy: 0.5685 - loss: 0.7105.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 158ms/step - accuracy: 0.5589 - loss: 0.7090.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 156ms/step - accuracy: 0.5504 - loss: 0.7080.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 151ms/step - accuracy: 0.5426 - loss: 0.7076.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 2s 288ms/step - accuracy: 0.5366 - loss: 0.7073 - valaccuracy: 0.4920 - valloss: 0.6975.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 3s 436ms/step - accuracy: 0.5000 - loss: 0.7119.
+
+2/8 ━━━━━[37m━━━━━━━━━━━━━━━ 3s 534ms/step - accuracy: 0.5469 - loss: 0.6903.
+
+3/8 ━━━━━━━[37m━━━━━━━━━━━━━ 2s 472ms/step - accuracy: 0.5660 - loss: 0.6913.
+
+4/8 ━━━━━━━━━━[37m━━━━━━━━━━ 1s 461ms/step - accuracy: 0.5671 - loss: 0.7032.
+
+5/8 ━━━━━━━━━━━━[37m━━━━━━━━ 1s 459ms/step - accuracy: 0.5636 - loss: 0.7116.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 468ms/step - accuracy: 0.5626 - loss: 0.7156.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 476ms/step - accuracy: 0.5600 - loss: 0.7183.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 476ms/step - accuracy: 0.5580 - loss: 0.7198.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 5s 650ms/step - accuracy: 0.5565 - loss: 0.7210 - valaccuracy: 0.5160 - valloss: 0.6895.
+
+Create an end-to-end model and evaluate it.
+
+When you want to deploy a model, it's best if it already includes its preprocessing pipeline, so that you don't have to reimplement the preprocessing logic in your production environment. Let's create an end-to-end model that incorporates the <code> layer inside evalaute method, and let's evaluate. We will pass raw strings as input.
+
+1/8 ━━[37m━━━━━━━━━━━━━━━━━━ 0s 138ms/step - accuracy: 0.6875 - loss: 0.6684.
+
+2/8 ━━━━━[37m━━━━━━━━━━━━━━━ 1s 225ms/step - accuracy: 0.6250 - loss: 0.6761.
+
+3/8 ━━━━━━━[37m━━━━━━━━━━━━━ 0s 190ms/step - accuracy: 0.5833 - loss: 0.6820.
+
+4/8 ━━━━━━━━━━[37m━━━━━━━━━━ 0s 184ms/step - accuracy: 0.5605 - loss: 0.6848.
+
+5/8 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 178ms/step - accuracy: 0.5422 - loss: 0.6871.
+
+6/8 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 174ms/step - accuracy: 0.5352 - loss: 0.6880.
+
+7/8 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 169ms/step - accuracy: 0.5320 - loss: 0.6883.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 0s 165ms/step - accuracy: 0.5300 - loss: 0.6885.
+
+8/8 ━━━━━━━━━━━━━━━━━━━━ 1s 166ms/step - accuracy: 0.5285 - loss: 0.6886.
+
+Relevant Chapters from Deep Learning with Python.
+
+[Chapter 15: Language models and the Transformer.

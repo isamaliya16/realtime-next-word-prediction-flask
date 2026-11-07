@@ -1,0 +1,141 @@
+Node Classification with Graph Neural Networks.
+
+Introduction.
+
+Many datasets in various machine learning (ML) applications have structural relationships between their entities, which can be represented as graphs. Such application includes social and communication networks analysis, traffic prediction, and fraud detection. Graph representation Learning aims to build and train models for graph datasets to be used for a variety of ML tasks.
+
+This example demonstrate a simple implementation of a Graph Neural Network (GNN) model. The model is used for a node prediction task on the Cora dataset to predict the subject of a paper given its words and citations network.
+
+Note that, we implement a Graph Convolution Layer from scratch to provide better understanding of how they work. However, there is a number of specialized TensorFlow-based libraries that provide rich GNN APIs, such as Spectral, StellarGraph, and GraphNets.
+
+Setup.
+
+Prepare and Download the Dataset.
+
+The Cora dataset consists of 2,708 scientific papers classified into one of seven classes. The citation network consists of 5,429 links. Each paper has a binary word vector of size 1,433, indicating the presence of a corresponding word. The dataset has two tap-separated files: <code> and <code>.
+
+The <code> includes the citation records with two columns: <code> (target) and <code> (source).
+
+The <code> includes the paper content records with 1,435 columns: <code>, <code>, and 1,433 binary features.
+
+Process and visualize the dataset.
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+target source.
+
+Now let's load the papers data into a Pandas DataFrame.
+
+Now we display a sample of the <code> DataFrame. The DataFrame includes the <code> and the <code> columns, as well as 1,433 binary column representing whether a term exists in the paper or not.
+
+Let's display the count of the papers in each subject.
+
+We convert the paper ids and the subjects into zero-based indices.
+
+Now let's visualize the citation graph. Each node in the graph represents a paper, and the color of the node corresponds to its subject. Note that we only show a sample of the papers in the dataset.
+
+Split the dataset into stratified train, validation, and test sets.
+
+Implement Train and Evaluate Experiment.
+
+This function compiles and trains an input model using the given training data.
+
+This function displays the loss and accuracy curves of the model during training.
+
+Implement Feedforward Network (FFN) Module.
+
+We will use this module in the baseline and the GNN models.
+
+Build a Baseline Neural Network Model.
+
+Prepare the data for the baseline model.
+
+Implement a baseline classifier.
+
+We add five FFN blocks with skip connections, so that we generate a baseline model with roughly the same number of parameters as the GNN models to be built later.
+
+Model: "baseline".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩ │ inputfeatures │ ( None , 1433 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ ffnblock1 │ ( None , 32 ) │ 52,804 │ inputfeatures 0 … │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ ffnblock2 │ ( None , 32 ) │ 2,368 │ ffnblock1[ 0 │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ skipconnection2 │ ( None , 32 ) │ 0 │ ffnblock1 0 , │ │ ( Add ) │ │ │ ffnblock2 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ ffnblock3 │ ( None , 32 ) │ 2,368 │ skipconnection2… │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ skipconnection3 │ ( None , 32 ) │ 0 │ skipconnection2… │ │ ( Add ) │ │ │ ffnblock3 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ ffnblock4 │ ( None , 32 ) │ 2,368 │ skipconnection3… │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ skipconnection4 │ ( None , 32 ) │ 0 │ skipconnection3… │ │ ( Add ) │ │ │ ffnblock4 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ ffnblock5 │ ( None , 32 ) │ 2,368 │ skipconnection4… │ │ ( Sequential ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ skipconnection5 │ ( None , 32 ) │ 0 │ skipconnection4… │ │ ( Add ) │ │ │ ffnblock5 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ logits ( Dense ) │ ( None , 7 ) │ 231 │ skipconnection5… │ └─────────────────────┴───────────────────┴────────────┴───────────────────┘.
+
+Total params: 62,507 (244.17 KB).
+
+Trainable params: 59,065 (230.72 KB).
+
+Non-trainable params: 3,442 (13.45 KB).
+
+Train the baseline classifier.
+
+Let's plot the learning curves.
+
+Now we evaluate the baseline model on the test data split.
+
+Examine the baseline model predictions.
+
+Let's create new data instances by randomly generating binary word vectors with respect to the word presence probabilities.
+
+Now we show the baseline model predictions given these randomly generated instances.
+
+Build a Graph Neural Network Model.
+
+Prepare the data for the graph model.
+
+Preparing and loading the graphs data into the model for training is the most challenging part in GNN models, which is addressed in different ways by the specialised libraries. In this example, we show a simple approach for preparing and using graph data that is suitable if your dataset consists of a single graph that fits entirely in memory.
+
+The graph data is represented by the <code> tuple, which consists of the following three elements:
+
+<code>: This is a <code> NumPy array that includes the node features. In this dataset, the nodes are the papers, and the <code> are the word-presence binary vectors of each paper.
+
+<code>: This is <code> NumPy array representing a sparse adjacency matrix of the links between the nodes. In this example, the links are the citations between the papers.
+
+<code> (optional): This is a <code> NumPy array that includes the edge weights, which quantify the relationships between nodes in the graph. In this example, there are no weights for the paper citations.
+
+Implement a graph convolution layer.
+
+We implement the graph convolution module as a custom Keras 3 Layer. Our GraphConvLayer is designed to be backend-agnostic, utilizing keras.ops to perform the following three steps:
+
+Prepare: The input node representations are processed using a Feed-Forward Network (FFN) to produce a message. This is achieved by gathering neighbor representations using ops.take and transforming them through the ffnprepare block. If edgeweights are provided, they are scaled using ops.expand_dims to ensure correct broadcasting during message transformation.
+
+Aggregate: The messages of the neighbors for each node are aggregated using a permutation-invariant pooling operation. In this Keras 3 implementation, we utilize ops.segmentsum, ops.segmentmean, or ops.segmentmax (replacing the legacy tf.math.unsortedsegment APIs). These operations efficiently aggregate neighbor information into a single message for each target node based on the graph's edge indices.
+
+Update: The <code> and <code>—both of shape <code>— are combined and processed to produce the new state of the node representations (node embeddings). If <code> is <code>, the <code> and <code> are stacked to create a sequence, then processed by a GRU layer. Otherwise, the <code> and <code> are added or concatenated, then processed using a FFN.
+
+The technique implemented use ideas from Graph Convolutional Networks, GraphSage, Graph Isomorphism Network, Simple Graph Networks, and Gated Graph Sequence Neural Networks. Two other key techniques that are not covered are Graph Attention Networks and Message Passing Neural Networks.
+
+Implement a graph neural network node classifier.
+
+The GNN classification model follows the Design Space for Graph Neural Networks approach, as follows:
+
+Graph Augmentation & Stability: In the init method, the model optionally adds self-loops to the edge list. This ensures each node preserves its own identity during message passing. We also implement Edge Weight Normalization (Global or Per-node). Per-node normalization calculates the degree of each node using ops.segmentsum and scales incoming messages, which is critical for preventing gradient explosion in large or dense graphs. Preprocessing: A Feed-Forward Network (FFN) is applied to the raw node features to generate the initial latent representations. Graph Convolutions with Skip Connections: The model applies multiple GraphConvLayer blocks. To mitigate the risk of "over-smoothing" (where node embeddings become indistinguishable after several hops), we implement Residual (Skip) Connections, adding the input of the convolution back to its output. Post-processing: A final FFN processes the node embeddings to refine the features before classification. Output Logic: The final layer is a Dense layer that produces logits for each class. Note on Data Handling: Unlike standard models where all data is passed as input, this model stores the global graph structure (nodefeatures and edges) as internal tensors converted via ops.converttotensor. The model's call() method accepts a batch of node indices rather than the full graph. It uses ops.take to efficiently retrieve the specific embeddings for the requested indices, allowing for efficient mini-batch training on a single large graph.
+
+Let's test instantiating and calling the GNN model. Notice that if you provide <code> node indices, the output will be a tensor of shape <code>, regardless of the size of the graph.
+
+Model: "gnn_model".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ preprocess ( Sequential ) │ ( 2708 , 32 ) │ 52,804 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ graphconv1 ( GraphConvLayer ) │ ? │ 5,888 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ graphconv2 ( GraphConvLayer ) │ ? │ 5,888 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ postprocess ( Sequential ) │ ( 2708 , 32 ) │ 2,368 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ logits ( Dense ) │ ( 3 , 7 ) │ 231 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 67,179 (262.42 KB).
+
+Trainable params: 63,481 (247.97 KB).
+
+Non-trainable params: 3,698 (14.45 KB).
+
+Train the GNN model.
+
+Note that we use the standard supervised cross-entropy loss to train the model. However, we can add another self-supervised loss term for the generated node embeddings that makes sure that neighbouring nodes in graph have similar representations, while faraway nodes have dissimilar representations.
+
+Let's plot the learning curves.
+
+Now we evaluate the GNN model on the test data split. The results may vary depending on the training sample, however the GNN model always outperforms the baseline model in terms of the test accuracy.
+
+Examine the GNN model predictions.
+
+Let's add the new instances as nodes to the <code>, and generate links (citations) to existing nodes.
+
+Now let's update the <code> and the <code> in the GNN model.
+
+Notice that the probabilities of the expected subjects (to which several citations are added) are higher compared to the baseline model.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

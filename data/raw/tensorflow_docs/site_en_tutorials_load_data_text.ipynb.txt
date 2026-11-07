@@ -1,0 +1,255 @@
+Load text.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial demonstrates two ways to load and preprocess text.
+
+First, you will use Keras utilities and preprocessing layers. These include <code> to turn data into a <code> and <code> for data standardization, tokenization, and vectorization. If you are new to TensorFlow, you should start with these.
+
+Then, you will use lower-level utilities like <code> to load text files, <code> for custom in-model lookup tables, and TensorFlow Text APIs, such as <code> and <code>, to preprocess the data for finer-grain control.
+
+Example 1: Predict the tag for a Stack Overflow question.
+
+As a first example, you will download a dataset of programming questions from Stack Overflow. Each question ("How do I sort a dictionary by value?") is labeled with exactly one tag (<code>, <code>, <code>, or <code>). Your task is to develop a model that predicts the tag for a question. This is an example of multi-class classification—an important and widely applicable kind of machine learning problem.
+
+To implement this task, you'll start with the simplest tools:
+
+<code>: for loading text-file examples.
+
+<code>: for converting strings to token indices.
+
+Download and explore the dataset.
+
+Begin by downloading the Stack Overflow dataset using <code>, and exploring the directory structure:
+
+The <code>, <code>, <code> and <code> directories contain many text files, each of which is a Stack Overflow question.
+
+Print an example file and inspect the data:
+
+Load the dataset.
+
+Next, you will load the data off-disk and prepare it into a format suitable for training. To do so, you will use the <code> utility to create a labeled <code>. If you're new to <code>, it's a powerful collection of tools for building input pipelines. (Learn more in the tf.data: Build TensorFlow input pipelines guide.).
+
+The <code> API expects a directory structure as follows:
+
+When running a machine learning experiment, it is a best practice to divide your dataset into three splits: training, validation, and test.
+
+The Stack Overflow dataset has already been divided into training and test sets, but it lacks a validation set.
+
+Create a validation set using an 80:20 split of the training data by using <code> with <code> set to <code> (i.e. 20%):
+
+As the previous cell output suggests, there are 8,000 examples in the training folder, of which you will use 80% (or 6,400) for training. You will learn in a moment that you can train a model by passing a <code> directly to <code>.
+
+First, iterate over the dataset and print out a few examples, to get a feel for the data.
+
+Note: To increase the difficulty of the classification problem, the dataset author replaced occurrences of the words Python, CSharp, JavaScript, or Java in the programming question with the word blank.
+
+The labels are <code>, <code>, <code> or <code>. To check which of these correspond to which string label, you can inspect the <code> property on the dataset:
+
+Next, you will create a validation and a test set using <code>. You will use the remaining 1,600 reviews from the training set for validation.
+
+Note: When using the <code> and <code> arguments of <code>, make sure to either specify a random seed or pass <code>, so that the validation and training splits have no overlap.
+
+Configure the datasets for performance.
+
+These are two important methods you should use when loading data to make sure that I/O does not become blocking.
+
+<code> keeps data in memory after it's loaded off-disk. This will ensure the dataset does not become a bottleneck while training your model. If your dataset is too large to fit into memory, you can also use this method to create a performant on-disk cache, which is more efficient to read than many small files.
+
+<code> overlaps data preprocessing and model execution while training.
+
+You can learn more about both methods, as well as how to cache data to disk in the Prefetching section of the Better performance with the tf.data API guide.
+
+This first example will keep things simple by integrating the text processing into the model. But you may be able to increase performance by moving the text processing into the dataset pipeline, this is demonstrated in Example 2.
+
+Prepare the dataset for training.
+
+Next, you will standardize, tokenize, and vectorize the data using the <code> layer.
+
+Standardization refers to preprocessing the text, typically to remove punctuation or HTML elements to simplify the dataset.
+
+Tokenization refers to splitting strings into tokens (for example, splitting a sentence into individual words by splitting on whitespace).
+
+Vectorization refers to converting tokens into numbers so they can be fed into a neural network.
+
+All of these tasks can be accomplished with this layer. (You can learn more about each of these in the <code> API docs.).
+
+Note that:
+
+The default standardization converts text to lowercase and removes punctuation (<code>).
+
+The default tokenizer splits on whitespace (<code>).
+
+The default vectorization mode is <code> (<code>). This outputs integer indices (one per token). This mode can be used to build models that take word order into account. You can also use other modes—like <code>—to build bag-of-words models.
+
+You will build two models to learn more about standardization, tokenization, and vectorization with <code>:
+
+First, you will use the <code> vectorization mode to build a bag-of-words model.
+
+Then, you will use the <code> mode with a 1D ConvNet.
+
+For the <code> mode, in addition to maximum vocabulary size, you need to set an explicit maximum sequence length (<code>), which will cause the layer to pad or truncate sequences to exactly <code> values:
+
+Next, call <code> to fit the state of the preprocessing layer to the dataset. This will cause the model to build an index of strings to integers.
+
+Note: It's important to only use your training data when calling <code>, as using the test set would leak information.
+
+Print the result of using these layers to preprocess data:
+
+The binary vectorization layer returns a multi-hot vector, with a 1 in the location for each token that was in the input string.
+
+As shown above, <code>'s <code> mode returns an array denoting which tokens exist at least once in the input, while the <code> mode replaces each token by an integer, thus preserving their order.
+
+You can lookup the token (string) that each integer corresponds to by calling <code> on the layer:
+
+Train the model.
+
+It's time to create your neural network.
+
+For the <code> vectorized data, define a simple bag-of-words linear model, then configure and train it:
+
+Next, you will use the <code> vectorized layer to build a 1D ConvNet:
+
+You are nearly ready to train your model.
+
+As a final preprocessing step, you will apply the <code> layers you created earlier to the training, validation, and test sets:
+
+Export the model.
+
+Including the text preprocessing logic inside your model enables you to export a model for production that simplifies deployment, and reduces the potential for train/test skew.
+
+There is a performance difference to keep in mind when choosing where to apply <code>. Using it outside of your model enables you to do asynchronous CPU processing and buffering of your data when training on GPU. So, if you're training your model on the GPU, you probably want to go with this option to get the best performance while developing your model, then switch to including the <code> layer inside your model when you're ready to prepare for deployment.
+
+Visit the Save and load models tutorial to learn more about saving models.
+
+Example 2: Predict the author of Iliad translations.
+
+The following provides an example of using <code> to load examples from text files, and TensorFlow Text to preprocess the data. You will use three different English translations of the same work, Homer's Iliad, and train a model to identify the translator given a single line of text.
+
+To implement this task you'll use some lower level tools.
+
+You'll use <code> to load text-lines from files.
+
+You'll implement your own version of <code> using:
+
+<code> - to convert strings to tokens.
+
+<code> - to convert tokens to integer ids.
+
+You'll maximize performance by placing the text processing in the dataset pipeline, so it can run in parallel with the model training.
+
+Download and explore the dataset.
+
+The texts of the three translations are by:
+
+William Cowper: text.
+
+Edward, Earl of Derby: text.
+
+Samuel Butler: text.
+
+The text files used in this tutorial have undergone some typical preprocessing tasks like removing document header and footer, line numbers and chapter titles.
+
+Download these lightly munged files locally:
+
+Load the dataset.
+
+Previously, with <code> all contents of a file were treated as a single example. Here, you will use <code>, which is designed to create a <code> from a text file where each example is a line of text from the original file. <code> is useful for text data that is primarily line-based (for example, poetry or error logs).
+
+Iterate through these files, loading each one into its own dataset. Each example needs to be individually labeled, so use <code> to apply a labeler function to each one. This will iterate over every example in the dataset, returning (<code>) pairs.
+
+Next, you'll combine these labeled datasets into a single dataset using <code>, and shuffle it with <code>:
+
+Print out a few examples as before. The dataset hasn't been batched yet, hence each entry in <code> corresponds to one data point:
+
+Prepare the dataset for training.
+
+Instead of using <code> to preprocess the text dataset, you will now use the lower-level TensorFlow Text APIs to standardize and tokenize the data, build a vocabulary and use <code> to map tokens to integers to feed to the model. (Learn more about TensorFlow Text).
+
+Define a function to convert the text to lower-case and tokenize it:
+
+TensorFlow Text provides various tokenizers. In this example, you will use the <code> to tokenize the dataset.
+
+You will use <code> to apply the tokenization to the dataset.
+
+You can iterate over the dataset and print out a few tokenized examples:
+
+Next, you will build a vocabulary by sorting tokens by frequency and keeping the top <code> tokens:
+
+To convert the tokens into integers, use the <code> set to create a <code>. You will map tokens to integers with <code> reserved for padding, and <code> reserved to denote an out-of-vocabulary (OOV) token.
+
+Try it on a dummy vocabulary:
+
+Create one for the real vocabulary:
+
+Finally, define a layer to standardize, tokenize and vectorize the dataset using the tokenizer and lookup table:
+
+You can try this on a single example to print the output:
+
+Now create a dataset pipeline that will process the text on the fly using <code>:
+
+Split the dataset into training and test sets.
+
+The Keras <code> layer also batches and pads the vectorized data. Padding is required because the examples inside of a batch need to be the same size and shape, but the examples in these datasets are not all the same size—each line of text has a different number of words.
+
+<code> supports splitting and padded-batching datasets:
+
+Now, <code> and <code> are not collections of (<code>) pairs, but collections of batches. Each batch is a pair of (many examples, many labels) represented as arrays.
+
+To illustrate this:
+
+Configure the datasets for better performance as before:
+
+Train the model.
+
+You can train a model on this dataset as before:
+
+Since this text vectorization adds <code> for padding and <code> for out-of-vocabulary (OOV) tokens, the vocabulary size has increased by two:
+
+Export the model.
+
+To make the model capable of taking raw strings as input, pack both the text processor and the model into a <code>:
+
+This model you can run directly on batches of strings:
+
+Use <code> to export it.
+
+The loss and accuracy for the model on encoded validation set and the exported model on the raw validation set are the same, as expected.
+
+Run inference on new data.
+
+Download more datasets using TensorFlow Datasets (TFDS).
+
+You can download many more datasets from TensorFlow Datasets.
+
+In this example, you will use the IMDB Large Movie Review dataset to train a model for sentiment classification:
+
+Print a few examples:
+
+You can now preprocess the data and train a model as before.
+
+Note: You will use <code> instead of <code> for your model, since this is a binary classification problem.
+
+Prepare the dataset for training.
+
+Create, configure and train the model.
+
+Export the model.
+
+Conclusion.
+
+This tutorial demonstrated several ways to load and preprocess text. As a next step, you can explore additional text preprocessing TensorFlow Text tutorials, such as:
+
+BERT Preprocessing with TF Text.
+
+Tokenizing with TF Text.
+
+Subword tokenizers.
+
+You can also find new datasets on TensorFlow Datasets. And, to learn more about <code>, check out the guide on building input pipelines.

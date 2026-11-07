@@ -1,0 +1,75 @@
+Neural Collaborative Filtering for Personalized Ranking.
+
+This section moves beyond explicit feedback, introducing the neural collaborative filtering (NCF) framework for recommendation with implicit feedback. Implicit feedback is pervasive in recommender systems. Actions such as Clicks, buys, and watches are common implicit feedback which are easy to collect and indicative of users' preferences. The model we will introduce, titled NeuMF , short for neural matrix factorization, aims to address the personalized ranking task with implicit feedback. This model leverages the flexibility and non-linearity of neural networks to replace dot products of matrix factorization, aiming at enhancing the model expressiveness. In specific, this model is structured with two subnetworks including generalized matrix factorization (GMF) and MLP and models the interactions from two pathways instead of simple dot products. The outputs of these two networks are concatenated for the final prediction scores calculation. Unlike the rating prediction task in AutoRec, this model generates a ranked recommendation list to each user based on the implicit feedback. We will use the personalized ranking loss introduced in the last section to train this model.
+
+The NeuMF model.
+
+As aforementioned, NeuMF fuses two subnetworks. The GMF is a generic neural network version of matrix factorization where the input is the elementwise product of user and item latent factors. It consists of two neural layers:
+
+<math>.
+
+where <math> denotes the Hadamard product of vectors. <math> and <math> correspond to user and item latent matrix respectively. <math> is the <math> row of <math> and <math> is the <math> row of <math>. <math> and <math> denote the activation function and weight of the output layer. <math> is the prediction score of the user <math> might give to the item <math>.
+
+Another component of this model is MLP. To enrich model flexibility, the MLP subnetwork does not share user and item embeddings with GMF. It uses the concatenation of user and item embeddings as input. With the complicated connections and nonlinear transformations, it is capable of estimating the intricate interactions between users and items. More precisely, the MLP subnetwork is defined as:
+
+<math>.
+
+where <math> and <math> denote the weight matrix, bias vector, and activation function. <math> denotes the function of the corresponding layer. <math> denotes the output of corresponding layer.
+
+To fuse the results of GMF and MLP, instead of simple addition, NeuMF concatenates the second last layers of two subnetworks to create a feature vector which can be passed to the further layers. Afterwards, the outputs are projected with matrix <math> and a sigmoid activation function. The prediction layer is formulated as: <math>.
+
+The following figure illustrates the model architecture of NeuMF.
+
+Model Implementation.
+
+The following code implements the NeuMF model. It consists of a generalized matrix factorization model and an MLP with different user and item embedding vectors. The structure of the MLP is controlled with the parameter <code>. ReLU is used as the default activation function.
+
+Customized Dataset with Negative Sampling.
+
+For pairwise ranking loss, an important step is negative sampling. For each user, the items that a user has not interacted with are candidate items (unobserved entries). The following function takes users identity and candidate items as input, and samples negative items randomly for each user from the candidate set of that user. During the training stage, the model ensures that the items that a user likes to be ranked higher than items he dislikes or has not interacted with.
+
+Evaluator.
+
+In this section, we adopt the splitting by time strategy to construct the training and test sets. Two evaluation measures including hit rate at given cutting off <math> (<math>) and area under the ROC curve (AUC) are used to assess the model effectiveness. Hit rate at given position <math> for each user indicates that whether the recommended item is included in the top <math> ranked list. The formal definition is as follows:
+
+<math>.
+
+where <math> denotes an indicator function that is equal to one if the ground truth item is ranked in the top <math> list, otherwise it is equal to zero. <math> denotes the ranking of the ground truth item <math> of the user <math> in the recommendation list (The ideal ranking is 1). <math> is the number of users. <math> is the user set.
+
+The definition of AUC is as follows:
+
+<math>.
+
+where <math> is the item set. <math> is the candidate items of user <math>. Note that many other evaluation protocols such as precision, recall and normalized discounted cumulative gain (NDCG) can also be used.
+
+The following function calculates the hit counts and AUC for each user.
+
+Then, the overall Hit rate and AUC are calculated as follows.
+
+Training and Evaluating the Model.
+
+The training function is defined below. We train the model in the pairwise manner.
+
+Now, we can load the MovieLens 100k dataset and train the model. Since there are only ratings in the MovieLens dataset, with some losses of accuracy, we binarize these ratings to zeros and ones. If a user rated an item, we consider the implicit feedback as one, otherwise as zero. The action of rating an item can be treated as a form of providing implicit feedback. Here, we split the dataset in the <code> mode where users' latest interacted items are left out for test.
+
+We then create and initialize the model. We use a three-layer MLP with constant hidden size 10.
+
+The following code trains the model.
+
+Summary.
+
+Adding nonlinearity to matrix factorization model is beneficial for improving the model capability and effectiveness.
+
+NeuMF is a combination of matrix factorization and an MLP. The MLP takes the concatenation of user and item embeddings as input.
+
+Exercises.
+
+Vary the size of latent factors. How the size of latent factors impact the model performance?
+
+Vary the architectures (e.g., number of layers, number of neurons of each layer) of the MLP to check the its impact on the performance.
+
+Try different optimizers, learning rate and weight decay rate.
+
+Try to use hinge loss defined in the last section to optimize this model.
+
+Discussions.

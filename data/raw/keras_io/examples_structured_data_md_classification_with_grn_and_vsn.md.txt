@@ -1,0 +1,85 @@
+Classification with Gated Residual and Variable Selection Networks.
+
+Introduction.
+
+This example demonstrates the use of Gated Residual Networks (GRN) and Variable Selection Networks (VSN), proposed by Bryan Lim et al. in Temporal Fusion Transformers (TFT) for Interpretable Multi-horizon Time Series Forecasting, for structured data classification. GRNs give the flexibility to the model to apply non-linear processing only where needed. VSNs allow the model to softly remove any unnecessary noisy inputs which could negatively impact performance. Together, those techniques help improving the learning capacity of deep neural network models.
+
+Note that this example implements only the GRN and VSN components described in in the paper, rather than the whole TFT model, as GRN and VSN can be useful on their own for structured data learning tasks.
+
+To run the code you need to use TensorFlow 2.3 or higher.
+
+The dataset.
+
+This example uses the United States Census Income Dataset provided by the UC Irvine Machine Learning Repository. The task is binary classification to determine whether a person makes over 50K a year.
+
+The dataset includes ~300K instances with 41 input features: 7 numerical features and 34 categorical features.
+
+Setup.
+
+Prepare the data.
+
+First we load the data from the UCI Machine Learning Repository into a Pandas DataFrame.
+
+Determine the downloaded .tar.gz file path and extract the files from the downloaded .tar.gz file.
+
+We convert the target column from string to integer.
+
+Then, We split the dataset into train and validation sets.
+
+Finally we store the train and test data splits locally to CSV files.
+
+Define dataset metadata.
+
+Here, we define the metadata of the dataset that will be useful for reading and parsing the data into input features, and encoding the input features with respect to their types.
+
+Create a <code> for training and evaluation.
+
+We create an input function to read and parse the file, and convert features and labels into a <code> for training and evaluation.
+
+Create model inputs.
+
+Implement the Gated Linear Unit.
+
+Gated Linear Units (GLUs) provide the flexibility to suppress input that are not relevant for a given task.
+
+Implement the Gated Residual Network.
+
+The Gated Residual Network (GRN) works as follows:
+
+Applies the nonlinear ELU transformation to the inputs.
+
+Applies linear transformation followed by dropout.
+
+Applies GLU and adds the original inputs to the output of the GLU to perform skip (residual) connection.
+
+Applies layer normalization and produces the output.
+
+Implement the Variable Selection Network.
+
+The Variable Selection Network (VSN) works as follows:
+
+Applies a GRN to each feature individually.
+
+Applies a GRN on the concatenation of all the features, followed by a softmax to produce feature weights.
+
+Produces a weighted sum of the output of the individual GRN.
+
+Note that the output of the VSN is [batchsize, encodingsize], regardless of the number of the input features.
+
+For categorical features, we encode them using <code> using the <code> as the embedding dimensions. For the numerical features, we apply linear transformation using <code> to project each feature into <code>-dimensional vector. Thus, all the encoded features will have the same dimensionality.
+
+Create Gated Residual and Variable Selection Networks model.
+
+Compile, train, and evaluate the model.
+
+Let's visualize our connectivity graph:
+
+639/639 ━━━━━━━━━━━━━━━━━━━━ 160s 249ms/step - accuracy: 0.9383 - loss: 301.8082 - valaccuracy: 0.9485 - valloss: 235.7996.
+
+377/377 ━━━━━━━━━━━━━━━━━━━━ 53s 139ms/step - accuracy: 0.9486 - loss: 229.2270.
+
+You should achieve more than 95% accuracy on the test set.
+
+To increase the learning capacity of the model, you can try increasing the <code> value, or stacking multiple GRN layers on top of the VSN layer. This may require to also increase the <code> value to avoid overfitting.
+
+Example available on HuggingFace.

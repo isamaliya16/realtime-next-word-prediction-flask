@@ -1,0 +1,69 @@
+RandAugment for Image Classification for Improved Robustness.
+
+Data augmentation is a very useful technique that can help to improve the translational invariance of convolutional neural networks (CNN). RandAugment is a stochastic data augmentation routine for vision data and was proposed in RandAugment: Practical automated data augmentation with a reduced search space. It is composed of strong augmentation transforms like color jitters, Gaussian blurs, saturations, etc. along with more traditional augmentation transforms such as random crops.
+
+These parameters are tuned for a given dataset and a network architecture. The authors of RandAugment also provide pseudocode of RandAugment in the original paper (Figure 2).
+
+Recently, it has been a key component of works like Noisy Student Training and Unsupervised Data Augmentation for Consistency Training. It has been also central to the success of EfficientNets.
+
+Imports & setup.
+
+Load the CIFAR10 dataset.
+
+For this example, we will be using the CIFAR10 dataset.
+
+Define hyperparameters.
+
+Initialize <code> object.
+
+Now, we will initialize a <code> object from the <code> module with the parameters suggested by the RandAugment authors.
+
+Create TensorFlow <code> objects.
+
+For comparison purposes, let's also define a simple augmentation pipeline consisting of random flips, random rotations, and random zoomings.
+
+Visualize the dataset augmented with RandAugment.
+
+You are encouraged to run the above code block a couple of times to see different variations.
+
+Visualize the dataset augmented with <code>.
+
+Define a model building utility function.
+
+Now, we define a CNN model that is based on the ResNet50V2 architecture. Also, notice that the network already has a rescaling layer inside it. This eliminates the need to do any separate preprocessing on our dataset and is specifically very useful for deployment purposes.
+
+Model: "sequential_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ rescaling ( Rescaling ) │ ( None , 72 , 72 , 3 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ resnet50v2 ( Functional ) │ ( None , 10 ) │ 23,585,290 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 23,585,290 (89.97 MB).
+
+Trainable params: 23,539,850 (89.80 MB).
+
+Non-trainable params: 45,440 (177.50 KB).
+
+We will train this network on two different versions of our dataset:
+
+One augmented with RandAugment.
+
+Another one augmented with <code>.
+
+Since RandAugment is known to enhance the robustness of models to common perturbations and corruptions, we will also evaluate our models on the CIFAR-10-C dataset, proposed in Benchmarking Neural Network Robustness to Common Corruptions and Perturbations by Hendrycks et al. The CIFAR-10-C dataset consists of 19 different image corruptions and perturbations (for example speckle noise, fog, Gaussian blur, etc.) that too at varying severity levels. For this example we will be using the following configuration: <code>. The images from this configuration look like so:
+
+In the interest of reproducibility, we serialize the initial random weights of our shallow network.
+
+Train model with RandAugment.
+
+Train model with <code>.
+
+Load the CIFAR-10-C dataset and evaluate performance.
+
+For the purpose of this example, we trained the models for only a single epoch. On the CIFAR-10-C dataset, the model with RandAugment can perform better with a higher accuracy (for example, 76.64% in one experiment) compared with the model trained with <code> (e.g., 64.80%). RandAugment can also help stabilize the training.
+
+In the notebook, you may notice that, at the expense of increased training time with RandAugment, we are able to carve out far better performance on the CIFAR-10-C dataset. You can experiment on the other corruption and perturbation settings that come with the run the same CIFAR-10-C dataset and see if RandAugment helps.
+
+You can also experiment with the different values of <code> and <code> in the <code> object. In the original paper, the authors show the impact of the individual augmentation transforms for a particular task and a range of ablation studies. You are welcome to check them out.
+
+RandAugment has shown great progress in improving the robustness of deep models for computer vision as shown in works like Noisy Student Training and FixMatch. This makes RandAugment quite a useful recipe for training different vision models.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.

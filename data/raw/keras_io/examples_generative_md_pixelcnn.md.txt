@@ -1,0 +1,29 @@
+PixelCNN.
+
+Introduction.
+
+PixelCNN is a generative model proposed in 2016 by van den Oord et al. (reference: Conditional Image Generation with PixelCNN Decoders). It is designed to generate images (or other data types) iteratively from an input vector where the probability distribution of prior elements dictates the probability distribution of later elements. In the following example, images are generated in this fashion, pixel-by-pixel, via a masked convolution kernel that only looks at data from previously generated pixels (origin at the top left) to generate later pixels. During inference, the output of the network is used as a probability distribution from which new pixel values are sampled to generate a new image (here, with MNIST, the pixels values are either black or white).
+
+Getting the Data.
+
+Create two classes for the requisite Layers for the model.
+
+Build the model based on the original paper.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( 128 , 28 , 28 , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ pixelconvlayer │ ( 128 , 28 , 28 , 128 ) │ 6,400 │ │ ( PixelConvLayer ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ residualblock ( ResidualBlock ) │ ( 128 , 28 , 28 , 128 ) │ 98,624 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ residualblock1 │ ( 128 , 28 , 28 , 128 ) │ 98,624 │ │ ( ResidualBlock ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ residualblock2 │ ( 128 , 28 , 28 , 128 ) │ 98,624 │ │ ( ResidualBlock ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ residualblock3 │ ( 128 , 28 , 28 , 128 ) │ 98,624 │ │ ( ResidualBlock ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ residualblock4 │ ( 128 , 28 , 28 , 128 ) │ 98,624 │ │ ( ResidualBlock ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ pixelconvlayer6 │ ( 128 , 28 , 28 , 128 ) │ 16,512 │ │ ( PixelConvLayer ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ pixelconvlayer7 │ ( 128 , 28 , 28 , 128 ) │ 16,512 │ │ ( PixelConvLayer ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d_18 ( Conv2D ) │ ( 128 , 28 , 28 , 1 ) │ 129 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 532,673 (2.03 MB).
+
+Trainable params: 532,673 (2.03 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Demonstration.
+
+The PixelCNN cannot generate the full image at once. Instead, it must generate each pixel in order, append the last generated pixel to the current image, and feed the image back into the model to repeat the process.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

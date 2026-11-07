@@ -1,0 +1,63 @@
+Semantic Segmentation and the Dataset.
+
+When discussing object detection tasks in section <num>--section <num>, rectangular bounding boxes are used to label and predict objects in images. This section will discuss the problem of semantic segmentation, which focuses on how to divide an image into regions belonging to different semantic classes. Different from object detection, semantic segmentation recognizes and understands what are in images in pixel level: its labeling and prediction of semantic regions are in pixel level. section <num> shows the labels of the dog, cat, and background of the image in semantic segmentation. Compared with in object detection, the pixel-level borders labeled in semantic segmentation are obviously more fine-grained.
+
+Image Segmentation and Instance Segmentation.
+
+There are also two important tasks in the field of computer vision that are similar to semantic segmentation, namely image segmentation and instance segmentation. We will briefly distinguish them from semantic segmentation as follows.
+
+Image segmentation divides an image into several constituent regions. The methods for this type of problem usually make use of the correlation between pixels in the image. It does not need label information about image pixels during training, and it cannot guarantee that the segmented regions will have the semantics that we hope to obtain during prediction. Taking the image in section <num> as input, image segmentation may divide the dog into two regions: one covers the mouth and eyes which are mainly black, and the other covers the rest of the body which is mainly yellow.
+
+Instance segmentation is also called simultaneous detection and segmentation. It studies how to recognize the pixel-level regions of each object instance in an image. Different from semantic segmentation, instance segmentation needs to distinguish not only semantics, but also different object instances. For example, if there are two dogs in the image, instance segmentation needs to distinguish which of the two dogs a pixel belongs to.
+
+The Pascal VOC2012 Semantic Segmentation Dataset.
+
+On of the most important semantic segmentation dataset is [Pascal VOC2012.] In the following, we will take a look at this dataset.
+
+The tar file of the dataset is about 2 GB, so it may take a while to download the file. The extracted dataset is located at <code>.
+
+After entering the path <code>, we can see the different components of the dataset. The <code> path contains text files that specify training and test samples, while the <code> and <code> paths store the input image and label for each example, respectively. The label here is also in the image format, with the same size as its labeled input image. Besides, pixels with the same color in any label image belong to the same semantic class. The following defines the <code> function to [read all the input images and labels into the memory].
+
+We [draw the first five input images and their labels]. In the label images, white and black represent borders and background, respectively, while the other colors correspond to different classes.
+
+Next, we [enumerate the RGB color values and class names] for all the labels in this dataset.
+
+With the two constants defined above, we can conveniently [find the class index for each pixel in a label]. We define the <code> function to build the mapping from the above RGB color values to class indices, and the <code> function to map any RGB values to their class indices in this Pascal VOC2012 dataset.
+
+[For example], in the first example image, the class index for the front part of the airplane is 1, while the background index is 0.
+
+Data Preprocessing.
+
+In previous experiments such as in section <num>--section <num>, images are rescaled to fit the model's required input shape. However, in semantic segmentation, doing so requires rescaling the predicted pixel classes back to the original shape of the input image. Such rescaling may be inaccurate, especially for segmented regions with different classes. To avoid this issue, we crop the image to a fixed shape instead of rescaling. Specifically, [using random cropping from image augmentation, we crop the same area of the input image and the label].
+
+[Custom Semantic Segmentation Dataset Class].
+
+We define a custom semantic segmentation dataset class <code> by inheriting the <code> class provided by high-level APIs. By implementing the <code> function, we can arbitrarily access the input image indexed as <code> in the dataset and the class index of each pixel in this image. Since some images in the dataset have a smaller size than the output size of random cropping, these examples are filtered out by a custom <code> function. In addition, we also define the <code> function to standardize the values of the three RGB channels of input images.
+
+[Reading the Dataset].
+
+We use the custom <code>t class to create instances of the training set and test set, respectively. Suppose that we specify that the output shape of randomly cropped images is <math>. Below we can view the number of examples that are retained in the training set and test set.
+
+Setting the batch size to 64, we define the data iterator for the training set. Let's print the shape of the first minibatch. Different from in image classification or object detection, labels here are three-dimensional tensors.
+
+[Putting It All Together].
+
+Finally, we define the following <code> function to download and read the Pascal VOC2012 semantic segmentation dataset. It returns data iterators for both the training and test datasets.
+
+Summary.
+
+Semantic segmentation recognizes and understands what are in an image in pixel level by dividing the image into regions belonging to different semantic classes.
+
+One of the most important semantic segmentation dataset is Pascal VOC2012.
+
+In semantic segmentation, since the input image and label correspond one-to-one on the pixel, the input image is randomly cropped to a fixed shape rather than rescaled.
+
+Exercises.
+
+How can semantic segmentation be applied in autonomous vehicles and medical image diagnostics? Can you think of other applications?
+
+Recall the descriptions of data augmentation in section <num>. Which of the image augmentation methods used in image classification would be infeasible to be applied in semantic segmentation?
+
+Discussions.
+
+Discussions.

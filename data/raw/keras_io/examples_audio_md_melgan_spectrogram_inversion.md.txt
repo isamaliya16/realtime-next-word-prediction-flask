@@ -1,0 +1,93 @@
+MelGAN-based spectrogram inversion using feature matching.
+
+Introduction.
+
+Autoregressive vocoders have been ubiquitous for a majority of the history of speech processing, but for most of their existence they have lacked parallelism. MelGAN is a non-autoregressive, fully convolutional vocoder architecture used for purposes ranging from spectral inversion and speech enhancement to present-day state-of-the-art speech synthesis when used as a decoder with models like Tacotron2 or FastSpeech that convert text to mel spectrograms.
+
+In this tutorial, we will have a look at the MelGAN architecture and how it can achieve fast spectral inversion, i.e. conversion of spectrograms to audio waves. The MelGAN implemented in this tutorial is similar to the original implementation with only the difference of method of padding for convolutions where we will use 'same' instead of reflect padding.
+
+Importing and Defining Hyperparameters.
+
+Loading the Dataset.
+
+This example uses the LJSpeech dataset.
+
+The LJSpeech dataset is primarily used for text-to-speech and consists of 13,100 discrete speech samples taken from 7 non-fiction books, having a total length of approximately 24 hours. The MelGAN training is only concerned with the audio waves so we process only the WAV files and ignore the audio annotations.
+
+We create a <code> to load and process the audio files on the fly. The <code> function takes the file path as input and returns two instances of the wave, one for input and one as the ground truth for comparison. The input wave will be mapped to a spectrogram using the custom <code> layer as shown later in this example.
+
+Defining custom layers for MelGAN.
+
+The MelGAN architecture consists of 3 main modules:
+
+The residual block.
+
+Dilated convolutional block.
+
+Discriminator block.
+
+Since the network takes a mel-spectrogram as input, we will create an additional custom layer which can convert the raw audio wave to a spectrogram on-the-fly. We use the raw audio tensor from <code> and map it to a mel-spectrogram using the <code> layer below.
+
+The residual convolutional block extensively uses dilations and has a total receptive field of 27 timesteps per block. The dilations must grow as a power of the <code> to ensure reduction of hissing noise in the output. The network proposed by the paper is as follows:
+
+Each convolutional block uses the dilations offered by the residual stack and upsamples the input data by the <code>.
+
+The discriminator block consists of convolutions and downsampling layers. This block is essential for the implementation of the feature matching technique.
+
+Each discriminator outputs a list of feature maps that will be compared during training to compute the feature matching loss.
+
+Create the generator.
+
+Create the discriminator.
+
+Defining the loss functions.
+
+Generator Loss.
+
+The generator architecture uses a combination of two losses.
+
+Mean Squared Error:
+
+This is the standard MSE generator loss calculated between ones and the outputs from the discriminator with N layers.
+
+Feature Matching Loss:
+
+This loss involves extracting the outputs of every layer from the discriminator for both the generator and ground truth and compare each layer output k using Mean Absolute Error.
+
+Discriminator Loss.
+
+The discriminator uses the Mean Absolute Error and compares the real data predictions with ones and generated predictions with zeros.
+
+Defining the MelGAN model for training. This subclass overrides the <code> method to implement the training logic.
+
+Training.
+
+The paper suggests that the training with dynamic shapes takes around 400,000 steps (~500 epochs). For this example, we will run it only for a single epoch (819 steps). Longer training time (greater than 300 epochs) will almost certainly provide better results.
+
+Testing the model.
+
+The trained model can now be used for real time text-to-speech translation tasks. To test how fast the MelGAN inference can be, let us take a sample audio mel-spectrogram and convert it. Note that the actual model pipeline will not include the <code> layer and hence this layer will be disabled during inference. The inference input will be a mel-spectrogram processed similar to the <code> layer configuration.
+
+For testing this, we will create a randomly uniformly distributed tensor to simulate the behavior of the inference pipeline.
+
+Timing the inference speed of a single sample. Running this, you can see that the average inference time per spectrogram ranges from 8 milliseconds to 10 milliseconds on a K80 GPU which is pretty fast.
+
+Conclusion.
+
+The MelGAN is a highly effective architecture for spectral inversion that has a Mean Opinion Score (MOS) of 3.61 that considerably outperforms the Griffin Lim algorithm having a MOS of just 1.57. In contrast with this, the MelGAN compares with the state-of-the-art WaveGlow and WaveNet architectures on text-to-speech and speech enhancement tasks on the LJSpeech and VCTK datasets [1] .
+
+This tutorial highlights:
+
+The advantages of using dilated convolutions that grow with the filter size.
+
+Implementation of a custom layer for on-the-fly conversion of audio waves to mel-spectrograms.
+
+Effectiveness of using the feature matching loss function for training GAN generators.
+
+Further reading.
+
+MelGAN paper (Kundan Kumar et al.) to understand the reasoning behind the architecture and training process.
+
+For in-depth understanding of the feature matching loss, you can refer to Improved Techniques for Training GANs (Tim Salimans et al.).
+
+Example available on HuggingFace.

@@ -1,0 +1,335 @@
+TensorFlow version compatibility.
+
+This document is for users who need backwards compatibility across different versions of TensorFlow (either for code or data), and for developers who want to modify TensorFlow while preserving compatibility.
+
+Semantic versioning 2.0.
+
+TensorFlow mostly follows Semantic Versioning 2.0 (semver) for its public API. Each release version of TensorFlow has the form <code>. For example, TensorFlow version 1.2.3 has <code> version 1, <code> version 2, and <code> version 3. Changes to each number have the following meaning:
+
+MAJOR: Potentially backwards incompatible changes. Code and data that worked with a previous major release will not necessarily work with the new release. However, in some cases existing TensorFlow graphs and checkpoints may be migratable to the newer release; see Compatibility of graphs and checkpoints for details on data compatibility.
+
+MINOR: Backwards compatible features, speed improvements, etc. Code and data that worked with a previous minor release and which depends only on the non-experimental public API will continue to work unchanged. For details on what is and is not the public API, see What is covered. Note that TensorFlow sometimes makes breaking changes in new minor releases, where the impact is expected to be minor. For examples of these kinds of changes, see the "Breaking Changes" sections for past minor releases at.
+
+PATCH: Backwards compatible bug fixes.
+
+For example, release 1.0.0 introduced backwards incompatible changes from release 0.12.1. However, release 1.1.1 was backwards compatible with release 1.0.0.
+
+What is covered.
+
+Only the public APIs of TensorFlow are backwards compatible across minor and patch versions. The public APIs consist of.
+
+All the documented Python functions and classes in the <code> module and its submodules, except for.
+
+Private symbols: any function, class, etc., whose name start with <code>.
+
+Experimental and <code> symbols, see below for details.
+
+Note that the code in the <code> and <code> directories is not reachable through the <code> Python module and is thus not covered by the compatibility guarantee.
+
+If a symbol is available through the <code> Python module or its submodules, but is not documented, then it is not considered part of the public API.
+
+The compatibility API (in Python, the <code> module). At major versions, we may release utilities and additional endpoints to help users with the transition to a new major version. These API symbols are deprecated and not supported (i.e., we will not add any features, and we will not fix bugs other than to fix vulnerabilities), but they do fall under our compatibility guarantees.
+
+The TensorFlow C API:
+
+tensorflow/c/c_api.h.
+
+The following protocol buffer files:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+Separate version number for TensorFlow Lite.
+
+Currently TensorFlow Lite is distributed as a part of TensorFlow. However, we reserve the right to in future release changes to the TensorFlow Lite APIs on a different schedule than for the other TensorFlow APIs, or even to move TensorFlow Lite into a separate source distribution and/or a separate source repository than TensorFlow.
+
+Because of this, we use a different version number for TensorFlow Lite (<code> in <code>, and <code> in <code>) than for TensorFlow (<code> in <code>, and <code> in <code>). Currently, these two version numbers happen to have the same value. But in future, they may diverge; for example, we may increment the major version number for TensorFlow Lite without incrementing the major version number for TensorFlow, or vice versa.
+
+The API surface that is covered by the TensorFlow Lite version number is comprised of the following public APIs:
+
+The TensorFlow Lite C API:
+
+tensorflow/lite/c/c_api.h.
+
+tensorflow/lite/c/capitypes.h.
+
+The TensorFlow Lite Android (Java/Kotlin) API:
+
+In <code>:
+
+org.tensorflow.lite.TensorFlowLite.
+
+org.tensorflow.lite.InterpreterApi.
+
+org.tensorflow.lite.Delegate.
+
+org.tensorflow.lite.DelegateFactory.
+
+org.tensorflow.lite.Tensor.
+
+org.tensorflow.lite.DataType.
+
+org.tensorflow.lite.RuntimeFlavor.
+
+In <code>:
+
+org.tensorflow.lite.gpu.GpuDelegate.
+
+org.tensorflow.lite.gpu.GpuDelegateFactory.
+
+The TensorFlow Lite Objective-C APIs:
+
+tensorflow/lite/objc/apis/.
+
+TFLCoreMLDelegate.h.
+
+TFLDelegate.h.
+
+TFLInterpreter.h.
+
+TFLInterpreterOptions.h.
+
+TFLMetalDelegate.h.
+
+TFLQuantizationParameters.h.
+
+TFLSignatureRunner.h.
+
+TFLTensorFlowLite.h.
+
+TFLTensor.h.
+
+The TensorFlow Lite Swift APIs:
+
+tensorflow/lite/swift/Sources/.
+
+CoreMLDelegate.swift.
+
+Delegate.swift.
+
+InterpreterError.swift.
+
+Interpreter.swift.
+
+MetalDelegate.swift.
+
+Model.swift.
+
+QuantizationParameters.swift.
+
+SignatureRunnerError.swift.
+
+SignatureRunner.swift.
+
+TensorFlowLite.swift.
+
+Tensor.swift.
+
+Experimental symbols are not covered; see below for details.
+
+Separate version number for TensorFlow Lite Extension APIs.
+
+TensorFlow Lite provides C APIs for extending the TensorFlow Lite interpreter with "custom ops", which provide user-defined operations in a graph, or "delegates", which allow delegating the computation for a graph (or for a subset of a graph) to a custom backend. These APIs, which we collectively call the "TensorFlow Lite Extension APIs", require more intimate dependencies on some of the details of the TensorFlow Lite implementation.
+
+We reserve the right to in future release changes to these APIs, potentially including non-backwards-compatible changes, on a different schedule than for the other TensorFlow Lite APIs. So we use a different version number for the TensorFlow Lite Extension APIs than the version numbers for TensorFlow Lite or TensorFlow (which were described in the previous section). We are introducing some new APIs in TensorFlow Lite version 2.15 to get the TensorFlow Lite Extension APIs version (<code> in <code>, and TfLiteExtensionApisVersion() in <code>). The version number for the TensorFlow Lite Extension APIs is currently the same as the version number for TensorFlow and TensorFlow Lite. But in future, they may diverge; for example, we may increment the major version number for the TensorFlow Lite Extension APIs without incrementing the major version number for TensorFlow Lite, or vice versa.
+
+The API surface that is covered by the TensorFlow Lite Extension APIs version number is comprised of the following public APIs:
+
+tensorflow/lite/c/capiopaque.h.
+
+tensorflow/lite/c/common.h.
+
+tensorflow/lite/c/builtinopdata.h.
+
+tensorflow/lite/builtin_ops.h.
+
+Again, experimental symbols are not covered; see below for details.
+
+What is not covered.
+
+Some parts of TensorFlow can change in backward incompatible ways at any point. These include:
+
+Experimental APIs: To facilitate development, we exempt some API symbols clearly marked as experimental from the compatibility guarantees. In particular, the following are not covered by any compatibility guarantees:
+
+any symbol in the <code> module or its submodules;
+
+any symbol (module, function, argument, property, class, constant, type, package, etc.) whose name contains <code> or <code>; or.
+
+any symbol whose fully qualified name includes a module or class or package which is itself experimental. This includes fields and submessages of any protocol buffer called <code>.
+
+Other languages: TensorFlow APIs in languages other than Python and C, such as:
+
+C++ (exposed through header files in <code>).
+
+Java.
+
+Go.
+
+JavaScript.
+
+and TensorFlow Lite APIs in languages other than Java/Kotlin, C, Objective-C, and Swift, in particular.
+
+C++ (exposed through header files in <code>).
+
+Details of composite ops: Many public functions in Python expand to several primitive ops in the graph, and these details will be part of any graphs saved to disk as <code>s. These details may change for minor releases. In particular, regression tests that check for exact matching between graphs are likely to break across minor releases, even though the behavior of the graph should be unchanged and existing checkpoints will still work.
+
+Floating point numerical details: The specific floating point values computed by ops may change at any time. Users should rely only on approximate accuracy and numerical stability, not on the specific bits computed. Changes to numerical formulas in minor and patch releases should result in comparable or improved accuracy, with the caveat that in machine learning improved accuracy of specific formulas may result in decreased accuracy for the overall system.
+
+Random numbers: The specific random numbers computed may change at any time. Users should rely only on approximately correct distributions and statistical strength, not the specific bits computed. See the random number generation guide for details.
+
+Version skew in distributed Tensorflow: Running two different versions of TensorFlow in a single cluster is unsupported. There are no guarantees about backwards compatibility of the wire protocol.
+
+Bugs: We reserve the right to make backwards incompatible behavior (though not API) changes if the current implementation is clearly broken, that is, if it contradicts the documentation or if a well-known and well-defined intended behavior is not properly implemented due to a bug. For example, if an optimizer claims to implement a well-known optimization algorithm but does not match that algorithm due to a bug, then we will fix the optimizer. Our fix may break code relying on the wrong behavior for convergence. We will note such changes in the release notes.
+
+Unused API: We reserve the right to make backwards incompatible changes to APIs for which we find no documented uses (by performing audit of TensorFlow usage through GitHub search). Before making any such changes, we will announce our intention to make the change on the announce@ mailing list, providing instructions for how to address any breakages (if applicable), and wait for two weeks to give our community a chance to share their feedback.
+
+Error behavior: We may replace errors with non-error behavior. For instance, we may change a function to compute a result instead of raising an error, even if that error is documented. We also reserve the right to change the text of error messages. In addition, the type of an error may change unless the exception type for a specific error condition is specified in the documentation.
+
+Compatibility of SavedModels, graphs and checkpoints.
+
+SavedModel is the preferred serialization format to use in TensorFlow programs. SavedModels contain two parts: One or more graphs encoded as <code> and a Checkpoint. The graphs describe the data flow of ops to be run, and checkpoints contain the saved tensor values of variables in a graph.
+
+Many TensorFlow users create SavedModels, and load and execute them with a later release of TensorFlow. In compliance with semver, SavedModels written with one version of TensorFlow can be loaded and evaluated with a later version of TensorFlow with the same major release.
+
+We make additional guarantees for supported SavedModels. We call a SavedModel which was created using only non-deprecated, non-experimental, non-compatibility APIs in TensorFlow major version <code> a SavedModel supported in version <code>. Any SavedModel supported in TensorFlow major version <code> can be loaded and executed with TensorFlow major version <code>. However, the functionality required to build or modify such a model may not be available any more, so this guarantee only applies to the unmodified SavedModel.
+
+We will endeavor to preserve backwards compatibility as long as possible, so that the serialized files are usable over long periods of time.
+
+GraphDef compatibility.
+
+Graphs are serialized via the <code> protocol buffer. To facilitate backwards incompatible changes to graphs, each <code> has a version number separate from the TensorFlow version. For example, <code> version 17 deprecated the <code> op in favor of <code>. The semantics are:
+
+Each version of TensorFlow supports an interval of <code> versions. This interval will be constant across patch releases, and will only grow across minor releases. Dropping support for a <code> version will only occur for a major release of TensorFlow (and only aligned with the version support guaranteed for SavedModels).
+
+Newly created graphs are assigned the latest <code> version number.
+
+If a given version of TensorFlow supports the <code> version of a graph, it will load and evaluate with the same behavior as the TensorFlow version used to generate it (except for floating point numerical details and random numbers as outlined above), regardless of the major version of TensorFlow. In particular, a GraphDef which is compatible with a checkpoint file in one version of TensorFlow (such as is the case in a SavedModel) will remain compatible with that checkpoint in subsequent versions, as long as the GraphDef is supported.
+
+Note that this applies only to serialized Graphs in GraphDefs (and SavedModels): Code which reads a checkpoint may not be able to read checkpoints generated by the same code running a different version of TensorFlow.
+
+If the <code> upper bound is increased to X in a (minor) release, there will be at least six months before the lower bound is increased to X. For example (we're using hypothetical version numbers here):
+
+TensorFlow 1.2 might support <code> versions 4 to 7.
+
+TensorFlow 1.3 could add <code> version 8 and support versions 4 to 8.
+
+At least six months later, TensorFlow 2.0.0 could drop support for versions 4 to 7, leaving version 8 only.
+
+Note that because major versions of TensorFlow are usually published more than 6 months apart, the guarantees for supported SavedModels detailed above are much stronger than the 6 months guarantee for GraphDefs.
+
+Finally, when support for a <code> version is dropped, we will attempt to provide tools for automatically converting graphs to a newer supported <code> version.
+
+Graph and checkpoint compatibility when extending TensorFlow.
+
+This section is relevant only when making incompatible changes to the <code> format, such as when adding ops, removing ops, or changing the functionality of existing ops. The previous section should suffice for most users.
+
+Backward and partial forward compatibility.
+
+Our versioning scheme has three requirements:
+
+Backward compatibility to support loading graphs and checkpoints created with older versions of TensorFlow.
+
+Forward compatibility to support scenarios where the producer of a graph or checkpoint is upgraded to a newer version of TensorFlow before the consumer.
+
+Enable evolving TensorFlow in incompatible ways. For example, removing ops, adding attributes, and removing attributes.
+
+Note that while the <code> version mechanism is separate from the TensorFlow version, backwards incompatible changes to the <code> format are still restricted by Semantic Versioning. This means functionality can only be removed or changed between <code> versions of TensorFlow (such as <code> to <code>). Additionally, forward compatibility is enforced within Patch releases (<code> to <code> for example).
+
+To achieve backward and forward compatibility and to know when to enforce changes in formats, graphs and checkpoints have metadata that describes when they were produced. The sections below detail the TensorFlow implementation and guidelines for evolving <code> versions.
+
+Independent data version schemes.
+
+There are different data versions for graphs and checkpoints. The two data formats evolve at different rates from each other and also at different rates from TensorFlow. Both versioning systems are defined in <code> and <code>. Whenever a new version is added, a note is added to the header detailing what changed and the date.
+
+Data, producers, and consumers.
+
+We distinguish between the following kinds of data version information:
+
+producers: binaries that produce data. Producers have a version (<code>) and a minimum consumer version that they are compatible with (<code>).
+
+consumers: binaries that consume data. Consumers have a version (<code>) and a minimum producer version that they are compatible with (<code>).
+
+Each piece of versioned data has a `VersionDef versions` field which records the <code> that made the data, the <code> that it is compatible with, and a list of <code> versions that are disallowed.
+
+By default, when a producer makes some data, the data inherits the producer's <code> and <code> versions. <code> can be set if specific consumer versions are known to contain bugs and must be avoided. A consumer can accept a piece of data if the following are all true:
+
+<code> >= data's <code>.
+
+data's <code> >= consumer's <code>.
+
+<code> not in data's <code>.
+
+Since both producers and consumers come from the same TensorFlow code base, <code> contains a main data version which is treated as either <code> or <code> depending on context and both <code> and <code> (needed by producers and consumers, respectively). Specifically.
+
+For <code> versions, we have <code>, <code>, and <code>.
+
+For checkpoint versions, we have <code>, <code>, and <code>.
+
+Add a new attribute with default to an existing op.
+
+Following the guidance below gives you forward compatibility only if the set of ops has not changed:
+
+If forward compatibility is desired, set <code> to <code> while exporting the model using either the <code> and <code> methods of the <code> class, or <code>.
+
+This strips off the default valued attributes at the time of producing/exporting the models. This makes sure that the exported <code> does not contain the new op-attribute when the default value is used.
+
+Having this control could allow out-of-date consumers (for example, serving binaries that lag behind training binaries) to continue loading the models and prevent interruptions in model serving.
+
+Evolving GraphDef versions.
+
+This section explains how to use this versioning mechanism to make different types of changes to the <code> format.
+
+Add an op.
+
+Add the new op to both consumers and producers at the same time, and do not change any <code> versions. This type of change is automatically backward compatible, and does not impact forward compatibility plan since existing producer scripts will not suddenly use the new functionality.
+
+Add an op and switch existing Python wrappers to use it.
+
+Implement new consumer functionality and increment the <code> version.
+
+If it is possible to make the wrappers use the new functionality only in cases that did not work before, the wrappers can be updated now.
+
+Change Python wrappers to use the new functionality. Do not increment <code>, since models that do not use this op should not break.
+
+Remove or restrict an op's functionality.
+
+Fix all producer scripts (not TensorFlow itself) to not use the banned op or functionality.
+
+Increment the <code> version and implement new consumer functionality that bans the removed op or functionality for GraphDefs at the new version and above. If possible, make TensorFlow stop producing <code> with the banned functionality. To do so, add the `REGISTEROP(...).Deprecated(deprecatedat_version, message)`.
+
+Wait for a major release for backward compatibility purposes.
+
+Increase <code> to the GraphDef version from (2) and remove the functionality entirely.
+
+Change an op's functionality.
+
+Add a new similar op named <code> or similar and go through the process of adding it and switching existing Python wrappers to use it. To ensure forward compatibility use the checks suggested in compat.py when changing the Python wrappers.
+
+Remove the old op (Can only take place with a major version change due to backward compatibility).
+
+Increase <code> to rule out consumers with the old op, add back the old op as an alias for <code>, and go through the process to switch existing Python wrappers to use it.
+
+Go through the process to remove <code>.
+
+Ban a single unsafe consumer version.
+
+Bump the <code> version and add the bad version to <code> for all new GraphDefs. If possible, add to <code> only for GraphDefs which contain a certain op or similar.
+
+If existing consumers have the bad version, push them out as soon as possible.

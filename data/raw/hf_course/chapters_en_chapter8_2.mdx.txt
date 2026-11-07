@@ -1,0 +1,79 @@
+What to do when you get an error.
+
+In this section we'll look at some common errors that can occur when you're trying to generate predictions from your freshly tuned Transformer model. This will prepare you for section 4, where we'll explore how to debug the training phase itself.
+
+We've prepared a template model repository for this section, and if you want to run the code in this chapter you'll first need to copy the model to your account on the Hugging Face Hub. To do so, first log in by running either the following in a Jupyter notebook:
+
+or the following in your favorite terminal:
+
+This will prompt you to enter your username and password, and will save a token under ~/.cache/huggingface/. Once you've logged in, you can copy the template repository with the following function:
+
+Now when you call <code>, it will create a copy of the template repository under your account.
+
+Debugging the pipeline from 🤗 Transformers.
+
+To kick off our journey into the wonderful world of debugging Transformer models, consider the following scenario: you're working with a colleague on a question answering project to help the customers of an e-commerce website find answers about consumer products. Your colleague shoots you a message like: G'day! I just ran an experiment using the techniques in Chapter 7 of the Hugging Face course and got some great results on SQuAD! I think we can use this model as a starting point for our project. The model ID on the Hub is "lewtun/distillbert-base-uncased-finetuned-squad-d5716d28". Feel free to test it out :).
+
+and the first thing you think of is to load the model using the <code> from 🤗 Transformers:
+
+Oh no, something seems to have gone wrong! If you're new to programming, these kind of errors can seem a bit cryptic at first (what even is an <code>?!). The error displayed here is just the last part of a much larger error report called a Python traceback (aka stack trace). For example, if you're running this code on Google Colab, you should see something like the following screenshot:
+
+There's a lot of information contained in these reports, so let's walk through the key parts together. The first thing to note is that tracebacks should be read from bottom to top. This might sound weird if you're used to reading English text from top to bottom, but it reflects the fact that the traceback shows the sequence of function calls that the <code> makes when downloading the model and tokenizer. (Check out Chapter 2 for more details on how the <code> works under the hood.).
+
+🚨 See that blue box around "6 frames" in the traceback from Google Colab? That's a special feature of Colab, which compresses the traceback into "frames." If you can't seem to find the source of an error, make sure you expand the full traceback by clicking on those two little arrows.
+
+This means that the last line of the traceback indicates the last error message and gives the name of the exception that was raised. In this case, the exception type is <code>, which indicates a system-related error. If we read the accompanying error message, we can see that there seems to be a problem with the model's config.json file, and we're given two suggestions to fix it:
+
+💡 If you encounter an error message that is difficult to understand, just copy and paste the message into the Google or Stack Overflow search bar (yes, really!). There's a good chance that you're not the first person to encounter the error, and this is a good way to find solutions that others in the community have posted. For example, searching for <code> on Stack Overflow gives several hits that could be used as a starting point for solving the problem.
+
+The first suggestion is asking us to check whether the model ID is actually correct, so the first order of business is to copy the identifier and paste it into the Hub's search bar:
+
+Hmm, it indeed looks like our colleague's model is not on the Hub... aha, but there's a typo in the name of the model! DistilBERT only has one "l" in its name, so let's fix that and look for "lewtun/distilbert-base-uncased-finetuned-squad-d5716d28" instead:
+
+Okay, this got a hit. Now let's try to download the model again with the correct model ID:
+
+Argh, foiled again -- welcome to the daily life of a machine learning engineer! Since we've fixed the model ID, the problem must lie in the repository itself. A quick way to access the contents of a repository on the 🤗 Hub is via the <code> function of the <code> library:
+
+Interesting -- there doesn't seem to be a config.json file in the repository! No wonder our <code> couldn't load the model; our colleague must have forgotten to push this file to the Hub after they fine-tuned it. In this case, the problem seems pretty straightforward to fix: we could ask them to add the file, or, since we can see from the model ID that the pretrained model used was <code>, we can download the config for this model and push it to our repo to see if that resolves the problem. Let's try that. Using the techniques we learned in Chapter 2, we can download the model's configuration with the <code> class:
+
+🚨 The approach we're taking here is not foolproof, since our colleague may have tweaked the configuration of <code> before fine-tuning the model. In real life, we'd want to check with them first, but for the purposes of this section we'll assume they used the default configuration.
+
+We can then push this to our model repository with the configuration's <code> function:
+
+Now we can test if this worked by loading the model from the latest commit on the <code> branch:
+
+Woohoo, it worked! Let's recap what you've just learned:
+
+The error messages in Python are known as tracebacks and are read from bottom to top. The last line of the error message usually contains the information you need to locate the source of the problem.
+
+If the last line does not contain sufficient information, work your way up the traceback and see if you can identify where in the source code the error occurs.
+
+If none of the error messages can help you debug the problem, try searching online for a solution to a similar issue.
+
+The <code> // 🤗 Hub? library provides a suite of tools that you can use to interact with and debug repositories on the Hub.
+
+Now that you know how to debug a pipeline, let's take a look at a trickier example in the forward pass of the model itself.
+
+Debugging the forward pass of your model.
+
+Although the <code> is great for most applications where you need to quickly generate predictions, sometimes you'll need to access the model's logits (say, if you have some custom post-processing that you'd like to apply). To see what can go wrong in this case, let's first grab the model and tokenizer from our <code>:
+
+Next we need a question, so let's see if our favorite frameworks are supported:
+
+As we saw in Chapter 7, the usual steps we need to take are tokenizing the inputs, extracting the logits of the start and end tokens, and then decoding the answer span:
+
+Oh dear, it looks like we have a bug in our code! But we're not afraid of a little debugging. You can use the Python debugger in a notebook:
+
+or in a terminal:
+
+Here, reading the error message tells us that <code>, and we can see a <code> arrow pointing to the line where the problem was raised in <code>.You can debug this interactively using the Python debugger, but for now we'll simply print out a slice of <code> to see what we have:
+
+This certainly looks like an ordinary Python <code>, but let's double-check the type:
+
+Yep, that's a Python <code> for sure. So what went wrong? Recall from Chapter 2 that the <code> classes in 🤗 Transformers operate on tensors (either in PyTorch or TensorFlow), and a common operation is to extract the dimensions of a tensor using <code> in, say, PyTorch. Let's take another look at the traceback, to see which line triggered the exception:
+
+It looks like our code tried to call <code>, but this clearly won't work for a Python <code>, which is just a container. How can we solve this problem? Searching for the error message on Stack Overflow gives quite a few relevant hits. Clicking on the first one displays a similar question to ours, with the answer shown in the screenshot below:
+
+The answer recommends that we add <code> to the tokenizer, so let's see if that works for us:
+
+Nice, it worked! This is a great example of how useful Stack Overflow can be: by identifying a similar problem, we were able to benefit from the experience of others in the community. However, a search like this won't always yield a relevant answer, so what can you do in such cases? Fortunately, there is a welcoming community of developers on the Hugging Face forums that can help you out! In the next section, we'll take a look at how you can craft good forum questions that are likely to get answered.

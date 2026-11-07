@@ -1,0 +1,53 @@
+(Beta) Implementing High-Performance Transformers with Scaled Dot Product Attention (SDPA).
+
+Summary.
+
+In this tutorial, we want to highlight a new <code> function that can be helpful for implementing transformer architectures. The function is named <code>. For detailed description of the function, see the PyTorch documentation. This function has already been incorporated into <code> and <code>.
+
+Overview At a high level, this PyTorch function calculates the scaled dot product attention (SDPA) between query, key, and value according to the definition found in the paper Attention is all you need. While this function can be written in PyTorch using existing functions, a fused implementation can provide large performance benefits over a naive implementation.
+
+Fused implementations.
+
+For CUDA tensor inputs, the function will dispatch into one of the following implementations:
+
+FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness.
+
+Memory-Efficient Attention.
+
+A PyTorch implementation defined in C++.
+
+Explicit Dispatcher Control.
+
+While the function will implicitly dispatch to one of the three implementations, the user can also explicitly control the dispatch via the use of a context manager. This context manager allows users to explicitly disable certain implementations. If a user wants to ensure the function is indeed using the fastest implementation for their specific inputs, the context manager can be used to sweep through measuring performance.
+
+Hardware dependence.
+
+Depending on what machine you ran the above cell on and what hardware is available, your results might be different.
+
+If you don’t have a GPU and are running on CPU then with FP32 the context manager will have no effect and all three runs should return similar timings.
+
+Depending on what compute capability your graphics card supports flash attention or memory efficient might have failed.
+
+Causal Self Attention.
+
+Below is an example implementation of a multi-headed causal self attention block inspired by Andrej Karpathy NanoGPT repository.
+
+<code> and Dense tensor support.
+
+SDPA supports both <code> and Dense tensor inputs. <code> handle the case where the input is a batch of variable length sequences without needing to pad each sequence to the maximum length in the batch. For more information about <code> see torch.nested and NestedTensors Tutorial.
+
+Using SDPA with <code>.
+
+With the release of PyTorch 2.0, a new feature called <code> has been introduced, which can provide significant performance improvements over eager mode. Scaled dot product attention is fully composable with <code>. To demonstrate this, let's compile the <code> module using <code> and observe the resulting performance improvements.
+
+The exact execution time is dependent on machine, however the results for mine: The non compiled module runs in 166.616 microseconds The compiled module runs in 166.726 microseconds That is not what we were expecting. Let's dig a little deeper. PyTorch comes with an amazing built-in profiler that you can use to inspect the performance characteristics of your code.
+
+The previous code snippet generates a report of the top 10 PyTorch functions that consumed the most GPU execution time, for both the compiled and non-compiled module. The analysis reveals that the majority of time spent on the GPU is concentrated on the same set of functions for both modules. The reason for this here is that <code> is very good at removing the framework overhead associated with PyTorch. If your model is launching large, efficient CUDA kernels, which in this case <code> is, then the overhead of PyTorch can be hidden.
+
+In reality, your module does not normally consist of a singular <code> block. When experimenting with Andrej Karpathy NanoGPT repository, compiling the module took the time per train step from: <code> to <code>! This was done on commit: <code> of NanoGPT training on the Shakespeare dataset.
+
+Using SDPA with attn_bias subclasses.
+
+Conclusion.
+
+In this tutorial, we have demonstrated the basic usage of <code>. We have shown how the <code> context manager can be used to assert a certain implementation is used on GPU. As well, we built a simple <code> module that works with <code> and is torch compilable. In the process we have shown how to the profiling tools can be used to explore the performance characteristics of a user defined module.

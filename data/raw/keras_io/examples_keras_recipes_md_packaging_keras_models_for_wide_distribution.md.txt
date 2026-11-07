@@ -1,0 +1,81 @@
+Packaging Keras models for wide distribution using Functional Subclassing.
+
+Introduction.
+
+Keras is the ideal framework for sharing your cutting-edge deep learning models, in a library of pre-trained (or not) models. Millions of ML engineers are fluent in the familiar Keras API, making your models accessible to a global community, whatever their preferred backend (Jax, PyTorch or TensorFlow).
+
+One of the benefits of the Keras API is that it lets users programmatically inspect or edit a model, a feature that is necessary when creating new architectures or workflows based on a pre-trained model.
+
+When distributing models, the Keras team recommends packaging them using the Functional Subclassing pattern. Models implemented in this way combine two benefits:
+
+They can be instantiated in the normal pythonic way: <code>.
+
+They are Keras functional models which means that they have a programmatically accessible graph of layers, for introspection or model surgery.
+
+This guide explains how to use the Functional Subclassing pattern, and showcases its benefits for programmatic model introspection and model surgery. It also shows two other best practices for sharable Keras models: configuring models for the widest range of supported inputs, for example images of various sizes, and using dictionary inputs for clarity in more complex models.
+
+Setup.
+
+Dataset.
+
+Let's load an MNIST dataset so that we have something to train with.
+
+Functional Subclassing Model.
+
+The model is wrapped in a class so that end users can instantiate it normally by calling the constructor <code> rather than calling a factory function.
+
+Let's instantiate and train this model.
+
+Unconstrained inputs.
+
+Notice, in the model definition above, that the input is specified with undefined dimensions: <code>.
+
+This allows the model to accept any image size as an input. However, this only works if the loosely defined shape can be propagated through all the layers and still determine the size of all weights.
+
+So if you have a model architecture that can handle different input sizes with the same weights (like here), then your users will be able to instantiate it without parameters: <code>.
+
+If on the other hand, the model must provision different weights for different input sizes, you will have to ask your users to specify the size in the constructor: <code>.
+
+Model introspection.
+
+Keras maintains a programmatically accessible graph of layers for every model. It can be used for introspection and is accessed through the <code> or <code> attribute. The utility function <code> also uses this mechanism internally.
+
+Model: "mnistmodel1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer1 ( InputLayer ) │ ( None , None , None , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ rescaling1 ( Rescaling ) │ ( None , None , None , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d3 ( Conv2D ) │ ( None , None , None , 16 ) │ 160 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d4 ( Conv2D ) │ ( None , None , None , 32 ) │ 18,464 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d5 ( Conv2D ) │ ( None , None , None , 48 ) │ 55,344 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ globalaveragepooling2d1 │ ( None , 48 ) │ 0 │ │ ( GlobalAveragePooling2D ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense1 ( Dense ) │ ( None , 48 ) │ 2,352 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout1 ( Dropout ) │ ( None , 48 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ classificationhead ( Dense ) │ ( None , 10 ) │ 490 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 76,810 (300.04 KB).
+
+Trainable params: 76,810 (300.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Model surgery.
+
+End users might want to instantiate the model from your library but modify it before use. Functional models have a programmatically accessible graph of layers. Edits are possible by slicing and splicing the graph and creating a new functional model.
+
+The alternative is to fork the model code and make the modifications but that forces users to then maintain their fork indefinitely.
+
+Example: instantiate the model but change the classification head to do a binary classification, "0" or "not 0", instead of the original 10-way digits classification.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer2 ( InputLayer ) │ ( None , None , None , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ rescaling2 ( Rescaling ) │ ( None , None , None , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d6 ( Conv2D ) │ ( None , None , None , 16 ) │ 160 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d7 ( Conv2D ) │ ( None , None , None , 32 ) │ 18,464 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d8 ( Conv2D ) │ ( None , None , None , 48 ) │ 55,344 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ globalaveragepooling2d2 │ ( None , 48 ) │ 0 │ │ ( GlobalAveragePooling2D ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense2 ( Dense ) │ ( None , 48 ) │ 2,352 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout2 ( Dropout ) │ ( None , 48 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ binaryclassification_head │ ( None , 1 ) │ 49 │ │ ( Dense ) │ │ │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 76,369 (298.32 KB).
+
+Trainable params: 76,369 (298.32 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+We can now train the new model as a binary classifier.
+
+Model with dictionary inputs.
+
+In more complex models, with multiple inputs, structuring the inputs as a dictionary can improve readability and usability. This is straightforward to do with a functional model:
+
+We can now train the model on inputs structured as a dictionary.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 18: Best practices for the real world.

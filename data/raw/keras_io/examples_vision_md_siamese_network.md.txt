@@ -1,0 +1,85 @@
+Image similarity estimation using a Siamese Network with a triplet loss.
+
+Introduction.
+
+A Siamese Network is a type of network architecture that contains two or more identical subnetworks used to generate feature vectors for each input and compare them.
+
+Siamese Networks can be applied to different use cases, like detecting duplicates, finding anomalies, and face recognition.
+
+This example uses a Siamese Network with three identical subnetworks. We will provide three images to the model, where two of them will be similar (anchor and positive samples), and the third will be unrelated (a negative example.) Our goal is for the model to learn to estimate the similarity between images.
+
+For the network to learn, we use a triplet loss function. You can find an introduction to triplet loss in the FaceNet paper by Schroff et al,. 2015. In this example, we define the triplet loss function as follows:
+
+<code>.
+
+This example uses the Totally Looks Like dataset by Rosenfeld et al., 2018.
+
+Setup.
+
+Load the dataset.
+
+We are going to load the Totally Looks Like dataset and unzip it inside the <code> directory in the local environment.
+
+The dataset consists of two separate files:
+
+<code> contains the images that we will use as the anchor.
+
+<code> contains the images that we will use as the positive sample (an image that looks like the anchor).
+
+Preparing the data.
+
+We are going to use a <code> pipeline to load the data and generate the triplets that we need to train the Siamese network.
+
+We'll set up the pipeline using a zipped list with anchor, positive, and negative filenames as the source. The pipeline will load and preprocess the corresponding images.
+
+Let's setup our data pipeline using a zipped list with an anchor, positive, and negative image filename as the source. The output of the pipeline contains the same triplet with every image loaded and preprocessed.
+
+Let's take a look at a few examples of triplets. Notice how the first two images look alike while the third one is always different.
+
+Setting up the embedding generator model.
+
+Our Siamese Network will generate embeddings for each of the images of the triplet. To do this, we will use a ResNet50 model pretrained on ImageNet and connect a few <code> layers to it so we can learn to separate these embeddings.
+
+We will freeze the weights of all the layers of the model up until the layer <code>. This is important to avoid affecting the weights that the model has already learned. We are going to leave the bottom few layers trainable, so that we can fine-tune their weights during training.
+
+Setting up the Siamese Network model.
+
+The Siamese network will receive each of the triplet images as an input, generate the embeddings, and output the distance between the anchor and the positive embedding, as well as the distance between the anchor and the negative embedding.
+
+To compute the distance, we can use a custom layer <code> that returns both values as a tuple.
+
+Putting everything together.
+
+We now need to implement a model with custom training loop so we can compute the triplet loss using the three embeddings produced by the Siamese network.
+
+Let's create a <code> metric instance to track the loss of the training process.
+
+Training.
+
+We are now ready to train our model.
+
+Inspecting what the network has learned.
+
+At this point, we can check how the network learned to separate the embeddings depending on whether they belong to similar images.
+
+We can use cosine similarity to measure the similarity between embeddings.
+
+Let's pick a sample from the dataset to check the similarity between the embeddings generated for each image.
+
+Finally, we can compute the cosine similarity between the anchor and positive images and compare it with the similarity between the anchor and the negative images.
+
+We should expect the similarity between the anchor and positive images to be larger than the similarity between the anchor and the negative images.
+
+Summary.
+
+The <code> API enables you to build efficient input pipelines for your model. It is particularly useful if you have a large dataset. You can learn more about <code> pipelines in tf.data: Build TensorFlow input pipelines.
+
+In this example, we use a pre-trained ResNet50 as part of the subnetwork that generates the feature embeddings. By using transfer learning, we can significantly reduce the training time and size of the dataset.
+
+Notice how we are fine-tuning the weights of the final layers of the ResNet50 network but keeping the rest of the layers untouched. Using the name assigned to each layer, we can freeze the weights to a certain point and keep the last few layers open.
+
+We can create custom layers by creating a class that inherits from <code>, as we did in the <code> class.
+
+We used a cosine similarity metric to measure how to 2 output embeddings are similar to each other.
+
+You can implement a custom training loop by overriding the <code> method. <code> uses <code>, which records every operation that you perform inside it. In this example, we use it to access the gradients passed to the optimizer to update the model weights at every step. For more details, check out the Intro to Keras for researchers and Writing a training loop from scratch.

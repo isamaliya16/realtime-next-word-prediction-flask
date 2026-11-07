@@ -1,0 +1,111 @@
+Forward Propagation, Backward Propagation, and Computational Graphs.
+
+So far, we have trained our models with minibatch stochastic gradient descent. However, when we implemented the algorithm, we only worried about the calculations involved in forward propagation through the model. When it came time to calculate the gradients, we just invoked the backpropagation function provided by the deep learning framework.
+
+The automatic calculation of gradients profoundly simplifies the implementation of deep learning algorithms. Before automatic differentiation, even small changes to complicated models required recalculating complicated derivatives by hand. Surprisingly often, academic papers had to allocate numerous pages to deriving update rules. While we must continue to rely on automatic differentiation so we can focus on the interesting parts, you ought to know how these gradients are calculated under the hood if you want to go beyond a shallow understanding of deep learning.
+
+In this section, we take a deep dive into the details of backward propagation (more commonly called backpropagation). To convey some insight for both the techniques and their implementations, we rely on some basic mathematics and computational graphs. To start, we focus our exposition on a one-hidden-layer MLP with weight decay (<math> regularization, to be described in subsequent chapters).
+
+Forward Propagation.
+
+Forward propagation (or forward pass) refers to the calculation and storage of intermediate variables (including outputs) for a neural network in order from the input layer to the output layer. We now work step-by-step through the mechanics of a neural network with one hidden layer. This may seem tedious but in the eternal words of funk virtuoso James Brown, you must "pay the cost to be the boss".
+
+For the sake of simplicity, let's assume that the input example is <math> and that our hidden layer does not include a bias term. Here the intermediate variable is:
+
+<math>.
+
+where <math> is the weight parameter of the hidden layer. After running the intermediate variable <math> through the activation function <math> we obtain our hidden activation vector of length <math>:
+
+<math>.
+
+The hidden layer output <math> is also an intermediate variable. Assuming that the parameters of the output layer possess only a weight of <math>, we can obtain an output layer variable with a vector of length <math>:
+
+<math>.
+
+Assuming that the loss function is <math> and the example label is <math>, we can then calculate the loss term for a single data example.
+
+<math>.
+
+As we will see the definition of <math> regularization to be introduced later, given the hyperparameter <math>, the regularization term is.
+
+<math>.
+
+where the Frobenius norm of the matrix is simply the <math> norm applied after flattening the matrix into a vector. Finally, the model's regularized loss on a given data example is:
+
+<math>.
+
+We refer to <math> as the objective function in the following discussion.
+
+Computational Graph of Forward Propagation.
+
+Plotting computational graphs helps us visualize the dependencies of operators and variables within the calculation. section <num> contains the graph associated with the simple network described above, where squares denote variables and circles denote operators. The lower-left corner signifies the input and the upper-right corner is the output. Notice that the directions of the arrows (which illustrate data flow) are primarily rightward and upward.
+
+Backpropagation.
+
+Backpropagation refers to the method of calculating the gradient of neural network parameters. In short, the method traverses the network in reverse order, from the output to the input layer, according to the chain rule from calculus. The algorithm stores any intermediate variables (partial derivatives) required while calculating the gradient with respect to some parameters. Assume that we have functions <math> and <math>, in which the input and the output <math> are tensors of arbitrary shapes. By using the chain rule, we can compute the derivative of <math> with respect to <math> via.
+
+<math>.
+
+Here we use the <math> operator to multiply its arguments after the necessary operations, such as transposition and swapping input positions, have been carried out. For vectors, this is straightforward: it is simply matrix--matrix multiplication. For higher dimensional tensors, we use the appropriate counterpart. The operator <math> hides all the notational overhead.
+
+Recall that the parameters of the simple network with one hidden layer, whose computational graph is in section <num>, are <math> and <math>. The objective of backpropagation is to calculate the gradients <math> and <math>. To accomplish this, we apply the chain rule and calculate, in turn, the gradient of each intermediate variable and parameter. The order of calculations are reversed relative to those performed in forward propagation, since we need to start with the outcome of the computational graph and work our way towards the parameters. The first step is to calculate the gradients of the objective function <math> with respect to the loss term <math> and the regularization term <math>:
+
+<math>.
+
+Next, we compute the gradient of the objective function with respect to variable of the output layer <math> according to the chain rule:
+
+<math>.
+
+Next, we calculate the gradients of the regularization term with respect to both parameters:
+
+<math>.
+
+Now we are able to calculate the gradient <math> of the model parameters closest to the output layer. Using the chain rule yields:
+
+<math>.
+
+To obtain the gradient with respect to <math> we need to continue backpropagation along the output layer to the hidden layer. The gradient with respect to the hidden layer output <math> is given by.
+
+<math>.
+
+Since the activation function <math> applies elementwise, calculating the gradient <math> of the intermediate variable <math> requires that we use the elementwise multiplication operator, which we denote by <math>:
+
+<math>.
+
+Finally, we can obtain the gradient <math> of the model parameters closest to the input layer. According to the chain rule, we get.
+
+<math>.
+
+Training Neural Networks.
+
+When training neural networks, forward and backward propagation depend on each other. In particular, for forward propagation, we traverse the computational graph in the direction of dependencies and compute all the variables on its path. These are then used for backpropagation where the compute order on the graph is reversed.
+
+Take the aforementioned simple network as an illustrative example. On the one hand, computing the regularization term <num> during forward propagation depends on the current values of model parameters <math> and <math>. They are given by the optimization algorithm according to backpropagation in the most recent iteration. On the other hand, the gradient calculation for the parameter <num> during backpropagation depends on the current value of the hidden layer output <math>, which is given by forward propagation.
+
+Therefore when training neural networks, once model parameters are initialized, we alternate forward propagation with backpropagation, updating model parameters using gradients given by backpropagation. Note that backpropagation reuses the stored intermediate values from forward propagation to avoid duplicate calculations. One of the consequences is that we need to retain the intermediate values until backpropagation is complete. This is also one of the reasons why training requires significantly more memory than plain prediction. Besides, the size of such intermediate values is roughly proportional to the number of network layers and the batch size. Thus, training deeper networks using larger batch sizes more easily leads to out-of-memory errors.
+
+Summary.
+
+Forward propagation sequentially calculates and stores intermediate variables within the computational graph defined by the neural network. It proceeds from the input to the output layer. Backpropagation sequentially calculates and stores the gradients of intermediate variables and parameters within the neural network in the reversed order. When training deep learning models, forward propagation and backpropagation are interdependent, and training requires significantly more memory than prediction.
+
+Exercises.
+
+Assume that the inputs <math> to some scalar function <math> are <math> matrices. What is the dimensionality of the gradient of <math> with respect to <math>?
+
+Add a bias to the hidden layer of the model described in this section (you do not need to include bias in the regularization term).
+
+Draw the corresponding computational graph.
+
+Derive the forward and backward propagation equations.
+
+Compute the memory footprint for training and prediction in the model described in this section.
+
+Assume that you want to compute second derivatives. What happens to the computational graph? How long do you expect the calculation to take?
+
+Assume that the computational graph is too large for your GPU.
+
+Can you partition it over more than one GPU?
+
+What are the advantages and disadvantages over training on a smaller minibatch?
+
+Discussions.

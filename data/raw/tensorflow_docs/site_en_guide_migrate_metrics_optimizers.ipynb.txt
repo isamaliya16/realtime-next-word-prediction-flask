@@ -1,0 +1,63 @@
+Migrate metrics and optimizers.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+In TF1, <code> is the API namespace for all the metric functions. Each of the metrics is a function that takes <code> and <code> as input parameters and returns the corresponding metrics tensor as result. In TF2, <code> contains all the metric functions and objects. The <code> object can be used with <code> and <code> to calculate metric values.
+
+Setup.
+
+Let's start with a couple of necessary TensorFlow imports.
+
+and prepare some simple data for demonstration:
+
+TF1: tf.compat.v1.metrics with Estimator.
+
+In TF1, the metrics can be added to <code> as the <code>, and the op is generated via all the metrics functions defined in <code>. You can follow the example to see how to use <code>.
+
+Also, metrics could be added to estimator directly via <code>.
+
+TF2: Keras Metrics API with tf.keras.Model.
+
+In TF2, <code> contains all the metrics classes and functions. They are designed in a OOP style and integrate closely with other <code> API. All the metrics can be found in <code> namespace, and there is usually a direct mapping between <code> with <code>.
+
+In the following example, the metrics are added in <code> method. Users only need to create the metric instance, without specifying the label and prediction tensor. The Keras model will route the model output and label to the metrics object.
+
+With eager execution enabled, <code> instances can be directly used to evaluate numpy data or eager tensors. <code> objects are stateful containers. The metric value can be updated via <code>, and the result can be retrieved by <code>.
+
+For more details about <code>, please take a look for the API documentation at <code>, as well as the migration guide.
+
+Migrate TF1.x optimizers to Keras optimizers.
+
+The optimizers in <code>, such as the Adam optimizer and the gradient descent optimizer, have equivalents in <code>.
+
+The table below summarizes how you can convert these legacy optimizers to their Keras equivalents. You can directly replace the TF1.x version with the TF2 version unless additional steps (such as updating the default learning rate) are required.
+
+Note that converting your optimizers may make old checkpoints incompatible.
+
+TF1.x TF2 Additional steps.
+
+<code> <code> None.
+
+<code> <code> Include the <code> argument.
+
+<code> <code> Rename <code> and <code> arguments to <code> and <code>.
+
+<code> <code> Rename the <code> argument to <code>.
+
+<code> <code> None.
+
+<code> <code> None.
+
+<code> <code> Remove the <code> and <code> arguments.
+
+<code> <code> Rename the <code>, and <code> arguments to <code> and <code>.
+
+<code> <code> Rename the <code>, and <code> arguments to <code> and <code>.
+
+Note: In TF2, all epsilons (numerical stability constants) now default to <code> instead of <code>. This difference is negligible in most use cases.

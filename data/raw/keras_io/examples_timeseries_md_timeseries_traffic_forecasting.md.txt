@@ -1,0 +1,93 @@
+Traffic forecasting using graph neural networks and LSTM.
+
+Introduction.
+
+This example shows how to forecast traffic condition using graph neural networks and LSTM. Specifically, we are interested in predicting the future values of the traffic speed given a history of the traffic speed for a collection of road segments.
+
+One popular method to solve this problem is to consider each road segment's traffic speed as a separate timeseries and predict the future values of each timeseries using the past values of the same timeseries.
+
+This method, however, ignores the dependency of the traffic speed of one road segment on the neighboring segments. To be able to take into account the complex interactions between the traffic speed on a collection of neighboring roads, we can define the traffic network as a graph and consider the traffic speed as a signal on this graph. In this example, we implement a neural network architecture which can process timeseries data over a graph. We first show how to process the data and create a tf.data.Dataset for forecasting over graphs. Then, we implement a model which uses graph convolution and LSTM layers to perform forecasting over a graph.
+
+The data processing and the model architecture are inspired by this paper:
+
+Yu, Bing, Haoteng Yin, and Zhanxing Zhu. "Spatio-temporal graph convolutional networks: a deep learning framework for traffic forecasting." Proceedings of the 27th International Joint Conference on Artificial Intelligence, 2018. (github).
+
+Setup.
+
+Data preparation.
+
+Data description.
+
+We use a real-world traffic speed dataset named <code>. We use the version collected and prepared by Yu et al., 2018 and available here.
+
+The data consists of two files:
+
+<code> contains the distances between 228 stations across the District 7 of California.
+
+<code> contains traffic speed collected for those stations in the weekdays of May and June of 2012.
+
+The full description of the dataset can be found in Yu et al., 2018.
+
+Loading data.
+
+sub-sampling roads.
+
+To reduce the problem size and make the training faster, we will only work with a sample of 26 roads out of the 228 roads in the dataset. We have chosen the roads by starting from road 0, choosing the 5 closest roads to it, and continuing this process until we get 25 roads. You can choose any other subset of the roads. We chose the roads in this way to increase the likelihood of having roads with correlated speed timeseries. <code> contains the IDs of the selected roads.
+
+Data visualization.
+
+Here are the timeseries of the traffic speed for two of the routes:
+
+We can also visualize the correlation between the timeseries in different routes.
+
+Using this correlation heatmap, we can see that for example the speed in routes 4, 5, 6 are highly correlated.
+
+Splitting and normalizing data.
+
+Next, we split the speed values array into train/validation/test sets, and normalize the resulting arrays:
+
+Creating TensorFlow Datasets.
+
+Next, we create the datasets for our forecasting problem. The forecasting problem can be stated as follows: given a sequence of the road speed values at times <code>, we want to predict the future values of the roads speed for times <code>. So for each time <code> the inputs to our model are <code> vectors each of size <code> and the targets are <code> vectors each of size <code>, where <code> is the number of roads.
+
+We use the Keras built-in function <code>. The function <code> below takes as input a <code> and returns a <code>. In this function <code> and <code>.
+
+The argument <code> needs more explanation. Assume <code>. If <code> then the model will make a forecast for time steps <code>. So the target will have shape <code>. But if <code>, the model will make a forecast only for time step <code> and so the target will have shape <code>.
+
+You may notice that the input tensor in each batch has shape <code>. The last dimension is added to make the model more general: at each time step, the input features for each raod may contain multiple timeseries. For instance, one might want to use temperature timeseries in addition to historical values of the speed as input features. In this example, however, the last dimension of the input is always 1.
+
+We use the last 12 values of the speed in each road to forecast the speed for 3 time steps ahead:
+
+Roads Graph.
+
+As mentioned before, we assume that the road segments form a graph. The <code> dataset has the road segments distance. The next step is to create the graph adjacency matrix from these distances. Following Yu et al., 2018 (equation 10) we assume there is an edge between two nodes in the graph if the distance between the corresponding roads is less than a threshold.
+
+The function <code> returns a boolean adjacency matrix where 1 means there is an edge between two nodes. We use the following class to store the information about the graph.
+
+Network architecture.
+
+Our model for forecasting over the graph consists of a graph convolution layer and a LSTM layer.
+
+Graph convolution layer.
+
+Our implementation of the graph convolution layer resembles the implementation in this Keras example. Note that in that example input to the layer is a 2D tensor of shape <code> but in our example the input to the layer is a 4D tensor of shape <code>. The graph convolution layer performs the following steps:
+
+The nodes' representations are computed in <code> by multiplying the input features by <code>.
+
+The aggregated neighbors' messages are computed in <code> by first aggregating the neighbors' representations and then multiplying the results by <code>.
+
+The final output of the layer is computed in <code> by combining the nodes representations and the neighbors' aggregated messages.
+
+LSTM plus graph convolution.
+
+By applying the graph convolution layer to the input tensor, we get another tensor containing the nodes' representations over time (another 4D tensor). For each time step, a node's representation is informed by the information from its neighbors.
+
+To make good forecasts, however, we need not only information from the neighbors but also we need to process the information over time. To this end, we can pass each node's tensor through a recurrent layer. The <code> layer below, first applies a graph convolution layer to the inputs and then passes the results through a <code> layer.
+
+Model training.
+
+Making forecasts on test set.
+
+Now we can use the trained model to make forecasts for the test set. Below, we compute the MAE of the model and compare it to the MAE of naive forecasts. The naive forecasts are the last value of the speed for each node.
+
+Of course, the goal here is to demonstrate the method, not to achieve the best performance. To improve the model's accuracy, all model hyperparameters should be tuned carefully. In addition, several of the <code> blocks can be stacked to increase the representation power of the model.

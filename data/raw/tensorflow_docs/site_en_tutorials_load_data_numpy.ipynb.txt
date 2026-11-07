@@ -1,0 +1,27 @@
+Load NumPy data.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial provides an example of loading data from NumPy arrays into a <code>.
+
+This example loads the MNIST dataset from a <code> file. However, the source of the NumPy arrays is not important.
+
+Setup.
+
+Load from <code> file.
+
+Load NumPy arrays with <code>.
+
+Assuming you have an array of examples and a corresponding array of labels, pass the two arrays as a tuple into <code> to create a <code>.
+
+Use the datasets.
+
+Shuffle and batch the datasets.
+
+Build and train a model.

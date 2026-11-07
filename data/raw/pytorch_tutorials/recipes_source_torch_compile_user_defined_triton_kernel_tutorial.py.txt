@@ -1,0 +1,89 @@
+Using User-Defined Triton Kernels with <code> Author: Oguz Ulgen.
+
+User-defined Triton kernels can be used to optimize specific parts of your model's computation. These kernels are written in Triton's language, which is designed to make it easier to achieve peak hardware performance. By using user-defined Triton kernels with <code>, you can integrate these optimized computations into your PyTorch model, potentially achieving significant performance improvements.
+
+This recipes demonstrates how you can use user-defined Triton kernels with <code>.
+
+Prerequisites.
+
+Before starting this recipe, make sure that you have the following:
+
+Basic understanding of <code> and Triton. See:
+
+torch.compiler API documentation.
+
+Introduction to torch.compile.
+
+Triton language documentation.
+
+PyTorch 2.3 or later.
+
+A GPU that supports Triton.
+
+Basic Usage.
+
+In this example, we will use a simple vector addition kernel from the Triton documentation with <code>. For reference, see Triton documentation.
+
+Advanced Usage.
+
+Triton's autotune feature is a powerful tool that automatically optimizes the configuration parameters of your Triton kernels. It explores a range of possible configurations and selects the one that delivers the best performance for your specific use case.
+
+When used with <code>, <code> can help ensure that your PyTorch model is running as efficiently as possible. Here is an example of using <code> and <code>.
+
+Composability.
+
+User-defined Triton kernels do not automatically support all PyTorch subsystems. This can be seen in the following use cases:
+
+Adding a CPU fallback.
+
+Adding a <code> formula.
+
+Composing with Tensor Subclasses.
+
+To compose with additional PyTorch subsystems, use <code>.
+
+<code> a structured way of defining a custom operator that is backed by one or more Triton kernels: like regular custom operators (<code>), you are able to specify the interactions with PyTorch subsystems via <code>. However, unlike <code>, which creates opaque callables with respect to <code>, <code> traces into <code> to apply optimizations.
+
+Here’s a chart of which API to use when integrating Triton kernels with PyTorch.
+
+Wrapping Triton kernels with <code>.
+
+Use <code> to wrap a function that may invoke one or more Triton kernels. Use <code> to wrap the calls to the Triton kernel.
+
+You can invoke the <code> in one of the following two ways.
+
+The resulting <code> works with <code> and <code>.
+
+Adding training support.
+
+Use <code> to add an autograd formula for the <code>. Prefer this to using <code> (which has various composability footguns with <code>).
+
+Note that the backward must be a composition of PyTorch-understood operators. If you want the backward to call Triton kernels, then those must be wrapped in <code> as well:
+
+Adding a CPU Fallback Triton kernels don’t run on CPU. Use <code> to add a CPU (or any other device) fallback for the <code>:
+
+The fallback must be composed of PyTorch operators.
+
+Adding a FlopCounter Formula.
+
+To specify how many flops the triton kernel reports under PyTorch's flop counter, use <code>.
+
+<code> requires tabulate. Before running the code below, make sure you have <code> installed or install by running <code>. >> with FlopCounterMode() as flop_counter: >> y = mysin(x).
+
+Limitations.
+
+As of PyTorch 2.3, the support for user-defined Triton kernels in <code> includes dynamic shapes, <code>, JIT inductor, and AOT inductor. You can use these features together to build complex, high-performance models.
+
+PyTorch 2.6 added <code>, which adds support for user-defined Triton kernels in tensor subclasses and other advanced features.
+
+However, there are certain limitations to be aware of:
+
+Triton Features: While <code> can be used either standalone or before <code>, it cannot be used after <code>. This implies that if <code> and <code> are to be used together, <code> must be used first.
+
+Conclusion In this recipe, we explored how to utilize user-defined Triton kernels with <code>. We delved into the basic usage of a simple vector addition kernel and advanced usage involving Triton's autotune feature. We also discussed the composability of user-defined Triton kernels with other PyTorch features and highlighted some current limitations.
+
+See Also.
+
+Compiling the Optimizers.
+
+Implementing High-Performance Transformers with Scaled Dot Product Attention.

@@ -1,0 +1,157 @@
+Introduction to gradients and automatic differentiation.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Automatic Differentiation and Gradients.
+
+Automatic differentiation is useful for implementing machine learning algorithms such as backpropagation for training neural networks.
+
+In this guide, you will explore ways to compute gradients with TensorFlow, especially in eager execution.
+
+Setup.
+
+Computing gradients.
+
+To differentiate automatically, TensorFlow needs to remember what operations happen in what order during the forward pass. Then, during the backward pass, TensorFlow traverses this list of operations in reverse order to compute gradients.
+
+Gradient tapes.
+
+TensorFlow provides the <code> API for automatic differentiation; that is, computing the gradient of a computation with respect to some inputs, usually <code>s. TensorFlow "records" relevant operations executed inside the context of a <code> onto a "tape". TensorFlow then uses that tape to compute the gradients of a "recorded" computation using reverse mode differentiation.
+
+Here is a simple example:
+
+Once you've recorded some operations, use <code> to calculate the gradient of some target (often a loss) relative to some source (often the model's variables):
+
+The above example uses scalars, but <code> works as easily on any tensor:
+
+To get the gradient of <code> with respect to both variables, you can pass both as sources to the <code> method. The tape is flexible about how sources are passed and will accept any nested combination of lists or dictionaries and return the gradient structured the same way (see <code>).
+
+The gradient with respect to each source has the shape of the source:
+
+Here is the gradient calculation again, this time passing a dictionary of variables:
+
+Gradients with respect to a model.
+
+It's common to collect <code> into a <code> or one of its subclasses (<code>, <code>) for checkpointing and exporting.
+
+In most cases, you will want to calculate gradients with respect to a model's trainable variables. Since all subclasses of <code> aggregate their variables in the <code> property, you can calculate these gradients in a few lines of code:
+
+Controlling what the tape watches.
+
+The default behavior is to record all operations after accessing a trainable <code>. The reasons for this are:
+
+The tape needs to know which operations to record in the forward pass to calculate the gradients in the backwards pass.
+
+The tape holds references to intermediate outputs, so you don't want to record unnecessary operations.
+
+The most common use case involves calculating the gradient of a loss with respect to all a model's trainable variables.
+
+For example, the following fails to calculate a gradient because the <code> is not "watched" by default, and the <code> is not trainable:
+
+You can list the variables being watched by the tape using the <code> method:
+
+<code> provides hooks that give the user control over what is or is not watched.
+
+To record gradients with respect to a <code>, you need to call <code>:
+
+Conversely, to disable the default behavior of watching all <code>, set <code> when creating the gradient tape. This calculation uses two variables, but only connects the gradient for one of the variables:
+
+Since <code> was not called on <code>, no gradient is computed with respect to it:
+
+Intermediate results.
+
+You can also request gradients of the output with respect to intermediate values computed inside the <code> context.
+
+By default, the resources held by a <code> are released as soon as the <code> method is called. To compute multiple gradients over the same computation, create a gradient tape with <code>. This allows multiple calls to the <code> method as resources are released when the tape object is garbage collected. For example:
+
+Notes on performance.
+
+There is a tiny overhead associated with doing operations inside a gradient tape context. For most eager execution this will not be a noticeable cost, but you should still use tape context around the areas only where it is required.
+
+Gradient tapes use memory to store intermediate results, including inputs and outputs, for use during the backwards pass.
+
+For efficiency, some ops (like <code>) don't need to keep their intermediate results and they are pruned during the forward pass. However, if you use <code> on your tape, nothing is discarded and your peak memory usage will be higher.
+
+Gradients of non-scalar targets.
+
+A gradient is fundamentally an operation on a scalar.
+
+Thus, if you ask for the gradient of multiple targets, the result for each source is:
+
+The gradient of the sum of the targets, or equivalently.
+
+The sum of the gradients of each target.
+
+Similarly, if the target(s) are not scalar the gradient of the sum is calculated:
+
+This makes it simple to take the gradient of the sum of a collection of losses, or the gradient of the sum of an element-wise loss calculation.
+
+If you need a separate gradient for each item, refer to Jacobians.
+
+In some cases you can skip the Jacobian. For an element-wise calculation, the gradient of the sum gives the derivative of each element with respect to its input-element, since each element is independent:
+
+Control flow.
+
+Because a gradient tape records operations as they are executed, Python control flow is naturally handled (for example, <code> and <code> statements).
+
+Here a different variable is used on each branch of an <code>. The gradient only connects to the variable that was used:
+
+Just remember that the control statements themselves are not differentiable, so they are invisible to gradient-based optimizers.
+
+Depending on the value of <code> in the above example, the tape either records <code> or <code>. The gradient with respect to <code> is always <code>.
+
+Cases where <code> returns <code>.
+
+When a target is not connected to a source, <code> will return <code>.
+
+Here <code> is obviously not connected to <code>, but there are several less-obvious ways that a gradient can be disconnected.
+
+1. Replaced a variable with a tensor.
+
+In the section on "controlling what the tape watches" you saw that the tape will automatically watch a <code> but not a <code>.
+
+One common error is to inadvertently replace a <code> with a <code>, instead of using <code> to update the <code>. Here is an example:
+
+2. Did calculations outside of TensorFlow.
+
+The tape can't record the gradient path if the calculation exits TensorFlow. For example:
+
+3. Took gradients through an integer or string.
+
+Integers and strings are not differentiable. If a calculation path uses these data types there will be no gradient.
+
+Nobody expects strings to be differentiable, but it's easy to accidentally create an <code> constant or variable if you don't specify the <code>.
+
+TensorFlow doesn't automatically cast between types, so, in practice, you'll often get a type error instead of a missing gradient.
+
+4. Took gradients through a stateful object.
+
+State stops gradients. When you read from a stateful object, the tape can only observe the current state, not the history that lead to it.
+
+A <code> is immutable. You can't change a tensor once it's created. It has a value, but no state. All the operations discussed so far are also stateless: the output of a <code> only depends on its inputs.
+
+A <code> has internal state—its value. When you use the variable, the state is read. It's normal to calculate a gradient with respect to a variable, but the variable's state blocks gradient calculations from going farther back. For example:
+
+Similarly, <code> iterators and <code>s are stateful, and will stop all gradients on tensors that pass through them.
+
+No gradient registered.
+
+Some <code>s are registered as being non-differentiable and will return <code>. Others have no gradient registered.
+
+The <code> page shows which low-level ops have gradients registered.
+
+If you attempt to take a gradient through a float op that has no gradient registered the tape will throw an error instead of silently returning <code>. This way you know something has gone wrong.
+
+For example, the <code> function wraps <code>, which could have a gradient but the gradient is not implemented:
+
+If you need to differentiate through this op, you'll either need to implement the gradient and register it (using <code>) or re-implement the function using other ops.
+
+Zeros instead of None.
+
+In some cases it would be convenient to get 0 instead of <code> for unconnected gradients. You can decide what to return when you have unconnected gradients using the <code> argument:

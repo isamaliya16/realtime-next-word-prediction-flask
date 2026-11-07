@@ -1,0 +1,145 @@
+When Recurrence meets Transformers.
+
+Introduction.
+
+A simple Recurrent Neural Network (RNN) displays a strong inductive bias towards learning temporally compressed representations. Equation 1 shows the recurrence formula, where <code> is the compressed representation (a single vector) of the entire input sequence <code>.
+
+On the other hand, Transformers (Vaswani et. al) have little inductive bias towards learning temporally compressed representations. Transformer has achieved SoTA results in Natural Language Processing (NLP) and Vision tasks with its pairwise attention mechanism.
+
+While the Transformer has the ability to attend to different sections of the input sequence, the computation of attention is quadratic in nature.
+
+Didolkar et. al argue that having a more compressed representation of a sequence may be beneficial for generalization, as it can be easily re-used and re-purposed with fewer irrelevant details. While compression is good, they also notice that too much of it can harm expressiveness.
+
+The authors propose a solution that divides computation into two streams. A slow stream that is recurrent in nature and a fast stream that is parameterized as a Transformer. While this method has the novelty of introducing different processing streams in order to preserve and process latent states, it has parallels drawn in other works like the Perceiver Mechanism (by Jaegle et. al.) and Grounded Language Learning Fast and Slow (by Hill et. al.).
+
+The following example explores how we can make use of the new Temporal Latent Bottleneck mechanism to perform image classification on the CIFAR-10 dataset. We implement this model by making a custom <code> implementation in order to make a performant and vectorized design.
+
+Setup imports.
+
+Setting required configuration.
+
+We set a few configuration parameters that are needed within the pipeline we have designed. The current parameters are for use with the CIFAR10 dataset.
+
+The model also supports <code> settings, which would quantize the model to use <code> float numbers where it can, while keeping some parameters in <code> as needed for numerical stability. This brings performance benefits as the footprint of the model decreases significantly while bringing speed boosts at inference-time.
+
+Loading the CIFAR-10 dataset.
+
+We are going to use the CIFAR10 dataset for running our experiments. This dataset contains a training set of <code> images for <code> classes with the standard image size of <code>.
+
+It also has a separate set of <code> images with similar characteristics. More information about the dataset may be found at the official site for the dataset as well as <code> API reference.
+
+Define data augmentation for the training and validation/test pipelines.
+
+We define separate pipelines for performing image augmentation on our data. This step is important to make the model more robust to changes, helping it generalize better. The preprocessing and augmentation steps we perform are as follows:
+
+<code> (training, test): This step is performed to normalize all image pixel values from the <code> range to <code>. This helps in maintaining numerical stability later ahead during training.
+
+<code> (training, test): We resize the image from it's original size of (32, 32) to (52, 52). This is done to account for the Random Crop, as well as comply with the specifications of the data given in the paper.
+
+<code> (training): This layer randomly selects a crop/sub-region of the image with size <code>.
+
+<code> (training): This layer randomly flips all the images horizontally, keeping image sizes the same.
+
+Load dataset into <code> object.
+
+We take the <code> instance of the datasets and wrap a class around it, wrapping a <code> and apply augmentations with keras preprocessing layers.
+
+Temporal Latent Bottleneck.
+
+An excerpt from the paper: In the brain, short-term and long-term memory have developed in a specialized way. Short-term memory is allowed to change very quickly to react to immediate sensory inputs and perception. By contrast, long-term memory changes slowly, is highly selective and involves repeated consolidation.
+
+Inspired from the short-term and long-term memory the authors introduce the fast stream and slow stream computation. The fast stream has a short-term memory with a high capacity that reacts quickly to sensory input (Transformers). The slow stream has long-term memory which updates at a slower rate and summarizes the most relevant information (Recurrence).
+
+To implement this idea we need to:
+
+Take a sequence of data.
+
+Divide the sequence into fixed-size chunks.
+
+Fast stream operates within each chunk. It provides fine-grained local information.
+
+Slow stream consolidates and aggregates information across chunks. It provides coarse-grained distant information.
+
+The fast and slow stream induce what is called information asymmetry. The two streams interact with each other through a bottleneck of attention. Figure 1 shows the architecture of the model.
+
+A PyTorch-style pseudocode is also proposed by the authors as shown in Algorithm 1.
+
+<code> layer.
+
+This custom <code> is useful for generating patches from the image and transform them into a higher-dimensional embedding space using <code>. The patching operation is done using a <code> instance.
+
+Once the patching of images is complete, we reshape the image patches in order to get a flattened representation where the number of dimensions is the embedding dimension. At this stage, we also inject positional information to the tokens.
+
+After we obtain the tokens we chunk them. The chunking operation involves taking fixed-size sequences from the embedding output to create 'chunks', which will then be used as the final input to the model.
+
+<code> Layer.
+
+This custom <code> instance allows us to define a generic FFN along with a dropout.
+
+<code> layer.
+
+This custom <code> instance is a <code>/<code> class that wraps a <code> layer along with some other components. This gives us basic common denominator functionality for all the Attention layers/modules in our model.
+
+<code> with <code> layer.
+
+This custom <code> implementation combines the <code> and <code> components to develop one block which will be used repeatedly within the model. This module is highly customizable and flexible, allowing for changes within the internal layers.
+
+Custom RNN Cell for Temporal Latent Bottleneck and Perceptual Module.
+
+Algorithm 1 (the pseudocode) depicts recurrence with the help of for loops. Looping does make the implementation simpler, harming the training time. In this section we wrap the custom recurrence logic inside of the <code>. This custom cell will then be wrapped with the Keras RNN API that makes the entire code vectorizable.
+
+This custom cell, implemented as a <code>, is the integral part of the logic for the model. The cell's functionality can be divided into 2 parts:
+
+Slow Stream (Temporal Latent Bottleneck):
+
+This module consists of a single <code> layer that parses the output of the previous Slow Stream, an intermediate hidden representation (which is the latent in Temporal Latent Bottleneck) as the Query, and the output of the latest Fast Stream as Key and Value. This layer can also be construed as a CrossAttention layer.
+
+Fast Stream (Perceptual Module):
+
+This module consists of intertwined <code> layers. This stream consists of n layers of <code> and <code> in a sequential manner.
+
+Here, some layers take the chunked input as the Query, Key and Value (Also referred to as the SelfAttention layer).
+
+The other layers take the intermediate state outputs from within the Temporal Latent Bottleneck module as the Query while using the output of the previous Self-Attention layers before it as the Key and Value.
+
+<code> to encapsulate full model.
+
+Here, we just wrap the full model as to expose it for training.
+
+Build the model.
+
+To begin training, we now define the components individually and pass them as arguments to our wrapper class, which will prepare the final model for training. We define a <code> layer, and the <code>-based RNN.
+
+Metrics and Callbacks.
+
+We use the <code> optimizer since it has been shown to perform very well on several benchmark tasks from an optimization perspective. It is a version of the <code> optimizer, along with Weight Decay in place.
+
+For a loss function, we make use of the <code> function that makes use of simple Cross-entropy between prediction and actual logits. We also calculate accuracy on our data as a sanity-check.
+
+Train the model with <code>.
+
+We pass the training dataset and run training.
+
+Visualize attention maps from the Temporal Latent Bottleneck.
+
+Now that we have trained our model, it is time for some visualizations. The Fast Stream (Transformers) processes a chunk of tokens. The Slow Stream processes each chunk and attends to tokens that are useful for the task.
+
+In this section we visualize the attention map of the Slow Stream. This is done by extracting the attention scores from the TLB layer at each chunk's intersection and storing it within the RNN's state. This is followed by 'ballooning' it up and returning these values.
+
+Run the following code snippet to get different images and their attention maps.
+
+Conclusion.
+
+This example has demonstrated an implementation of the Temporal Latent Bottleneck mechanism. The example highlights the use of compression and storage of historical states in the form of a Temporal Latent Bottleneck with regular updates from a Perceptual Module as an effective method to do so.
+
+In the original paper, the authors have conducted highly extensive tests around different modalities ranging from Supervised Image Classification to applications in Reinforcement Learning.
+
+While we have only displayed a method to apply this mechanism to Image Classification, it can be extended to other modalities too with minimal changes.
+
+Note: While building this example we did not have the official code to refer to. This means that our implementation is inspired by the paper with no claims of being a complete reproduction. For more details on the training process one can head over to our GitHub repository.
+
+Acknowledgement.
+
+Thanks to Aniket Didolkar (the first author) and Anirudh Goyal (the third author) for revieweing our work.
+
+We would like to thank PyImageSearch for a Colab Pro account and JarvisLabs.ai for the GPU credits.

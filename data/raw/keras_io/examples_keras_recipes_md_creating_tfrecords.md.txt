@@ -1,0 +1,61 @@
+Creating TFRecords.
+
+Introduction.
+
+The TFRecord format is a simple format for storing a sequence of binary records. Converting your data into TFRecord has many advantages, such as:
+
+More efficient storage: the TFRecord data can take up less space than the original data; it can also be partitioned into multiple files.
+
+Fast I/O: the TFRecord format can be read with parallel I/O operations, which is useful for TPUs or multiple hosts.
+
+Self-contained files: the TFRecord data can be read from a single source—for example, the COCO2017 dataset originally stores data in two folders ("images" and "annotations").
+
+An important use case of the TFRecord data format is training on TPUs. First, TPUs are fast enough to benefit from optimized I/O operations. In addition, TPUs require data to be stored remotely (e.g. on Google Cloud Storage) and using the TFRecord format makes it easier to load the data without batch-downloading.
+
+Performance using the TFRecord format can be further improved if you also use it with the tf.data API.
+
+In this example you will learn how to convert data of different types (image, text, and numeric) into TFRecord.
+
+Reference.
+
+TFRecord and tf.train.Example.
+
+Dependencies.
+
+Download the COCO2017 dataset.
+
+We will be using the COCO2017 dataset, because it has many different types of features, including images, floating point data, and lists. It will serve as a good example of how to encode different features into the TFRecord format.
+
+This dataset has two sets of fields: images and annotation meta-data.
+
+The images are a collection of JPG files and the meta-data are stored in a JSON file which, according to the official site, contains the following properties:
+
+Contents of the COCO2017 dataset.
+
+Parameters.
+
+<code> is the number of data samples on each TFRecord file.
+
+<code> is total number of TFRecords that we will create.
+
+Define TFRecords helper functions.
+
+Generate data in the TFRecord format.
+
+Let's generate the COCO2017 data in the TFRecord format. The format will be <code> (this is optional, but including the number sequences in the file names can make counting easier).
+
+Explore one sample from the generated TFRecord.
+
+Train a simple model using the generated TFRecords.
+
+Another advantage of TFRecord is that you are able to add many features to it and later use only a few of them, in this case, we are going to use only <code> and <code>.
+
+Define dataset helper functions.
+
+Conclusion.
+
+This example demonstrates that instead of reading images and annotations from different sources you can have your data coming from a single source thanks to TFRecord. This process can make storing and reading data simpler and more efficient. For more information, you can go to the TFRecord and tf.train.Example tutorial.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 6: The universal workflow of machine learning.

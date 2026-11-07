@@ -1,0 +1,97 @@
+GauGAN for conditional image generation.
+
+Introduction.
+
+In this example, we present an implementation of the GauGAN architecture proposed in Semantic Image Synthesis with Spatially-Adaptive Normalization. Briefly, GauGAN uses a Generative Adversarial Network (GAN) to generate realistic images that are conditioned on cue images and segmentation maps, as shown below (image source):
+
+The main components of a GauGAN are:
+
+SPADE (aka spatially-adaptive normalization) : The authors of GauGAN argue that the more conventional normalization layers (such as Batch Normalization) destroy the semantic information obtained from segmentation maps that are provided as inputs. To address this problem, the authors introduce SPADE, a normalization layer particularly suitable for learning affine parameters (scale and bias) that are spatially adaptive. This is done by learning different sets of scaling and bias parameters for each semantic label.
+
+Variational encoder: Inspired by Variational Autoencoders, GauGAN uses a variational formulation wherein an encoder learns the mean and variance of a normal (Gaussian) distribution from the cue images. This is where GauGAN gets its name from. The generator of GauGAN takes as inputs the latents sampled from the Gaussian distribution as well as the one-hot encoded semantic segmentation label maps. The cue images act as style images that guide the generator to stylistic generation. This variational formulation helps GauGAN achieve image diversity as well as fidelity.
+
+Multi-scale patch discriminator : Inspired by the PatchGAN model, GauGAN uses a discriminator that assesses a given image on a patch basis and produces an averaged score.
+
+As we proceed with the example, we will discuss each of the different components in further detail.
+
+For a thorough review of GauGAN, please refer to this article. We also encourage you to check out the official GauGAN website, which has many creative applications of GauGAN. This example assumes that the reader is already familiar with the fundamental concepts of GANs. If you need a refresher, the following resources might be useful:
+
+Chapter on GANs from the Deep Learning with Python book by François Chollet.
+
+GAN implementations on keras.io:
+
+Data collection.
+
+We will be using the Facades dataset for training our GauGAN model. Let's first download it.
+
+Imports.
+
+Data splitting.
+
+Data loader.
+
+Now, let's visualize a few samples from the training set.
+
+Note that in the rest of this example, we use a couple of figures from the original GauGAN paper for convenience.
+
+Custom layers.
+
+In the following section, we implement the following layers:
+
+SPADE.
+
+Residual block including SPADE.
+
+Gaussian sampler.
+
+Some more notes on SPADE.
+
+SPatially-Adaptive (DE) normalization or SPADE is a simple but effective layer for synthesizing photorealistic images given an input semantic layout. Previous methods for conditional image generation from semantic input such as Pix2Pix (Isola et al.) or Pix2PixHD (Wang et al.) directly feed the semantic layout as input to the deep network, which is then processed through stacks of convolution, normalization, and nonlinearity layers. This is often suboptimal as the normalization layers have a tendency to wash away semantic information.
+
+In SPADE, the segmentation mask is first projected onto an embedding space, and then convolved to produce the modulation parameters <code> and <code>. Unlike prior conditional normalization methods, <code> and <code> are not vectors, but tensors with spatial dimensions. The produced <code> and <code> are multiplied and added to the normalized activation element-wise. As the modulation parameters are adaptive to the input segmentation mask, SPADE is better suited for semantic image synthesis.
+
+Next, we implement the downsampling block for the encoder.
+
+The GauGAN encoder consists of a few downsampling blocks. It outputs the mean and variance of a distribution.
+
+Next, we implement the generator, which consists of the modified residual blocks and upsampling blocks. It takes latent vectors and one-hot encoded segmentation labels, and produces new images.
+
+With SPADE, there is no need to feed the segmentation map to the first layer of the generator, since the latent inputs have enough structural information about the style we want the generator to emulate. We also discard the encoder part of the generator, which is commonly used in prior architectures. This results in a more lightweight generator network, which can also take a random vector as input, enabling a simple and natural path to multi-modal synthesis.
+
+The discriminator takes a segmentation map and an image and concatenates them. It then predicts if patches of the concatenated image are real or fake.
+
+Loss functions.
+
+GauGAN uses the following loss functions:
+
+Generator:
+
+Discriminator:
+
+GAN monitor callback.
+
+Next, we implement a callback to monitor the GauGAN results while it is training.
+
+Subclassed GauGAN model.
+
+Finally, we put everything together inside a subclassed model (from <code>) overriding its <code> method.
+
+GauGAN training.
+
+Inference.
+
+Final words.
+
+The dataset we used in this example is a small one. For obtaining even better results we recommend to use a bigger dataset. GauGAN results were demonstrated with the COCO-Stuff and CityScapes datasets.
+
+This example was inspired the Chapter 6 of Hands-On Image Generation with TensorFlow by Soon-Yau Cheong and Implementing SPADE using fastai by Divyansh Jha.
+
+If you found this example interesting and exciting, you might want to check out our repository which we are currently building. It will include reimplementations of popular GANs and pretrained models. Our focus will be on readability and making the code as accessible as possible. Our plain is to first train our implementation of GauGAN (following the code of this example) on a bigger dataset and then make the repository public. We welcome contributions!
+
+Recently GauGAN2 was also released. You can check it out here.
+
+Example available on HuggingFace.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

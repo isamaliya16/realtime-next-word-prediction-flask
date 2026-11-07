@@ -1,0 +1,121 @@
+Optimizers with Core APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Introduction.
+
+This notebook introduces the process of creating custom optimizers with the TensorFlow Core low-level APIs. Visit the Core APIs overview to learn more about TensorFlow Core and its intended use cases.
+
+The Keras optimizers module is the recommended optimization toolkit for many general training purposes. It includes a variety of prebuilt optimiziers as well as subclassing functionality for customization. The Keras optimizers are also compatible with custom layers, models, and training loops built with the Core APIs. These prebuilt and customizable optimizers are suitable for most cases, but the Core APIs allow for complete control over the optimization process. For example, techniques such as Sharpness-Aware Minimization (SAM) require the model and optimizer to be coupled, which does not fit the traditional definition of ML optimizers. This guide walks through the process of building custom optimizers from scratch with the Core APIs, giving you the power to have full control over the structure, implementation, and behavior of your optimizers.
+
+Optimizers overview.
+
+An optimizer is an algorithm used to minimize a loss function with respect to a model's trainable parameters. The most straightforward optimization technique is gradient descent, which iteratively updates a model's parameters by taking a step in the direction of its loss function's steepest descent. Its step size is directly proportional to the size of the gradient, which can be problematic when the gradient is either too large or too small. There are many other gradient-based optimizers such as Adam, Adagrad, and RMSprop that leverage various mathematical properties of gradients for memory efficiency and fast convergence.
+
+Setup.
+
+Gradient descent.
+
+The basic optimizer class should have an initialization method and a function to update a list of variables given a list of gradients. Start by implementing the basic gradient descent optimizer which updates each variable by subtracting its gradient scaled by a learning rate.
+
+To test this optimizer, create a sample loss function to minimize with respect to a single variable, <math>. Compute its gradient function and solve for its minimizing parameter value:
+
+<math>.
+
+<math>.
+
+<math> is 0 at <math>, which is a saddle point and at <math>, which is the global minimum. Therefore, the loss function is optimized at <math>.
+
+Write a function to test the convergence of an optimizer with a single variable loss function. Assume that convergence has been achieved when the updated parameter's value at timestep <math> is the same as its value held at timestep <math>. Terminate the test after a set number of iterations and also keep track of any exploding gradients during the process. In order to truly challenge the optimization algorithm, initialize the parameter poorly. In the above example, <math> is a good choice since it involves an steep gradient and also leads into an inflection point.
+
+Test the convergence of the gradient descent optimizer for the following learning rates: 1e-3, 1e-2, 1e-1.
+
+Visualize the path of the parameters over a contour plot of the loss function.
+
+Gradient descent seems to get stuck at the inflection point when using smaller learning rates. Increasing the learning rate can encourage faster movement around the plateau region due to a larger step size; however, this comes at the risk of having exploding gradients in early iterations when the loss function is extremely steep.
+
+Gradient descent with momentum.
+
+Gradient descent with momentum not only uses the gradient to update a variable but also involves the change in position of a variable based on its previous update. The momentum parameter determines the level of influence the update at timestep <math> has on the update at timestep <math>. Accumulating momentum helps to move variables past plataeu regions faster than basic gradient descent. The momentum update rule is as follows:
+
+<math>.
+
+<math>.
+
+where.
+
+<math>: the variable being optimized.
+
+<math>: change in <math>.
+
+<math>: learning rate.
+
+<math>: gradient of the loss function with respect to x.
+
+<math>: momentum parameter.
+
+Test the convergence of the momentum optimizer for the following learning rates: 1e-3, 1e-2, 1e-1.
+
+Visualize the path of the parameters over a contour plot of the loss function.
+
+Adaptive moment estimation (Adam).
+
+The Adaptive Moment Estimation (Adam) algorithm is an efficient and highly generalizable optimization technique that leverages two key gradient descent methedologies: momentum, and root mean square propogation (RMSP). Momentum helps accelerate gradient descent by using the first moment (sum of gradients) along with a decay parameter. RMSP is similar; however, it leverages the second moment (sum of gradients squared).
+
+The Adam algorithm combines both the first and second moment to provide a more generalizable update rule. The sign of a variable, <math>, can be determined by computing <math>. The Adam optimizer uses this fact to calculate an update step which is effectively a smoothed sign. Instead of calculating <math>, the optimizer calculates a smoothed version of <math> (first moment) and <math> (second moment) for each variable update.
+
+Adam algorithm.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+End of algorithm.
+
+Given that <math> and <math> are initialized to 0 and that <math> and <math> are close to 1, the momentum and RMSP updates are naturally biased towards 0; therefore, the variables can benefit from bias correction. Bias correction also helps to control the osccilation of weights as they approach the global minimum.
+
+Test the performance of the Adam optimizer with the same learning rates used with the gradient descent examples.
+
+Visualize the path of the parameters over a contour plot of the loss function.
+
+In this particular example, the Adam optimizer has slower convergence compared to traditional gradient descent when using small learning rates. However, the algorithm successfully moves past the plataeu region and converges to the global minimum when a larger learning rate. Exploding gradients are no longer an issue due to Adam's dynamic scaling of learning rates when encountering large gradients.
+
+Conclusion.
+
+This notebook introduced the basics of writing and comparing optimizers with the TensorFlow Core APIs. Although prebuilt optimizers like Adam are generalizable, they may not always be the best choice for every model or dataset. Having fine-grained control over the optimization process can help streamline ML training workflows and improve overall performance. Refer to the following documentation for more examples of custom optimizers:
+
+This Adam optimizer is used in the Multilayer perceptrons tutorial and the Distributed training.
+
+Model Garden has a variety of custom optimizers written with the Core APIs.

@@ -1,0 +1,29 @@
+{
+  "data": {
+    "seq_len": 12,
+    "vocab_cap": 12000,
+    "min_count": 3,
+    "val_fraction": 0.1,
+    "seed": 42
+  },
+  "vocab_size": 9007,
+  "first_word_id": 11,
+  "hyperparameters": {
+    "embedding_dim": 96,
+    "units": 128,
+    "dropout": 0.3,
+    "batch_size": 256,
+    "epochs_max": 10,
+    "patience": 2,
+    "learning_rate": 0.001,
+    "optimizer": "Adam (clipnorm=1.0) + ReduceLROnPlateau",
+    "loss": "sparse_categorical_crossentropy"
+  },
+  "trained_models": [
+    "GRU",
+    "LSTM",
+    "RNN"
+  ],
+  "tensorflow": "2.21.0",
+  "trained_at": "2026-10-26 21:32:13"
+}

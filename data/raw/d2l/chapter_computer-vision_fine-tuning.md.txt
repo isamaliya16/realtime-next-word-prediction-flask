@@ -1,0 +1,85 @@
+Fine-Tuning.
+
+In earlier chapters, we discussed how to train models on the Fashion-MNIST training dataset with only 60000 images. We also described ImageNet, the most widely used large-scale image dataset in academia, which has more than 10 million images and 1000 objects. However, the size of the dataset that we usually encounter is between those of the two datasets.
+
+Suppose that we want to recognize different types of chairs from images, and then recommend purchase links to users. One possible method is to first identify 100 common chairs, take 1000 images of different angles for each chair, and then train a classification model on the collected image dataset. Although this chair dataset may be larger than the Fashion-MNIST dataset, the number of examples is still less than one-tenth of that in ImageNet. This may lead to overfitting of complicated models that are suitable for ImageNet on this chair dataset. Besides, due to the limited amount of training examples, the accuracy of the trained model may not meet practical requirements.
+
+In order to address the above problems, an obvious solution is to collect more data. However, collecting and labeling data can take a lot of time and money. For example, in order to collect the ImageNet dataset, researchers have spent millions of dollars from research funding. Although the current data collection cost has been significantly reduced, this cost still cannot be ignored.
+
+Another solution is to apply transfer learning to transfer the knowledge learned from the source dataset to the target dataset. For example, although most of the images in the ImageNet dataset have nothing to do with chairs, the model trained on this dataset may extract more general image features, which can help identify edges, textures, shapes, and object composition. These similar features may also be effective for recognizing chairs.
+
+Steps.
+
+In this section, we will introduce a common technique in transfer learning: fine-tuning. As shown in section <num>, fine-tuning consists of the following four steps:
+
+Pretrain a neural network model, i.e., the source model, on a source dataset (e.g., the ImageNet dataset).
+
+Create a new neural network model, i.e., the target model. This copies all model designs and their parameters on the source model except the output layer. We assume that these model parameters contain the knowledge learned from the source dataset and this knowledge will also be applicable to the target dataset. We also assume that the output layer of the source model is closely related to the labels of the source dataset; thus it is not used in the target model.
+
+Add an output layer to the target model, whose number of outputs is the number of categories in the target dataset. Then randomly initialize the model parameters of this layer.
+
+Train the target model on the target dataset, such as a chair dataset. The output layer will be trained from scratch, while the parameters of all the other layers are fine-tuned based on the parameters of the source model.
+
+When target datasets are much smaller than source datasets, fine-tuning helps to improve models' generalization ability.
+
+Hot Dog Recognition.
+
+Let's demonstrate fine-tuning via a concrete case: hot dog recognition. We will fine-tune a ResNet model on a small dataset, which was pretrained on the ImageNet dataset. This small dataset consists of thousands of images with and without hot dogs. We will use the fine-tuned model to recognize hot dogs from images.
+
+Reading the Dataset.
+
+[The hot dog dataset we use was taken from online images]. This dataset consists of 1400 positive-class images containing hot dogs, and as many negative-class images containing other foods. 1000 images of both classes are used for training and the rest are for testing.
+
+After unzipping the downloaded dataset, we obtain two folders <code> and <code>. Both folders have <code> and <code> subfolders, either of which contains images of the corresponding class.
+
+We create two instances to read all the image files in the training and testing datasets, respectively.
+
+The first 8 positive examples and the last 8 negative images are shown below. As you can see, [the images vary in size and aspect ratio].
+
+During training, we first crop a random area of random size and random aspect ratio from the image, and then scale this area to a <math> input image. During testing, we scale both the height and width of an image to 256 pixels, and then crop a central <math> area as input. In addition, for the three RGB (red, green, and blue) color channels we standardize their values channel by channel. Concretely, the mean value of a channel is subtracted from each value of that channel and then the result is divided by the standard deviation of that channel.
+
+[~~Data augmentations~~].
+
+[Defining and Initializing the Model].
+
+We use ResNet-18, which was pretrained on the ImageNet dataset, as the source model. Here, we specify <code> to automatically download the pretrained model parameters. If this model is used for the first time, Internet connection is required for download.
+
+The pretrained source model instance contains two member variables: <code> and <code>. The former contains all layers of the model except the output layer, and the latter is the output layer of the model. The main purpose of this division is to facilitate the fine-tuning of model parameters of all layers but the output layer. The member variable <code> of source model is shown below.
+
+The pretrained source model instance contains a number of feature layers and an output layer <code>. The main purpose of this division is to facilitate the fine-tuning of model parameters of all layers but the output layer. The member variable <code> of source model is given below.
+
+As a fully connected layer, it transforms ResNet's final global average pooling outputs into 1000 class outputs of the ImageNet dataset. We then construct a new neural network as the target model. It is defined in the same way as the pretrained source model except that its number of outputs in the final layer is set to the number of classes in the target dataset (rather than 1000).
+
+In the code below, the model parameters before the output layer of the target model instance <code> are initialized to model parameters of the corresponding layers from the source model. Since these model parameters were obtained via pretraining on ImageNet, they are effective. Therefore, we can only use a small learning rate to fine-tune such pretrained parameters. In contrast, model parameters in the output layer are randomly initialized and generally require a larger learning rate to be learned from scratch. Letting the base learning rate be <math>, a learning rate of <math> will be used to iterate the model parameters in the output layer.
+
+[Fine-Tuning the Model].
+
+First, we define a training function <code> that uses fine-tuning so it can be called multiple times.
+
+We [set the base learning rate to a small value] in order to fine-tune the model parameters obtained via pretraining. Based on the previous settings, we will train the output layer parameters of the target model from scratch using a learning rate ten times greater.
+
+[For comparison,] we define an identical model, but (initialize all of its model parameters to random values). Since the entire model needs to be trained from scratch, we can use a larger learning rate.
+
+As we can see, the fine-tuned model tends to perform better for the same epoch because its initial parameter values are more effective.
+
+Summary.
+
+Transfer learning transfers knowledge learned from the source dataset to the target dataset. Fine-tuning is a common technique for transfer learning.
+
+The target model copies all model designs with their parameters from the source model except the output layer, and fine-tunes these parameters based on the target dataset. In contrast, the output layer of the target model needs to be trained from scratch.
+
+Generally, fine-tuning parameters uses a smaller learning rate, while training the output layer from scratch can use a larger learning rate.
+
+Exercises.
+
+Keep increasing the learning rate of <code>. How does the accuracy of the model change?
+
+Further adjust hyperparameters of <code> and <code> in the comparative experiment. Do they still differ in accuracy?
+
+Set the parameters before the output layer of <code> to those of the source model and do not update them during training. How does the accuracy of the model change? You can use the following code.
+
+In fact, there is a "hotdog" class in the <code> dataset. Its corresponding weight parameter in the output layer can be obtained via the following code. How can we leverage this weight parameter?
+
+Discussions.
+
+Discussions.

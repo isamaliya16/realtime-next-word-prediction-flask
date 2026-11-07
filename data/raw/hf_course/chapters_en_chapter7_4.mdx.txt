@@ -1,0 +1,233 @@
+Translation.
+
+Let's now dive into translation. This is another sequence-to-sequence task, which means it's a problem that can be formulated as going from one sequence to another. In that sense the problem is pretty close to summarization, and you could adapt what we will see here to other sequence-to-sequence problems such as:
+
+Style transfer: Creating a model that translates texts written in a certain style to another (e.g., formal to casual or Shakespearean English to modern English).
+
+Generative question answering: Creating a model that generates answers to questions, given a context.
+
+If you have a big enough corpus of texts in two (or more) languages, you can train a new translation model from scratch like we will in the section on causal language modeling. It will be faster, however, to fine-tune an existing translation model, be it a multilingual one like mT5 or mBART that you want to fine-tune to a specific language pair, or even a model specialized for translation from one language to another that you want to fine-tune to your specific corpus.
+
+In this section, we will fine-tune a Marian model pretrained to translate from English to French (since a lot of Hugging Face employees speak both those languages) on the KDE4 dataset, which is a dataset of localized files for the KDE apps. The model we will use has been pretrained on a large corpus of French and English texts taken from the Opus dataset, which actually contains the KDE4 dataset. But even if the pretrained model we use has seen that data during its pretraining, we will see that we can get a better version of it after fine-tuning.
+
+Once we're finished, we will have a model able to make predictions like this one:
+
+As in the previous sections, you can find the actual model that we'll train and upload to the Hub using the code below and double-check its predictions here.
+
+Preparing the data.
+
+To fine-tune or train a translation model from scratch, we will need a dataset suitable for the task. As mentioned previously, we'll use the KDE4 dataset in this section, but you can adapt the code to use your own data quite easily, as long as you have pairs of sentences in the two languages you want to translate from and into. Refer back to Chapter 5 if you need a reminder of how to load your custom data in a <code>.
+
+The KDE4 dataset.
+
+As usual, we download our dataset using the <code> function:
+
+If you want to work with a different pair of languages, you can specify them by their codes. A total of 92 languages are available for this dataset; you can see them all by expanding the language tags on its dataset card.
+
+Let's have a look at the dataset:
+
+We have 210,173 pairs of sentences, but in one single split, so we will need to create our own validation set. As we saw in Chapter 5, a <code> has a <code> method that can help us. We'll provide a seed for reproducibility:
+
+We can rename the <code> key to <code> like this:
+
+Now let's take a look at one element of the dataset:
+
+We get a dictionary with two sentences in the pair of languages we requested. One particularity of this dataset full of technical computer science terms is that they are all fully translated in French. However, French engineers leave most computer science-specific words in English when they talk. Here, for instance, the word "threads" might well appear in a French sentence, especially in a technical conversation; but in this dataset it has been translated into the more correct "fils de discussion." The pretrained model we use, which has been pretrained on a larger corpus of French and English sentences, takes the easier option of leaving the word as is:
+
+Another example of this behavior can be seen with the word "plugin," which isn't officially a French word but which most native speakers will understand and not bother to translate. In the KDE4 dataset this word has been translated in French into the more official "module d'extension":
+
+Our pretrained model, however, sticks with the compact and familiar English word:
+
+It will be interesting to see if our fine-tuned model picks up on those particularities of the dataset (spoiler alert: it will).
+
+✏️ Your turn! Another English word that is often used in French is "email." Find the first sample in the training dataset that uses this word. How is it translated? How does the pretrained model translate the same English sentence?
+
+Processing the data.
+
+You should know the drill by now: the texts all need to be converted into sets of token IDs so the model can make sense of them. For this task, we'll need to tokenize both the inputs and the targets. Our first task is to create our <code> object. As noted earlier, we'll be using a Marian English to French pretrained model. If you are trying this code with another pair of languages, make sure to adapt the model checkpoint. The Helsinki-NLP organization provides more than a thousand models in multiple languages.
+
+You can also replace the <code> with any other model you prefer from the Hub, or a local folder where you've saved a pretrained model and a tokenizer.
+
+💡 If you are using a multilingual tokenizer such as mBART, mBART-50, or M2M100, you will need to set the language codes of your inputs and targets in the tokenizer by setting <code> and <code> to the right values.
+
+The preparation of our data is pretty straightforward. There's just one thing to remember; you need to ensure that the tokenizer processes the targets in the output language (here, French). You can do this by passing the targets to the <code> argument of the tokenizer's <code> method.
+
+To see how this works, let's process one sample of each language in the training set:
+
+As we can see, the output contains the input IDs associated with the English sentence, while the IDs associated with the French one are stored in the <code> field. If you forget to indicate that you are tokenizing labels, they will be tokenized by the input tokenizer, which in the case of a Marian model is not going to go well at all:
+
+As we can see, using the English tokenizer to preprocess a French sentence results in a lot more tokens, since the tokenizer doesn't know any French words (except those that also appear in the English language, like "discussion").
+
+Since <code> is a dictionary with our usual keys (input IDs, attention mask, etc.), the last step is to define the preprocessing function we will apply on the datasets:
+
+Note that we set the same maximum length for our inputs and outputs. Since the texts we're dealing with seem pretty short, we use 128.
+
+💡 If you are using a T5 model (more specifically, one of the <code> checkpoints), the model will expect the text inputs to have a prefix indicating the task at hand, such as <code>.
+
+⚠️ We don't pay attention to the attention mask of the targets, as the model won't expect it. Instead, the labels corresponding to a padding token should be set to <code> so they are ignored in the loss computation. This will be done by our data collator later on since we are applying dynamic padding, but if you use padding here, you should adapt the preprocessing function to set all labels that correspond to the padding token to <code>.
+
+We can now apply that preprocessing in one go on all the splits of our dataset:
+
+Now that the data has been preprocessed, we are ready to fine-tune our pretrained model!
+
+Fine-tuning the model with the <code> API.
+
+The actual code using the <code> will be the same as before, with just one little change: we use a <code> here, which is a subclass of <code> that will allow us to properly deal with the evaluation, using the <code> method to predict outputs from the inputs. We'll dive into that in more detail when we talk about the metric computation.
+
+First things first, we need an actual model to fine-tune. We'll use the usual <code> API:
+
+Fine-tuning the model with Keras.
+
+First things first, we need an actual model to fine-tune. We'll use the usual <code> API:
+
+💡 The <code> checkpoint only has PyTorch weights, so you'll get an error if you try to load the model without using the <code> argument in the <code> method. When you specify <code>, the library will automatically download and convert the PyTorch weights for you. As you can see, it is very simple to switch between frameworks in 🤗 Transformers!
+
+Note that this time we are using a model that was trained on a translation task and can actually be used already, so there is no warning about missing weights or newly initialized ones.
+
+Data collation.
+
+We'll need a data collator to deal with the padding for dynamic batching. We can't just use a <code> like in Chapter 3 in this case, because that only pads the inputs (input IDs, attention mask, and token type IDs). Our labels should also be padded to the maximum length encountered in the labels. And, as mentioned previously, the padding value used to pad the labels should be <code> and not the padding token of the tokenizer, to make sure those padded values are ignored in the loss computation.
+
+This is all done by a <code>. Like the <code>, it takes the <code> used to preprocess the inputs, but it also takes the <code>. This is because this data collator will also be responsible for preparing the decoder input IDs, which are shifted versions of the labels with a special token at the beginning. Since this shift is done slightly differently for different architectures, the <code> needs to know the <code> object:
+
+To test this on a few samples, we just call it on a list of examples from our tokenized training set:
+
+We can check our labels have been padded to the maximum length of the batch, using <code>:
+
+And we can also have a look at the decoder input IDs, to see that they are shifted versions of the labels:
+
+Here are the labels for the first and second elements in our dataset:
+
+We will pass this <code> along to the <code>. Next, let's have a look at the metric.
+
+We can now use this <code> to convert each of our datasets to a <code>, ready for training:
+
+Metrics.
+
+The feature that <code> adds to its superclass <code> is the ability to use the <code> method during evaluation or prediction. During training, the model will use the <code> with an attention mask ensuring it does not use the tokens after the token it's trying to predict, to speed up training. During inference we won't be able to use those since we won't have labels, so it's a good idea to evaluate our model with the same setup.
+
+As we saw in Chapter 1, the decoder performs inference by predicting tokens one by one -- something that's implemented behind the scenes in 🤗 Transformers by the <code> method. The <code> will let us use that method for evaluation if we set <code>.
+
+The traditional metric used for translation is the BLEU score, introduced in a 2002 article by Kishore Papineni et al. The BLEU score evaluates how close the translations are to their labels. It does not measure the intelligibility or grammatical correctness of the model's generated outputs, but uses statistical rules to ensure that all the words in the generated outputs also appear in the targets. In addition, there are rules that penalize repetitions of the same words if they are not also repeated in the targets (to avoid the model outputting sentences like <code>) and output sentences that are shorter than those in the targets (to avoid the model outputting sentences like <code>).
+
+One weakness with BLEU is that it expects the text to already be tokenized, which makes it difficult to compare scores between models that use different tokenizers. So instead, the most commonly used metric for benchmarking translation models today is SacreBLEU, which addresses this weakness (and others) by standardizing the tokenization step. To use this metric, we first need to install the SacreBLEU library:
+
+We can then load it via <code> like we did in Chapter 3:
+
+This metric will take texts as inputs and targets. It is designed to accept several acceptable targets, as there are often multiple acceptable translations of the same sentence -- the dataset we're using only provides one, but it's not uncommon in NLP to find datasets that give several sentences as labels. So, the predictions should be a list of sentences, but the references should be a list of lists of sentences.
+
+Let's try an example:
+
+This gets a BLEU score of 46.75, which is rather good -- for reference, the original Transformer model in the "Attention Is All You Need" paper achieved a BLEU score of 41.8 on a similar translation task between English and French! (For more information about the individual metrics, like <code> and <code>, see the SacreBLEU repository.) On the other hand, if we try with the two bad types of predictions (lots of repetitions or too short) that often come out of translation models, we will get rather bad BLEU scores:
+
+The score can go from 0 to 100, and higher is better.
+
+To get from the model outputs to texts the metric can use, we will use the <code> method. We just have to clean up all the <code>s in the labels; the tokenizer will automatically do the same for the padding token. Let's define a function that takes our model and a dataset and computes metrics on it. We're also going to use a trick that dramatically increases performance - compiling our generation code with XLA, TensorFlow's accelerated linear algebra compiler. XLA applies various optimizations to the model's computation graph, and results in significant improvements to speed and memory usage. As described in the Hugging Face blog, XLA works best when our input shapes don't vary too much. To handle this, we'll pad our inputs to multiples of 128, and make a new dataset with the padding collator, and then we'll apply the <code> decorator to our generation function, which marks the whole function for compilation with XLA.
+
+To get from the model outputs to texts the metric can use, we will use the <code> method. We just have to clean up all the <code>s in the labels (the tokenizer will automatically do the same for the padding token):
+
+Now that this is done, we are ready to fine-tune our model!
+
+Fine-tuning the model.
+
+The first step is to log in to Hugging Face, so you're able to upload your results to the Model Hub. There's a convenience function to help you with this in a notebook:
+
+This will display a widget where you can enter your Hugging Face login credentials.
+
+If you aren't working in a notebook, just type the following line in your terminal:
+
+Before we start, let's see what kind of results we get from our model without any training:
+
+Once this is done, we can prepare everything we need to compile and train our model. Note the use of <code> -- this will tell Keras to train using float16, which can give a significant speedup on GPUs that support it (Nvidia 20xx/V100 or newer).
+
+Next, we define a <code> to upload our model to the Hub during training, as we saw in section 2), and then we simply fit the model with that callback:
+
+Note that you can specify the name of the repository you want to push to with the <code> argument (in particular, you will have to use this argument to push to an organization). For instance, when we pushed the model to the <code> organization, we added <code> to <code>. By default, the repository used will be in your namespace and named after the output directory you set, so here it will be <code> (which is the model we linked to at the beginning of this section).
+
+💡 If the output directory you are using already exists, it needs to be a local clone of the repository you want to push to. If it isn't, you'll get an error when calling <code> and will need to set a new name.
+
+Finally, let's see what our metrics look like now that training has finished:
+
+At this stage, you can use the inference widget on the Model Hub to test your model and share it with your friends. You have successfully fine-tuned a model on a translation task -- congratulations!
+
+Once this is done, we can define our <code>. Like for the <code>, we use a subclass of <code> that contains a few more fields:
+
+Apart from the usual hyperparameters (like learning rate, number of epochs, batch size, and some weight decay), here are a few changes compared to what we saw in the previous sections:
+
+We don't set any regular evaluation, as evaluation takes a while; we will just evaluate our model once before training and after.
+
+We set <code>, which speeds up training on modern GPUs.
+
+We set <code>, as discussed above.
+
+We use <code> to upload the model to the Hub at the end of each epoch.
+
+Note that you can specify the full name of the repository you want to push to with the <code> argument (in particular, you will have to use this argument to push to an organization). For instance, when we pushed the model to the <code> organization, we added <code> to <code>. By default, the repository used will be in your namespace and named after the output directory you set, so in our case it will be <code> (which is the model we linked to at the beginning of this section).
+
+💡 If the output directory you are using already exists, it needs to be a local clone of the repository you want to push to. If it isn't, you'll get an error when defining your <code> and will need to set a new name.
+
+Finally, we just pass everything to the <code>:
+
+Before training, we'll first look at the score our model gets, to double-check that we're not making things worse with our fine-tuning. This command will take a bit of time, so you can grab a coffee while it executes:
+
+A BLEU score of 39 is not too bad, which reflects the fact that our model is already good at translating English sentences to French ones.
+
+Next is the training, which will also take a bit of time:
+
+Note that while the training happens, each time the model is saved (here, every epoch) it is uploaded to the Hub in the background. This way, you will be able to to resume your training on another machine if necessary.
+
+Once training is done, we evaluate our model again -- hopefully we will see some amelioration in the BLEU score!
+
+That's a nearly 14-point improvement, which is great.
+
+Finally, we use the <code> method to make sure we upload the latest version of the model. The <code> also drafts a model card with all the evaluation results and uploads it. This model card contains metadata that helps the Model Hub pick the widget for the inference demo. Usually, there is no need to say anything as it can infer the right widget from the model class, but in this case, the same model class can be used for all kinds of sequence-to-sequence problems, so we specify it's a translation model:
+
+This command returns the URL of the commit it just did, if you want to inspect it:
+
+At this stage, you can use the inference widget on the Model Hub to test your model and share it with your friends. You have successfully fine-tuned a model on a translation task -- congratulations!
+
+If you want to dive a bit more deeply into the training loop, we will now show you how to do the same thing using 🤗 Accelerate.
+
+A custom training loop.
+
+Let's now take a look at the full training loop, so you can easily customize the parts you need. It will look a lot like what we did in section 2 and Chapter 3.
+
+Preparing everything for training.
+
+You've seen all of this a few times now, so we'll go through the code quite quickly. First we'll build the <code>s from our datasets, after setting the datasets to the <code> format so we get PyTorch tensors:
+
+Next we reinstantiate our model, to make sure we're not continuing the fine-tuning from before but starting from the pretrained model again:
+
+Then we will need an optimizer:
+
+Once we have all those objects, we can send them to the <code> method. Remember that if you want to train on TPUs in a Colab notebook, you will need to move all of this code into a training function, and that shouldn't execute any cell that instantiates an <code>.
+
+Now that we have sent our <code> to <code>, we can use its length to compute the number of training steps. Remember we should always do this after preparing the dataloader, as that method will change the length of the <code>. We use a classic linear schedule from the learning rate to 0:
+
+Lastly, to push our model to the Hub, we will need to create a <code> object in a working folder. First log in to the Hugging Face Hub, if you're not logged in already. We'll determine the repository name from the model ID we want to give our model (feel free to replace the <code> with your own choice; it just needs to contain your username, which is what the function <code> does):
+
+Then we can clone that repository in a local folder. If it already exists, this local folder should be a clone of the repository we are working with:
+
+We can now upload anything we save in <code> by calling the <code> method. This will help us upload the intermediate models at the end of each epoch.
+
+Training loop.
+
+We are now ready to write the full training loop. To simplify its evaluation part, we define this <code> function that takes predictions and labels and converts them to the lists of strings our <code> object will expect:
+
+The training loop looks a lot like the ones in section 2 and Chapter 3, with a few differences in the evaluation part -- so let's focus on that!
+
+The first thing to note is that we use the <code> method to compute predictions, but this is a method on our base model, not the wrapped model 🤗 Accelerate created in the <code> method. That's why we unwrap the model first, then call this method.
+
+The second thing is that, like with token classification, two processes may have padded the inputs and labels to different shapes, so we use <code> to make the predictions and labels the same shape before calling the <code> method. If we don't do this, the evaluation will either error out or hang forever.
+
+Once this is done, you should have a model that has results pretty similar to the one trained with the <code>. You can check the one we trained using this code at huggingface-course/marian-finetuned-kde4-en-to-fr-accelerate. And if you want to test out any tweaks to the training loop, you can directly implement them by editing the code shown above!
+
+Using the fine-tuned model.
+
+We've already shown you how you can use the model we fine-tuned on the Model Hub with the inference widget. To use it locally in a <code>, we just have to specify the proper model identifier:
+
+As expected, our pretrained model adapted its knowledge to the corpus we fine-tuned it on, and instead of leaving the English word "threads" alone, it now translates it to the French official version. It's the same for "plugin":
+
+Another great example of domain adaptation!
+
+✏️ Your turn! What does the model return on the sample with the word "email" you identified earlier?

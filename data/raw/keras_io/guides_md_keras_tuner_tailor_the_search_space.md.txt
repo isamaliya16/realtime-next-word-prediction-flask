@@ -1,0 +1,43 @@
+Tailor the search space.
+
+In this guide, we will show how to tailor the search space without changing the <code> code directly. For example, you can only tune some of the hyperparameters and keep the rest fixed, or you can override the compile arguments, like <code>, <code>, and <code>.
+
+The default value of a hyperparameter.
+
+Before we tailor the search space, it is important to know that every hyperparameter has a default value. This default value is used as the hyperparameter value when not tuning it during our tailoring the search space.
+
+Whenever you register a hyperparameter, you can use the <code> argument to specify a default value:
+
+If you don't, hyperparameters always have a default default (for <code>, it is equal to <code>).
+
+In the following model-building function, we specified the default value for the <code> hyperparameter as 64.
+
+We will reuse this search space in the rest of the tutorial by overriding the hyperparameters without defining a new search space.
+
+Search a few and fix the rest.
+
+If you have an existing hypermodel, and you want to search over only a few hyperparameters, and keep the rest fixed, you don't have to change the code in the model-building function or the <code>. You can pass a <code> to the <code> argument to the tuner constructor with all the hyperparameters you want to tune. Specify <code> to prevent it from tuning other hyperparameters, the default value of which would be used.
+
+In the following example, we only tune the <code> hyperparameter, and changed its type and value ranges.
+
+If you summarize the search space, you will see only one hyperparameter.
+
+Fix a few and tune the rest.
+
+In the example above we showed how to tune only a few hyperparameters and keep the rest fixed. You can also do the reverse: only fix a few hyperparameters and tune all the rest.
+
+In the following example, we fixed the value of the <code> hyperparameter. Pass a <code> argument with a <code> entry (or any number of <code> entries). Also remember to specify <code>, which allows us to tune the rest of the hyperparameters.
+
+If you summarize the search space, you will see the <code> is marked as fixed, and the rest of the hyperparameters are being tuned.
+
+Overriding compilation arguments.
+
+If you have a hypermodel for which you want to change the existing optimizer, loss, or metrics, you can do so by passing these arguments to the tuner constructor:
+
+If you get the best model, you can see the loss function has changed to MSE.
+
+Tailor the search space of pre-build HyperModels.
+
+You can also use these techniques with the pre-build models in KerasTuner, like <code> or <code>. However, to see what hyperparameters are in these pre-build <code>s, you will have to read the source code.
+
+In the following example, we only tune the <code> of <code> and fixed all the rest of the hyperparameters. Because the default loss of <code> is <code>, which expect the labels to be one-hot encoded, which doesn't match our raw integer label data, we need to change it by overriding the <code> in the compile args to <code>.

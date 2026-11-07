@@ -1,0 +1,229 @@
+Introduction to Keras for Researchers.
+
+Setup.
+
+Introduction.
+
+Are you a machine learning researcher? Do you publish at NeurIPS and push the state-of-the-art in CV and NLP? This guide will serve as your first introduction to core Keras & TensorFlow API concepts.
+
+In this guide, you will learn about:
+
+Tensors, variables, and gradients in TensorFlow.
+
+Creating layers by subclassing the <code> class.
+
+Writing low-level training loops.
+
+Tracking losses created by layers via the <code> method.
+
+Tracking metrics in a low-level training loop.
+
+Speeding up execution with a compiled <code>.
+
+Executing layers in training or inference mode.
+
+The Keras Functional API.
+
+You will also see the Keras API in action in two end-to-end research examples: a Variational Autoencoder, and a Hypernetwork.
+
+Tensors.
+
+TensorFlow is an infrastructure layer for differentiable programming. At its heart, it's a framework for manipulating N-dimensional arrays (tensors), much like NumPy.
+
+However, there are three key differences between NumPy and TensorFlow:
+
+TensorFlow can leverage hardware accelerators such as GPUs and TPUs.
+
+TensorFlow can automatically compute the gradient of arbitrary differentiable tensor expressions.
+
+TensorFlow computation can be distributed to large numbers of devices on a single machine, and large number of machines (potentially with multiple devices each).
+
+Let's take a look at the object that is at the core of TensorFlow: the Tensor.
+
+Here's a constant tensor:
+
+You can get its value as a NumPy array by calling <code>:
+
+Much like a NumPy array, it features the attributes <code> and <code>:
+
+A common way to create constant tensors is via <code> and <code> (just like <code> and <code>):
+
+You can also create random constant tensors:
+
+Variables.
+
+Variables are special tensors used to store mutable state (such as the weights of a neural network). You create a <code> using some initial value:
+
+You update the value of a <code> by using the methods <code>, <code>, or <code>:
+
+Doing math in TensorFlow.
+
+If you've used NumPy, doing math in TensorFlow will look very familiar. The main difference is that your TensorFlow code can run on GPU and TPU.
+
+Gradients.
+
+Here's another big difference with NumPy: you can automatically retrieve the gradient of any differentiable expression.
+
+Just open a <code>, start "watching" a tensor via <code>, and compose a differentiable expression using this tensor as input:
+
+By default, variables are watched automatically, so you don't need to manually <code> them:
+
+Note that you can compute higher-order derivatives by nesting tapes:
+
+Keras layers.
+
+While TensorFlow is an infrastructure layer for differentiable programming, dealing with tensors, variables, and gradients, Keras is a user interface for deep learning, dealing with layers, models, optimizers, loss functions, metrics, and more.
+
+Keras serves as the high-level API for TensorFlow: Keras is what makes TensorFlow simple and productive.
+
+The <code> class is the fundamental abstraction in Keras. A <code> encapsulates a state (weights) and some computation (defined in the call method).
+
+A simple layer looks like this. The <code> method gives you a shortcut for creating weights:
+
+You would use a <code> instance much like a Python function:
+
+The weight variables (created in <code>) are automatically tracked under the <code> property:
+
+You have many built-in layers available, from <code> to <code> to <code> to fancier ones like <code> or <code>. Be smart about reusing built-in functionality.
+
+Layer weight creation in <code>.
+
+It's often a good idea to defer weight creation to the <code> method, so that you don't need to specify the input dim/shape at layer construction time:
+
+Layer gradients.
+
+You can automatically retrieve the gradients of the weights of a layer by calling it inside a <code>. Using these gradients, you can update the weights of the layer, either manually, or using an optimizer object. Of course, you can modify the gradients before using them, if you need to.
+
+Trainable and non-trainable weights.
+
+Weights created by layers can be either trainable or non-trainable. They're exposed in <code> and <code> respectively. Here's a layer with a non-trainable weight:
+
+Layers that own layers.
+
+Layers can be recursively nested to create bigger computation blocks. Each layer will track the weights of its sublayers (both trainable and non-trainable).
+
+Note that our manually-created MLP above is equivalent to the following built-in option:
+
+Tracking losses created by layers.
+
+Layers can create losses during the forward pass via the <code> method. This is especially useful for regularization losses. The losses created by sublayers are recursively tracked by the parent layers.
+
+Here's a layer that creates an activity regularization loss:
+
+Any model incorporating this layer will track this regularization loss:
+
+These losses are cleared by the top-level layer at the start of each forward pass -- they don't accumulate. <code> always contains only the losses created during the last forward pass. You would typically use these losses by summing them before computing your gradients when writing a training loop.
+
+Keeping track of training metrics.
+
+Keras offers a broad range of built-in metrics, like <code> or <code>. It's also easy to create your own metrics in a few lines of code.
+
+To use a metric in a custom training loop, you would:
+
+Instantiate the metric object, e.g. <code>.
+
+Call its <code> method for each batch of data.
+
+Query its result via <code>.
+
+Reset the metric's state at the end of an epoch or at the start of an evaluation via <code>.
+
+Here's a simple example:
+
+You can also define your own metrics by subclassing <code>. You need to override the three functions called above:
+
+Override <code> to update the statistic values.
+
+Override <code> to return the metric value.
+
+Override <code> to reset the metric to its initial state.
+
+Here is an example where we implement the F1-score metric (with support for sample weighting).
+
+Let's test-drive it:
+
+Compiled functions.
+
+Running eagerly is great for debugging, but you will get better performance by compiling your computation into static graphs. Static graphs are a researcher's best friends. You can compile any function by wrapping it in a <code> decorator.
+
+Training mode & inference mode.
+
+Some layers, in particular the <code> layer and the <code> layer, have different behaviors during training and inference. For such layers, it is standard practice to expose a <code> (boolean) argument in the <code> method.
+
+By exposing this argument in <code>, you enable the built-in training and evaluation loops (e.g. fit) to correctly use the layer in training and inference modes.
+
+The Functional API for model-building.
+
+To build deep learning models, you don't have to use object-oriented programming all the time. All layers we've seen so far can also be composed functionally, like this (we call it the "Functional API"):
+
+The Functional API tends to be more concise than subclassing, and provides a few other advantages (generally the same advantages that functional, typed languages provide over untyped OO development). However, it can only be used to define DAGs of layers -- recursive networks should be defined as Layer subclasses instead.
+
+Learn more about the Functional API here.
+
+In your research workflows, you may often find yourself mix-and-matching OO models and Functional models.
+
+Note that the <code> class also features built-in training & evaluation loops: <code>, <code> and <code> (configured via the <code> method). These built-in functions give you access to the following built-in training infrastructure features:
+
+Callbacks. You can leverage built-in callbacks for early-stopping, model checkpointing, and monitoring training with TensorBoard. You can also implement custom callbacks if needed.
+
+Distributed training. You can easily scale up your training to multiple GPUs, TPU, or even multiple machines with the <code> API -- with no changes to your code.
+
+Step fusing. With the <code> argument in <code>, you can process multiple batches in a single <code> call, which greatly improves device utilization on TPUs.
+
+We won't go into the details, but we provide a simple code example below. It leverages the built-in training infrastructure to implement the MNIST example above.
+
+You can always subclass the <code> class (it works exactly like subclassing <code>) if you want to leverage built-in training loops for your OO models. Just override the <code> to customize what happens in <code> while retaining support for the built-in infrastructure features outlined above -- callbacks, zero-code distribution support, and step fusing support. You may also override <code> to customize what happens in <code>, and override <code> to customize what happens in <code>. For more information, please refer to this guide.
+
+End-to-end experiment example 1: variational autoencoders.
+
+Here are some of the things you've learned so far:
+
+A <code> encapsulates a state (created in <code> or <code>) and some computation (defined in <code>).
+
+Layers can be recursively nested to create new, bigger computation blocks.
+
+You can easily write highly hackable training loops by opening a <code>, calling your model inside the tape's scope, then retrieving gradients and applying them via an optimizer.
+
+You can speed up your training loops using the <code> decorator.
+
+Layers can create and track losses (typically regularization losses) via <code>.
+
+Let's put all of these things together into an end-to-end example: we're going to implement a Variational AutoEncoder (VAE). We'll train it on MNIST digits.
+
+Our VAE will be a subclass of <code>, built as a nested composition of layers that subclass <code>. It will feature a regularization loss (KL divergence).
+
+Below is our model definition.
+
+First, we have an <code> class, which uses a <code> layer to map a MNIST digit to a latent-space triplet <code>.
+
+Next, we have a <code> class, which maps the probabilistic latent space coordinates back to a MNIST digit.
+
+Finally, our <code> composes together an encoder and a decoder, and creates a KL divergence regularization loss via <code>.
+
+Now, let's write a training loop. Our training step is decorated with a <code> to compile into a super fast graph function.
+
+As you can see, building and training this type of model in Keras is quick and painless.
+
+End-to-end experiment example 2: hypernetworks.
+
+Let's take a look at another kind of research experiment: hypernetworks.
+
+The idea is to use a small deep neural network (the hypernetwork) to generate the weights for a larger network (the main network).
+
+Let's implement a really trivial hypernetwork: we'll use a small 2-layer network to generate the weights of a larger 3-layer network.
+
+This is our training loop. For each batch of data:
+
+We use <code> to generate an array of weight coefficients, <code>.
+
+We reshape these coefficients into kernel & bias tensors for the <code>.
+
+We run the forward pass of the <code> to compute the actual MNIST predictions.
+
+We run backprop through the weights of the <code> to minimize the final classification loss.
+
+Implementing arbitrary research ideas with Keras is straightforward and highly productive. Imagine trying out 25 ideas per day (20 minutes per experiment on average)!
+
+Keras has been designed to go from idea to results as fast as possible, because we believe this is the key to doing great research.
+
+We hope you enjoyed this quick introduction. Let us know what you build with Keras!

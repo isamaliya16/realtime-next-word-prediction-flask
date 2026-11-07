@@ -1,0 +1,159 @@
+Advanced automatic differentiation.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+The Introduction to gradients and automatic differentiation guide includes everything required to calculate gradients in TensorFlow. This guide focuses on deeper, less common features of the <code> API.
+
+Setup.
+
+Controlling gradient recording.
+
+In the automatic differentiation guide you saw how to control which variables and tensors are watched by the tape while building the gradient calculation.
+
+The tape also has methods to manipulate the recording.
+
+Stop recording.
+
+If you wish to stop recording gradients, you can use <code> to temporarily suspend recording.
+
+This may be useful to reduce overhead if you do not wish to differentiate a complicated operation in the middle of your model. This could include calculating a metric or an intermediate result:
+
+Reset/start recording from scratch.
+
+If you wish to start over entirely, use <code>. Simply exiting the gradient tape block and restarting is usually easier to read, but you can use the <code> method when exiting the tape block is difficult or impossible.
+
+Stop gradient flow with precision.
+
+In contrast to the global tape controls above, the <code> function is much more precise. It can be used to stop gradients from flowing along a particular path, without needing access to the tape itself:
+
+Custom gradients.
+
+In some cases, you may want to control exactly how gradients are calculated rather than using the default. These situations include:
+
+There is no defined gradient for a new op you are writing.
+
+The default calculations are numerically unstable.
+
+You wish to cache an expensive computation from the forward pass.
+
+You want to modify a value (for example, using <code> or <code>) without modifying the gradient.
+
+For the first case, to write a new op you can use <code> to set up your own (refer to the API docs for details). (Note that the gradient registry is global, so change it with caution.).
+
+For the latter three cases, you can use <code>.
+
+Here is an example that applies <code> to the intermediate gradient:
+
+Refer to the <code> decorator API docs for more details.
+
+Custom gradients in SavedModel.
+
+Note: This feature is available from TensorFlow 2.6.
+
+Custom gradients can be saved to SavedModel by using the option <code>.
+
+To be saved into the SavedModel, the gradient function must be traceable (to learn more, check out the Better performance with tf.function guide).
+
+A note about the above example: If you try replacing the above code with <code>, the gradient will still produce the same result on loading. The reason is that the gradient registry still contains the custom gradient used in the function <code>. However, if you restart the runtime after saving without custom gradients, running the loaded model under the <code> will throw the error: <code>.
+
+Multiple tapes.
+
+Multiple tapes interact seamlessly.
+
+For example, here each tape watches a different set of tensors:
+
+Higher-order gradients.
+
+Operations inside of the <code> context manager are recorded for automatic differentiation. If gradients are computed in that context, then the gradient computation is recorded as well. As a result, the exact same API works for higher-order gradients as well.
+
+For example:
+
+While that does give you the second derivative of a scalar function, this pattern does not generalize to produce a Hessian matrix, since <code> only computes the gradient of a scalar. To construct a Hessian matrix, go to the Hessian example under the Jacobian section.
+
+"Nested calls to <code>" is a good pattern when you are calculating a scalar from a gradient, and then the resulting scalar acts as a source for a second gradient calculation, as in the following example.
+
+Example: Input gradient regularization.
+
+Many models are susceptible to "adversarial examples". This collection of techniques modifies the model's input to confuse the model's output. The simplest implementation—such as the Adversarial example using the Fast Gradient Signed Method attack—takes a single step along the gradient of the output with respect to the input; the "input gradient".
+
+One technique to increase robustness to adversarial examples is input gradient regularization (Finlay & Oberman, 2019), which attempts to minimize the magnitude of the input gradient. If the input gradient is small, then the change in the output should be small too.
+
+Below is a naive implementation of input gradient regularization. The implementation is:
+
+Calculate the gradient of the output with respect to the input using an inner tape.
+
+Calculate the magnitude of that input gradient.
+
+Calculate the gradient of that magnitude with respect to the model.
+
+Jacobians.
+
+All the previous examples took the gradients of a scalar target with respect to some source tensor(s).
+
+The Jacobian matrix represents the gradients of a vector valued function. Each row contains the gradient of one of the vector's elements.
+
+The <code> method allows you to efficiently calculate a Jacobian matrix.
+
+Note that:
+
+Like <code>: The <code> argument can be a tensor or a container of tensors.
+
+Unlike <code>: The <code> tensor must be a single tensor.
+
+Scalar source.
+
+As a first example, here is the Jacobian of a vector-target with respect to a scalar-source.
+
+When you take the Jacobian with respect to a scalar the result has the shape of the target, and gives the gradient of the each element with respect to the source:
+
+Tensor source.
+
+Whether the input is scalar or tensor, <code> efficiently calculates the gradient of each element of the source with respect to each element of the target(s).
+
+For example, the output of this layer has a shape of <code>:
+
+And the layer's kernel's shape is <code>:
+
+The shape of the Jacobian of the output with respect to the kernel is those two shapes concatenated together:
+
+If you sum over the target's dimensions, you're left with the gradient of the sum that would have been calculated by <code>:
+
+Example: Hessian.
+
+While <code> doesn't give an explicit method for constructing a Hessian matrix it's possible to build one using the <code> method.
+
+Note: The Hessian matrix contains <code> parameters. For this and other reasons it is not practical for most models. This example is included more as a demonstration of how to use the <code> method, and is not an endorsement of direct Hessian-based optimization. A Hessian-vector product can be calculated efficiently with nested tapes, and is a much more efficient approach to second-order optimization.
+
+To use this Hessian for a Newton's method step, you would first flatten out its axes into a matrix, and flatten out the gradient into a vector:
+
+The Hessian matrix should be symmetric:
+
+The Newton's method update step is shown below:
+
+Note: Don't actually invert the matrix.
+
+While this is relatively simple for a single <code>, applying this to a non-trivial model would require careful concatenation and slicing to produce a full Hessian across multiple variables.
+
+Batch Jacobian.
+
+In some cases, you want to take the Jacobian of each of a stack of targets with respect to a stack of sources, where the Jacobians for each target-source pair are independent.
+
+For example, here the input <code> is shaped <code> and the output <code> is shaped <code>:
+
+The full Jacobian of <code> with respect to <code> has a shape of <code>, even if you only want <code>:
+
+If the gradients of each item in the stack are independent, then every <code> slice of this tensor is a diagonal matrix:
+
+To get the desired result, you can sum over the duplicate <code> dimension, or else select the diagonals using <code>:
+
+It would be much more efficient to do the calculation without the extra dimension in the first place. The <code> method does exactly that:
+
+Caution: <code> only verifies that the first dimension of the source and target match. It doesn't check that the gradients are actually independent. It's up to you to make sure you only use <code> where it makes sense. For example, adding a <code> destroys the independence, since it normalizes across the <code> dimension:
+
+In this case, <code> still runs and returns something with the expected shape, but its contents have an unclear meaning:

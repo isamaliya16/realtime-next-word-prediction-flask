@@ -1,0 +1,37 @@
+Evaluating and exporting scikit-learn metrics in a Keras callback.
+
+Introduction.
+
+Keras callbacks allow for the execution of arbitrary code at various stages of the Keras training process. While Keras offers first-class support for metric evaluation, Keras metrics may only rely on TensorFlow code internally.
+
+While there are TensorFlow implementations of many metrics online, some metrics are implemented using NumPy or another Python-based numerical computation library. By performing metric evaluation inside of a Keras callback, we can leverage any existing metric, and ultimately export the result to TensorBoard.
+
+Jaccard score metric.
+
+This example makes use of a sklearn metric, <code>, and writes the result to TensorBoard using the <code> API.
+
+This template can be modified slightly to make it work with any existing sklearn metric.
+
+Sample usage.
+
+Let's test our <code> class with a Keras model.
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ conv2d ( Conv2D ) │ ( None , 26 , 26 , 32 ) │ 320 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling2d ( MaxPooling2D ) │ ( None , 13 , 13 , 32 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d1 ( Conv2D ) │ ( None , 11 , 11 , 64 ) │ 18,496 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling2d1 ( MaxPooling2D ) │ ( None , 5 , 5 , 64 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ flatten ( Flatten ) │ ( None , 1600 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 1600 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 10 ) │ 16,010 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 34,826 (136.04 KB).
+
+Trainable params: 34,826 (136.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+If you now launch a TensorBoard instance using <code>, you will see the <code> metric alongside any other exported metrics!
+
+Conclusion.
+
+Many ML practitioners and researchers rely on metrics that may not yet have a TensorFlow implementation. Keras users can still leverage the wide variety of existing metric implementations in other frameworks by using a Keras callback. These metrics can be exported, viewed and analyzed in the TensorBoard like any other metric.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

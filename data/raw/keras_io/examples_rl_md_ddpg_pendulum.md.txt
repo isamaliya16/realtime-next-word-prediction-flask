@@ -1,0 +1,71 @@
+Deep Deterministic Policy Gradient (DDPG).
+
+Introduction.
+
+Deep Deterministic Policy Gradient (DDPG) is a model-free off-policy algorithm for learning continuous actions.
+
+It combines ideas from DPG (Deterministic Policy Gradient) and DQN (Deep Q-Network). It uses Experience Replay and slow-learning target networks from DQN, and it is based on DPG, which can operate over continuous action spaces.
+
+This tutorial closely follow this paper - Continuous control with deep reinforcement learning.
+
+Problem.
+
+We are trying to solve the classic Inverted Pendulum control problem. In this setting, we can take only two actions: swing left or swing right.
+
+What make this problem challenging for Q-Learning Algorithms is that actions are continuous instead of being discrete. That is, instead of using two discrete actions like <code> or <code>, we have to select from infinite actions ranging from <code> to <code>.
+
+Quick theory.
+
+Just like the Actor-Critic method, we have two networks:
+
+Actor - It proposes an action given a state.
+
+Critic - It predicts if the action is good (positive value) or bad (negative value) given a state and an action.
+
+DDPG uses two more techniques not present in the original DQN:
+
+First, it uses two Target networks.
+
+Why? Because it add stability to training. In short, we are learning from estimated targets and Target networks are updated slowly, hence keeping our estimated targets stable.
+
+Conceptually, this is like saying, "I have an idea of how to play this well, I'm going to try it out for a bit until I find something better", as opposed to saying "I'm going to re-learn how to play this entire game after every move". See this StackOverflow answer.
+
+Second, it uses Experience Replay.
+
+We store list of tuples <code>, and instead of learning only from recent experience, we learn from sampling all of our experience accumulated so far.
+
+Now, let's see how is it implemented.
+
+We use Gymnasium to create the environment. We will use the <code> parameter to scale our actions later.
+
+To implement better exploration by the Actor network, we use noisy perturbations, specifically an Ornstein-Uhlenbeck process for generating noise, as described in the paper. It samples noise from a correlated normal distribution.
+
+The <code> class implements Experience Replay.
+
+Critic loss - Mean Squared Error of <code> where <code> is the expected return as seen by the Target network, and <code> is action value predicted by the Critic network. <code> is a moving target that the critic model tries to achieve; we make this target stable by updating the Target model slowly.
+
+Actor loss - This is computed using the mean of the value given by the Critic network for the actions taken by the Actor network. We seek to maximize this quantity.
+
+Hence we update the Actor network so that it produces actions that get the maximum predicted value as seen by the Critic, for a given state.
+
+Here we define the Actor and Critic networks. These are basic Dense models with <code> activation.
+
+Note: We need the initialization for last layer of the Actor to be between <code> and <code> as this prevents us from getting <code> or <code> output values in the initial stages, which would squash our gradients to zero, as we use the <code> activation.
+
+<code> returns an action sampled from our Actor network plus some noise for exploration.
+
+Training hyperparameters.
+
+Now we implement our main training loop, and iterate over episodes. We sample actions using <code> and train with <code> at each time step, along with updating the Target networks at a rate <code>.
+
+If training proceeds correctly, the average episodic reward will increase with time.
+
+Feel free to try different learning rates, <code> values, and architectures for the Actor and Critic networks.
+
+The Inverted Pendulum problem has low complexity, but DDPG work great on many other problems.
+
+Another great environment to try this on is <code> continuous, but it will take more episodes to obtain good results.
+
+Before Training:
+
+After 100 episodes:

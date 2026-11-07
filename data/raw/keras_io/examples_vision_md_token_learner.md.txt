@@ -1,0 +1,107 @@
+Learning to tokenize in Vision Transformers.
+
+Introduction.
+
+Vision Transformers (Dosovitskiy et al.) and many other Transformer-based architectures (Liu et al., Yuan et al., etc.) have shown strong results in image recognition. The following provides a brief overview of the components involved in the Vision Transformer architecture for image classification:
+
+Extract small patches from input images.
+
+Linearly project those patches.
+
+Add positional embeddings to these linear projections.
+
+Run these projections through a series of Transformer (Vaswani et al.) blocks.
+
+Finally, take the representation from the final Transformer block and add a classification head.
+
+If we take 224x224 images and extract 16x16 patches, we get a total of 196 patches (also called tokens) for each image. The number of patches increases as we increase the resolution, leading to higher memory footprint. Could we use a reduced number of patches without having to compromise performance? Ryoo et al. investigate this question in TokenLearner: Adaptive Space-Time Tokenization for Videos. They introduce a novel module called TokenLearner that can help reduce the number of patches used by a Vision Transformer (ViT) in an adaptive manner. With TokenLearner incorporated in the standard ViT architecture, they are able to reduce the amount of compute (measured in FLOPS) used by the model.
+
+In this example, we implement the TokenLearner module and demonstrate its performance with a mini ViT and the CIFAR-10 dataset. We make use of the following references:
+
+Official TokenLearner code.
+
+Image Classification with ViTs on keras.io.
+
+TokenLearner slides from NeurIPS 2021.
+
+Imports.
+
+Hyperparameters.
+
+Please feel free to change the hyperparameters and check your results. The best way to develop intuition about the architecture is to experiment with it.
+
+Load and prepare the CIFAR-10 dataset.
+
+Data augmentation.
+
+The augmentation pipeline consists of:
+
+Rescaling.
+
+Resizing.
+
+Random cropping (fixed-sized or random sized).
+
+Random horizontal flipping.
+
+Note that image data augmentation layers do not apply data transformations at inference time. This means that when these layers are called with <code> they behave differently. Refer to the documentation for more details.
+
+Positional embedding module.
+
+A Transformer architecture consists of multi-head self attention layers and fully-connected feed forward networks (MLP) as the main components. Both these components are permutation invariant: they're not aware of feature order.
+
+To overcome this problem we inject tokens with positional information. The <code> function adds this positional information to the linearly projected tokens.
+
+MLP block for Transformer.
+
+This serves as the Fully Connected Feed Forward block for our Transformer.
+
+TokenLearner module.
+
+The following figure presents a pictorial overview of the module (source).
+
+The TokenLearner module takes as input an image-shaped tensor. It then passes it through multiple single-channel convolutional layers extracting different spatial attention maps focusing on different parts of the input. These attention maps are then element-wise multiplied to the input and result is aggregated with pooling. This pooled output can be trated as a summary of the input and has much lesser number of patches (8, for example) than the original one (196, for example).
+
+Using multiple convolution layers helps with expressivity. Imposing a form of spatial attention helps retain relevant information from the inputs. Both of these components are crucial to make TokenLearner work, especially when we are significantly reducing the number of patches.
+
+Transformer block.
+
+ViT model with the TokenLearner module.
+
+As shown in the TokenLearner paper, it is almost always advantageous to include the TokenLearner module in the middle of the network.
+
+Training utility.
+
+Train and evaluate a ViT with TokenLearner.
+
+Results.
+
+We experimented with and without the TokenLearner inside the mini ViT we implemented (with the same hyperparameters presented in this example). Here are our results:
+
+TokenLearner is able to consistently outperform our mini ViT without the module. It is also interesting to notice that it was also able to outperform a deeper version of our mini ViT (with 8 layers). The authors also report similar observations in the paper and they attribute this to the adaptiveness of TokenLearner.
+
+One should also note that the FLOPs count decreases considerably with the addition of the TokenLearner module. With less FLOPs count the TokenLearner module is able to deliver better results. This aligns very well with the authors' findings.
+
+Additionally, the authors introduced a newer version of the TokenLearner for smaller training data regimes. Quoting the authors: Instead of using 4 conv. layers with small channels to implement spatial attention, this version uses 2 grouped conv. layers with more channels. It also uses softmax instead of sigmoid. We confirmed that this version works better when having limited training data, such as training with ImageNet1K from scratch.
+
+We experimented with this module and in the following table we summarize the results:
+
+Please note that we used the same hyperparameters presented in this example. Our implementation is available in this notebook. We acknowledge that the results with this new TokenLearner module are slightly off than expected and this might mitigate with hyperparameter tuning.
+
+Note: To compute the FLOPs of our models we used this utility from this repository.
+
+Number of parameters.
+
+You may have noticed that adding the TokenLearner module increases the number of parameters of the base network. But that does not mean it is less efficient as shown by Dehghani et al.. Similar findings were reported by Bello et al. as well. The TokenLearner module helps reducing the FLOPS in the overall network thereby helping to reduce the memory footprint.
+
+Final notes.
+
+TokenFuser: The authors of the paper also propose another module named TokenFuser. This module helps in remapping the representation of the TokenLearner output back to its original spatial resolution. To reuse the TokenLearner in the ViT architecture, the TokenFuser is a must. We first learn the tokens from the TokenLearner, build a representation of the tokens from a Transformer layer and then remap the representation into the original spatial resolution, so that it can again be consumed by a TokenLearner. Note here that you can only use the TokenLearner module once in entire ViT model if not paired with the TokenFuser.
+
+Use of these modules for video: The authors also suggest that TokenFuser goes really well with Vision Transformers for Videos (Arnab et al.).
+
+We are grateful to JarvisLabs and Google Developers Experts program for helping with GPU credits. Also, we are thankful to Michael Ryoo (first author of TokenLearner) for fruitful discussions.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

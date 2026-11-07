@@ -1,0 +1,41 @@
+Multi-Fidelity Hyperparameter Optimization.
+
+Training neural networks can be expensive even on moderate size datasets. Depending on the configuration space (section <num>), hyperparameter optimization requires tens to hundreds of function evaluations to find a well-performing hyperparameter configuration. As we have seen in section <num>, we can significantly speed up the overall wall-clock time of HPO by exploiting parallel resources, but this does not reduce the total amount of compute required.
+
+In this section, we will show how the evaluation of hyperparameter configurations can be sped up. Methods such as random search allocate the same amount of resources (e.g., number of epochs, training data points) to each hyperparameter evaluation. section <num> depicts learning curves of a set of neural networks trained with different hyperparameter configurations. After a few epochs we are already able to visually distinguish between well-performing and suboptimal configurations. However, the learning curves are noisy, and we might still require the full amount of 100 epochs to identify the best performing one.
+
+Multi-fidelity hyperparameter optimization allocates more resources to promising configurations and stop evaluations of poorly performing ones early. This speeds up the optimization process, since we can try a larger number of configurations for the same total amount of resources.
+
+More formally, we expand our definition in section <num>, such that our objective function <math> gets an additional input <math>, specifying the amount of resources that we are willing to spend for the evaluation of configuration <math>. We assume that the error <math> decreases with <math>, whereas the computational cost <math> increases. Typically, <math> represents the number of epochs for training the neural network, but it could also be the training subset size or the number of cross-validation folds.
+
+Successive Halving.
+
+One of the simplest ways to adapt random search to the multi-fidelity setting is successive halving . The basic idea is to start with <math> configurations, for example randomly sampled from the configuration space, and to train each of them for <math> epochs only. We then discard a fraction of the worst performing trials and train the remaining ones for longer. Iterating this process, fewer trials run for longer, until at least one trial reaches <math> epochs.
+
+More formally, consider a minimum budget <math> (for example 1 epoch), a maximum budget <math>, for example <code> in our previous example, and a halving constant <math>. For simplicity, assume that <math>, with <math> . The number of initial configurations is then <math>. Let us define the set of rungs <math>.
+
+One round of successive halving proceeds as follows. We start with running <math> trials until the first rung <math>. Sorting the validation errors, we keep the top <math> fraction (which amounts to <math> configurations) and discard all the rest. The surviving trials are trained for the next rung (<math> epochs), and the process is repeated. At each rung, a <math> fraction of trials survives and their training continues with a <math> times larger budget. With this particular choice of <math>, only a single trial will be trained to the full budget <math>. Once such a round of successive halving is done, we start the next one with a new set of initial configurations, iterating until the total budget is spent.
+
+We subclass the <code> base class from section <num> in order to implement successive halving, allowing for a generic <code> object to sample configurations (which, in our example below, will be a <code>). Additionally, the user has to pass the minimum resource <math>, the maximum resource <math> and <math> as input. Inside our scheduler, we maintain a queue of configurations that still need to be evaluated for the current rung <math>. We update the queue every time we jump to the next rung.
+
+In the beginning our queue is empty, and we fill it with <math> configurations, which are first evaluated on the smallest rung <math>. Here, <math> allows us to reuse our code in a different context. For the purpose of this section, we fix <math>. Every time resources become available and the <code> object queries the <code> function, we return an element from the queue. Once we finish one round of successive halving, which means that we evaluated all surviving configurations on the highest resource level <math> and our queue is empty, we start the entire process again with a new, randomly sampled set of configurations.
+
+When we collected a new data point, we first update the searcher module. Afterwards we check if we already collect all data points on the current rung. If so, we sort all configurations and push the top <math> configurations into the queue.
+
+Configurations are sorted based on their observed performance on the current rung.
+
+Let us see how successive halving is doing on our neural network example. We will use <math>, <math>, <math>, so that rung levels are <math>.
+
+We just replace the scheduler with our new <code>.
+
+We can visualize the learning curves of all configurations that we evaluated. Most of the configurations are stopped early and only the better performing configurations survive until <math>. Compare this to vanilla random search, which would allocate <math> to every configuration.
+
+Finally, note some slight complexity in our implementation of <code>. Say that a worker is free to run a job, and <code> is called when the current rung has almost been completely filled, but another worker is still busy with an evaluation. Since we lack the metric value from this worker, we cannot determine the top <math> fraction to open up the next rung. On the other hand, we want to assign a job to our free worker, so it does not remain idle. Our solution is to start a new round of successive halving and assign our worker to the first trial there. However, once a rung is completed in <code>, we make sure to insert new configurations at the beginning of the queue, so they take precedence over configurations from the next round.
+
+Summary.
+
+In this section, we introduced the concept of multi-fidelity hyperparameter optimization, where we assume to have access to cheap-to-evaluate approximations of the objective function, such as validation error after a certain number of epochs of training as proxy to validation error after the full number of epochs. Multi-fidelity hyperparameter optimization allows to reduce the overall computation of the HPO instead of just reducing the wall-clock time.
+
+We implemented and evaluated successive halving, a simple yet efficient multi-fidelity HPO algorithm.
+
+Discussions.

@@ -1,0 +1,67 @@
+Abstractive Text Summarization with BART.
+
+Introduction.
+
+In the era of information overload, it has become crucial to extract the crux of a long document or a conversation and express it in a few sentences. Owing to the fact that summarization has widespread applications in different domains, it has become a key, well-studied NLP task in recent years.
+
+Bidirectional Autoregressive Transformer (BART) is a Transformer-based encoder-decoder model, often used for sequence-to-sequence tasks like summarization and neural machine translation. BART is pre-trained in a self-supervised fashion on a large text corpus. During pre-training, the text is corrupted and BART is trained to reconstruct the original text (hence called a "denoising autoencoder"). Some pre-training tasks include token masking, token deletion, sentence permutation (shuffle sentences and train BART to fix the order), etc.
+
+In this example, we will demonstrate how to fine-tune BART on the abstractive summarization task (on conversations!) using KerasHub, and generate summaries using the fine-tuned model.
+
+Setup.
+
+Before we start implementing the pipeline, let's install and import all the libraries we need. We'll be using the KerasHub library. We will also need a couple of utility libraries.
+
+This examples uses Keras 3 to work in any of <code>, <code> or <code>. Support for Keras 3 is baked into KerasHub, simply change the <code> environment variable to select the backend of your choice. We select the JAX backend below.
+
+Import all necessary libraries.
+
+Let's also define our hyperparameters.
+
+Dataset.
+
+Let's load the SAMSum dataset. This dataset contains around 15,000 pairs of conversations/dialogues and summaries.
+
+The dataset has two fields: <code> and <code>. Let's see a sample.
+
+We'll now batch the dataset and retain only a subset of the dataset for the purpose of this example. The dialogue is fed to the encoder, and the corresponding summary serves as input to the decoder. We will, therefore, change the format of the dataset to a dictionary having two keys: <code> and <code>.This is how <code> expects the input format to be.
+
+Fine-tune BART.
+
+Let's load the model and preprocessor first. We use sequence lengths of 512 and 128 for the encoder and decoder, respectively, instead of 1024 (which is the default sequence length). This will allow us to run this example quickly on Colab.
+
+If you observe carefully, the preprocessor is attached to the model. What this means is that we don't have to worry about preprocessing the text inputs; everything will be done internally. The preprocessor tokenizes the encoder text and the decoder text, adds special tokens and pads them. To generate labels for auto-regressive training, the preprocessor shifts the decoder text one position to the right. This is done because at every timestep, the model is trained to predict the next token.
+
+Preprocessor: "bartseq2seqlmpreprocessor".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Tokenizer (type) ┃ Vocab # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │ bart_tokenizer ( BartTokenizer ) │ 50,265 │ └────────────────────────────────────────────────────┴─────────────────────────────────────────────────────┘.
+
+Model: "bartseq2seq_lm".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │ decoderpaddingmask │ ( None , None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├───────────────────────────────┼───────────────────────────┼─────────────┼────────────────────────────────┤ │ decodertokenids │ ( None , None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├───────────────────────────────┼───────────────────────────┼─────────────┼────────────────────────────────┤ │ encoderpaddingmask │ ( None , None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├───────────────────────────────┼───────────────────────────┼─────────────┼────────────────────────────────┤ │ encodertokenids │ ( None , None ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├───────────────────────────────┼───────────────────────────┼─────────────┼────────────────────────────────┤ │ bartbackbone ( BartBackbone ) │ ( None , None , 768 ), │ 139,417,344 │ decoderpaddingmask[ 0 , │ │ │ ( None , None , 768 )] │ │ decodertokenids 0 , │ │ │ │ │ encoderpaddingmask 0 , │ │ │ │ │ encodertokenids 0 │ ├───────────────────────────────┼───────────────────────────┼─────────────┼────────────────────────────────┤ │ reverseembedding │ ( None , 50265 ) │ 38,603,520 │ bart_backbone 0 │ │ ( ReverseEmbedding ) │ │ │ │ └───────────────────────────────┴───────────────────────────┴─────────────┴────────────────────────────────┘.
+
+Total params: 139,417,344 (4.15 GB).
+
+Trainable params: 139,417,344 (4.15 GB).
+
+Non-trainable params: 0 (0.00 B).
+
+Define the optimizer and loss. We use the Adam optimizer with a linearly decaying learning rate. Compile the model.
+
+Let's train the model!
+
+Generate summaries and evaluate them!
+
+Now that the model has been trained, let's get to the fun part - actually generating summaries! Let's pick the first 100 samples from the validation set and generate summaries for them. We will use the default decoding strategy, i.e., greedy search.
+
+Generation in KerasHub is highly optimized. It is backed by the power of XLA. Secondly, key/value tensors in the self-attention layer and cross-attention layer in the decoder are cached to avoid recomputation at every timestep.
+
+Let's see some of the summaries.
+
+The generated summaries look awesome! Not bad for a model trained only for 1 epoch and on 5000 examples :) ```.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.
+
+Chapter 16: Text generation.

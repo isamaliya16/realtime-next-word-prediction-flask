@@ -1,0 +1,119 @@
+Vocal Track Separation with Encoder-Decoder Architecture.
+
+Introduction.
+
+In this tutorial, we build a vocal track separation model using an encoder-decoder architecture in Keras 3.
+
+We train the model on the MUSDB18 dataset, which provides music mixtures and isolated tracks for drums, bass, other, and vocals.
+
+Key concepts covered:
+
+Audio data preprocessing using the Short-Time Fourier Transform (STFT).
+
+Audio data augmentation techniques.
+
+Implementing custom encoders and decoders specialized for audio data.
+
+Defining appropriate loss functions and metrics for audio source separation tasks.
+
+The model architecture is derived from the TFCTDFNet model described in:
+
+W. Choi, M. Kim, J. Chung, D. Lee, and S. Jung, “Investigating U-Nets with various intermediate blocks for spectrogram-based singing voice separation,” in the 21st International Society for Music Information Retrieval Conference, 2020.
+
+For reference code, see: GitHub: ws-choi/ISMIR2020U_NetsSVS.
+
+The data processing and model training routines are partly derived from: ZFTurbo/Music-Source-Separation-Training.
+
+Setup.
+
+Import and install all the required dependencies.
+
+Configuration.
+
+The following constants define configuration parameters for audio processing and model training, including dataset paths, audio chunk sizes, Short-Time Fourier Transform (STFT) parameters, and training hyperparameters.
+
+MUSDB18 Dataset.
+
+The MUSDB18 dataset is a standard benchmark for music source separation, containing 150 full-length music tracks along with isolated drums, bass, other, and vocals. The dataset is stored in .mp4 format, and each .mp4 file includes multiple audio streams (mixture and individual tracks).
+
+Download and Conversion.
+
+The following utility function downloads MUSDB18 and converts its .mp4 files to .wav files for each instrument track, resampled to 16 kHz.
+
+Custom Dataset.
+
+We define a custom dataset class to generate random audio chunks and their corresponding labels. The dataset does the following:
+
+Selects a random chunk from a random song and instrument.
+
+Applies optional data augmentations.
+
+Combines isolated tracks to form new synthetic mixtures.
+
+Prepares features (mixtures) and labels (vocals) for training.
+
+This approach allows creating an effectively infinite variety of training examples through randomization and augmentation.
+
+Visualize a Sample.
+
+Let's visualize a random mixed audio chunk and its corresponding isolated vocals. This helps to understand the nature of the preprocessed input data.
+
+Your browser does not support the audio element.
+
+Your browser does not support the audio element.
+
+Model.
+
+Preprocessing.
+
+The model operates on STFT representations rather than raw audio. We define a preprocessing model to compute STFT and a corresponding inverse transform (iSTFT).
+
+Model Architecture.
+
+The model uses a custom encoder-decoder architecture with Time-Frequency Convolution (TFC) and Time-Distributed Fully Connected (TDF) blocks. They are grouped into a <code>, i.e. "TFC_TDF" in the original paper by Choi et al.
+
+We then define an encoder-decoder network with multiple scales. Each encoder scale applies TFCTDF blocks followed by downsampling, while decoder scales apply TFCTDF blocks over the concatenation of upsampled features and associated encoder outputs.
+
+Loss and Metrics.
+
+We define:
+
+<code>: Mean absolute error in STFT domain.
+
+<code>: Signal-to-Distortion Ratio, a common source separation metric.
+
+Training.
+
+Visualize Model Architecture.
+
+Model: "tfctdfnet".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩ │ inputlayer │ ( None , 65024 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ stft ( STFT ) │ ( None , 128 , │ 0 │ inputlayer[ 0 │ │ │ 1025 ), ( None , │ │ │ │ │ 128 , 1025 )] │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ expanddims │ ( None , 128 , 1025 , │ 0 │ stft 0 │ │ ( ExpandDims ) │ 1 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ expanddims1 │ ( None , 128 , 1025 , │ 0 │ stft 0 │ │ ( ExpandDims ) │ 1 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate │ ( None , 128 , 1025 , │ 0 │ expanddims 0 … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ split ( Split ) │ ( None , 128 , │ 0 │ concatenate[ 0 │ │ │ 1024 , 2 ), ( None , │ │ │ │ │ 128 , 1 , 2 )] │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ reshape ( Reshape ) │ ( None , 128 , 256 , │ 0 │ split 0 │ │ │ 8 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d ( Conv2D ) │ ( None , 128 , 256 , │ 512 │ reshape 0 │ │ │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 128 , 256 , │ 287,744 │ conv2d 0 │ │ ( TimeFrequencyTran… │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ downscale │ ( None , 64 , 128 , │ 49,536 │ timefrequencyt… │ │ ( Downscale ) │ 192 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 64 , 128 , │ 1,436,672 │ downscale 0 │ │ ( TimeFrequencyTran… │ 192 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ downscale1 │ ( None , 32 , 64 , │ 246,400 │ timefrequencyt… │ │ ( Downscale ) │ 320 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 32 , 64 , │ 3,904,512 │ downscale1 0 │ │ ( TimeFrequencyTran… │ 320 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ downscale2 │ ( None , 16 , 32 , │ 574,336 │ timefrequencyt… │ │ ( Downscale ) │ 448 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 16 , 32 , │ 7,635,968 │ downscale2 0 │ │ ( TimeFrequencyTran… │ 448 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ downscale3 │ ( None , 8 , 16 , │ 1,033,344 │ timefrequencyt… │ │ ( Downscale ) │ 576 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 8 , 16 , │ 12,617,216 │ downscale3 0 │ │ ( TimeFrequencyTran… │ 576 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ upscale ( Upscale ) │ ( None , 16 , 32 , │ 1,033,088 │ timefrequencyt… │ │ │ 448 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate1 │ ( None , 16 , 32 , │ 0 │ upscale 0 , │ │ ( Concatenate ) │ 896 ) │ │ timefrequencyt… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 16 , 32 , │ 15,065,600 │ concatenate1[ 0 ]… │ │ ( TimeFrequencyTran… │ 448 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ upscale1 ( Upscale ) │ ( None , 32 , 64 , │ 574,080 │ timefrequencyt… │ │ │ 320 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate2 │ ( None , 32 , 64 , │ 0 │ upscale1 0 , │ │ ( Concatenate ) │ 640 ) │ │ timefrequencyt… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 32 , 64 , │ 7,695,872 │ concatenate2[ 0 ]… │ │ ( TimeFrequencyTran… │ 320 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ upscale2 ( Upscale ) │ ( None , 64 , 128 , │ 246,144 │ timefrequencyt… │ │ │ 192 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate3 │ ( None , 64 , 128 , │ 0 │ upscale2 0 , │ │ ( Concatenate ) │ 384 ) │ │ timefrequencyt… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 64 , 128 , │ 2,802,176 │ concatenate3[ 0 ]… │ │ ( TimeFrequencyTran… │ 192 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ upscale3 ( Upscale ) │ ( None , 128 , 256 , │ 49,280 │ timefrequencyt… │ │ │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate4 │ ( None , 128 , 256 , │ 0 │ upscale3 0 , │ │ ( Concatenate ) │ 128 ) │ │ timefrequencyt… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ timefrequencytra… │ ( None , 128 , 256 , │ 439,808 │ concatenate4[ 0 ]… │ │ ( TimeFrequencyTran… │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ multiply ( Multiply ) │ ( None , 128 , 256 , │ 0 │ timefrequencyt… │ │ │ 64 ) │ │ conv2d 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate5 │ ( None , 128 , 256 , │ 0 │ reshape 0 , │ │ ( Concatenate ) │ 72 ) │ │ multiply 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d59 ( Conv2D ) │ ( None , 128 , 256 , │ 4,608 │ concatenate5[ 0 ]… │ │ │ 64 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ conv2d60 ( Conv2D ) │ ( None , 128 , 256 , │ 512 │ conv2d59 0 │ │ │ 8 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ reshape1 ( Reshape ) │ ( None , 128 , 1024 , │ 0 │ conv2d60 0 │ │ │ 1 , 2 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ transpose │ ( None , 1 , 128 , │ 0 │ reshape1 0 │ │ ( Transpose ) │ 1024 , 2 ) │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ reshape_2 ( Reshape ) │ ( None , 1 , 128 , │ 0 │ transpose 0 │ │ │ 2048 ) │ │ │ └─────────────────────┴───────────────────┴────────────┴───────────────────┘.
+
+Total params: 222,789,634 (849.88 MB).
+
+Trainable params: 55,697,408 (212.47 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Optimizer params: 167,092,226 (637.41 MB).
+
+Compile and Train the Model.
+
+Evaluation.
+
+Evaluate the model on the validation dataset and visualize predicted vocals.
+
+Your browser does not support the audio element.
+
+Conclusion.
+
+We built and trained a vocal track separation model using an encoder-decoder architecture with custom blocks applied to the MUSDB18 dataset. We demonstrated STFT-based preprocessing, data augmentation, and a source separation metric (SDR).
+
+Next steps:
+
+Train for more epochs and refine hyperparameters.
+
+Separate multiple instruments simultaneously.
+
+Enhance the model to handle instruments not present in the mixture.

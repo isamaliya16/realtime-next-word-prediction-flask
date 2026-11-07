@@ -1,0 +1,47 @@
+Data Preprocessing.
+
+So far, we have been working with synthetic data that arrived in ready-made tensors. However, to apply deep learning in the wild we must extract messy data stored in arbitrary formats, and preprocess it to suit our needs. Fortunately, the pandas library can do much of the heavy lifting. This section, while no substitute for a proper pandas tutorial, will give you a crash course on some of the most common routines.
+
+Reading the Dataset.
+
+Comma-separated values (CSV) files are ubiquitous for the storing of tabular (spreadsheet-like) data. In them, each line corresponds to one record and consists of several (comma-separated) fields, e.g., "Albert Einstein,March 14 1879,Ulm,Federal polytechnic school,field of gravitational physics". To demonstrate how to load CSV files with <code>, we (create a CSV file below) <code>. This file represents a dataset of homes, where each row corresponds to a distinct home and the columns correspond to the number of rooms (<code>), the roof type (<code>), and the price (<code>).
+
+Now let's import <code> and load the dataset with <code>.
+
+Data Preparation.
+
+In supervised learning, we train models to predict a designated target value, given some set of input values. Our first step in processing the dataset is to separate out columns corresponding to input versus target values. We can select columns either by name or via integer-location based indexing (<code>).
+
+You might have noticed that <code> replaced all CSV entries with value <code> with a special <code> (not a number) value. This can also happen whenever an entry is empty, e.g., "3,,,270000". These are called missing values and they are the "bed bugs" of data science, a persistent menace that you will confront throughout your career. Depending upon the context, missing values might be handled either via imputation or deletion. Imputation replaces missing values with estimates of their values while deletion simply discards either those rows or those columns that contain missing values.
+
+Here are some common imputation heuristics. [For categorical input fields, we can treat <code> as a category.] Since the <code> column takes values <code> and <code>, <code> can convert this column into two columns <code> and <code>. A row whose roof type is <code> will set values of <code> and <code> to 1 and 0, respectively. The converse holds for a row with a missing <code> value.
+
+For missing numerical values, one common heuristic is to [replace the <code> entries with the mean value of the corresponding column].
+
+Conversion to the Tensor Format.
+
+Now that [all the entries in <code> and <code> are numerical, we can load them into a tensor] (recall section <num>).
+
+Discussion.
+
+You now know how to partition data columns, impute missing variables, and load <code> data into tensors. In section <num>, you will pick up some more data processing skills. While this crash course kept things simple, data processing can get hairy. For example, rather than arriving in a single CSV file, our dataset might be spread across multiple files extracted from a relational database. For instance, in an e-commerce application, customer addresses might live in one table and purchase data in another. Moreover, practitioners face myriad data types beyond categorical and numeric, for example, text strings, images, audio data, and point clouds. Oftentimes, advanced tools and efficient algorithms are required in order to prevent data processing from becoming the biggest bottleneck in the machine learning pipeline. These problems will arise when we get to computer vision and natural language processing. Finally, we must pay attention to data quality. Real-world datasets are often plagued by outliers, faulty measurements from sensors, and recording errors, which must be addressed before feeding the data into any model. Data visualization tools such as seaborn, Bokeh, or matplotlib can help you to manually inspect the data and develop intuitions about the type of problems you may need to address.
+
+Exercises.
+
+Try loading datasets, e.g., Abalone from the UCI Machine Learning Repository and inspect their properties. What fraction of them has missing values? What fraction of the variables is numerical, categorical, or text?
+
+Try indexing and selecting data columns by name rather than by column number. The pandas documentation on indexing has further details on how to do this.
+
+How large a dataset do you think you could load this way? What might be the limitations? Hint: consider the time to read the data, representation, processing, and memory footprint. Try this out on your laptop. What happens if you try it out on a server?
+
+How would you deal with data that has a very large number of categories? What if the category labels are all unique? Should you include the latter?
+
+What alternatives to pandas can you think of? How about loading NumPy tensors from a file? Check out Pillow, the Python Imaging Library.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

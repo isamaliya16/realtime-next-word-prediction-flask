@@ -1,0 +1,145 @@
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View on GitHub.
+
+Download notebook.
+
+See TF Hub model.
+
+Transfer learning with YAMNet for environmental sound classification.
+
+YAMNet is a pre-trained deep neural network that can predict audio events from 521 classes, such as laughter, barking, or a siren.
+
+In this tutorial you will learn how to:
+
+Load and use the YAMNet model for inference.
+
+Build a new model using the YAMNet embeddings to classify cat and dog sounds.
+
+Evaluate and export your model.
+
+Import TensorFlow and other libraries.
+
+Start by installing TensorFlow I/O, which will make it easier for you to load audio files off disk.
+
+About YAMNet.
+
+YAMNet is a pre-trained neural network that employs the MobileNetV1 depthwise-separable convolution architecture. It can use an audio waveform as input and make independent predictions for each of the 521 audio events from the AudioSet corpus.
+
+Internally, the model extracts "frames" from the audio signal and processes batches of these frames. This version of the model uses frames that are 0.96 second long and extracts one frame every 0.48 seconds .
+
+The model accepts a 1-D float32 Tensor or NumPy array containing a waveform of arbitrary length, represented as single-channel (mono) 16 kHz samples in the range <code>. This tutorial contains code to help you convert WAV files into the supported format.
+
+The model returns 3 outputs, including the class scores, embeddings (which you will use for transfer learning), and the log mel spectrogram. You can find more details here.
+
+One specific use of YAMNet is as a high-level feature extractor - the 1,024-dimensional embedding output. You will use the base (YAMNet) model's input features and feed them into your shallower model consisting of one hidden <code> layer. Then, you will train the network on a small amount of data for audio classification without requiring a lot of labeled data and training end-to-end. (This is similar to transfer learning for image classification with TensorFlow Hub for more information.).
+
+First, you will test the model and see the results of classifying audio. You will then construct the data pre-processing pipeline.
+
+Loading YAMNet from TensorFlow Hub.
+
+You are going to use a pre-trained YAMNet from Tensorflow Hub to extract the embeddings from the sound files.
+
+Loading a model from TensorFlow Hub is straightforward: choose the model, copy its URL, and use the <code> function.
+
+Note: to read the documentation of the model, use the model URL in your browser.
+
+With the model loaded, you can follow the YAMNet basic usage tutorial and download a sample WAV file to run the inference.
+
+You will need a function to load audio files, which will also be used later when working with the training data. (Learn more about reading audio files and their labels in Simple audio recognition.
+
+Note: The returned <code> from <code> is already normalized to values in the <code> range (for more information, go to YAMNet's documentation on TF Hub).
+
+Load the class mapping.
+
+It's important to load the class names that YAMNet is able to recognize. The mapping file is present at <code> in the CSV format.
+
+Run inference.
+
+YAMNet provides frame-level class-scores (i.e., 521 scores for every frame). In order to determine clip-level predictions, the scores can be aggregated per-class across frames (e.g., using mean or max aggregation). This is done below by <code>. Finally, to find the top-scored class at the clip-level, you take the maximum of the 521 aggregated scores.
+
+Note: The model correctly inferred an animal sound. Your goal in this tutorial is to increase the model's accuracy for specific classes. Also, notice that the model generated 13 embeddings, 1 per frame.
+
+ESC-50 dataset.
+
+The ESC-50 dataset (Piczak, 2015) is a labeled collection of 2,000 five-second long environmental audio recordings. The dataset consists of 50 classes, with 40 examples per class.
+
+Download the dataset and extract it.
+
+Explore the data.
+
+The metadata for each file is specified in the csv file at <code>.
+
+and all the audio files are in <code>.
+
+You will create a pandas <code> with the mapping and use that to have a clearer view of the data.
+
+Filter the data.
+
+Now that the data is stored in the <code>, apply some transformations:
+
+Filter out rows and use only the selected classes - <code> and <code>. If you want to use any other classes, this is where you can choose them.
+
+Amend the filename to have the full path. This will make loading easier later.
+
+Change targets to be within a specific range. In this example, <code> will remain at <code>, but <code> will become <code> instead of its original value of <code>.
+
+Load the audio files and retrieve embeddings.
+
+Here you'll apply the <code> and prepare the WAV data for the model.
+
+When extracting embeddings from the WAV data, you get an array of shape <code> where <code> is the number of frames that YAMNet found (one for every 0.48 seconds of audio).
+
+Your model will use each frame as one input. Therefore, you need to create a new column that has one frame per row. You also need to expand the labels and the <code> column to proper reflect these new rows.
+
+The expanded <code> column keeps the original values. You cannot mix frames because, when performing the splits, you might end up having parts of the same audio on different splits, which would make your validation and test steps less effective.
+
+Split the data.
+
+You will use the <code> column to split the dataset into train, validation and test sets.
+
+ESC-50 is arranged into five uniformly-sized cross-validation <code>s, such that clips from the same original source are always in the same <code> - find out more in the ESC: Dataset for Environmental Sound Classification paper.
+
+The last step is to remove the <code> column from the dataset since you're not going to use it during training.
+
+Create your model.
+
+You did most of the work! Next, define a very simple Sequential model with one hidden layer and two outputs to recognize cats and dogs from sounds.
+
+Let's run the <code> method on the test data just to be sure there's no overfitting.
+
+You did it!
+
+Test your model.
+
+Next, try your model on the embedding from the previous test using YAMNet only.
+
+Save a model that can directly take a WAV file as input.
+
+Your model works when you give it the embeddings as input.
+
+In a real-world scenario, you'll want to use audio data as a direct input.
+
+To do that, you will combine YAMNet with your model into a single model that you can export for other applications.
+
+To make it easier to use the model's result, the final layer will be a <code> operation. When using this model for serving (which you will learn about later in the tutorial), you will need the name of the final layer. If you don't define one, TensorFlow will auto-define an incremental one that makes it hard to test, as it will keep changing every time you train the model. When using a raw TensorFlow operation, you can't assign a name to it. To address this issue, you'll create a custom layer that applies <code> and call it <code>.
+
+Load your saved model to verify that it works as expected.
+
+And for the final test: given some sound data, does your model return the correct result?
+
+If you want to try your new model on a serving setup, you can use the 'serving_default' signature.
+
+(Optional) Some more testing.
+
+The model is ready.
+
+Let's compare it to YAMNet on the test dataset.
+
+Next steps.
+
+You have created a model that can classify sounds from dogs or cats. With the same idea and a different dataset you can try, for example, building an acoustic identifier of birds based on their singing.
+
+Share your project with the TensorFlow team on social media!

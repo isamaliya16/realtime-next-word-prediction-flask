@@ -1,0 +1,83 @@
+Semantic Similarity with BERT.
+
+Introduction.
+
+Semantic Similarity is the task of determining how similar two sentences are, in terms of what they mean. This example demonstrates the use of SNLI (Stanford Natural Language Inference) Corpus to predict sentence semantic similarity with Transformers. We will fine-tune a BERT model that takes two sentences as inputs and that outputs a similarity score for these two sentences.
+
+References.
+
+BERT.
+
+SNLI.
+
+Setup.
+
+Note: install HuggingFace <code> via <code> (version >= 2.11.0).
+
+Configuration.
+
+Load the Data.
+
+Dataset Overview:
+
+sentence1: The premise caption that was supplied to the author of the pair.
+
+sentence2: The hypothesis caption that was written by the author of the pair.
+
+similarity: This is the label chosen by the majority of annotators. Where no majority exists, the label "-" is used (we will skip such samples here).
+
+Here are the "similarity" label values in our dataset:
+
+Contradiction: The sentences share no similarity.
+
+Entailment: The sentences have similar meaning.
+
+Neutral: The sentences are neutral.
+
+Let's look at one sample from the dataset:
+
+Preprocessing.
+
+Distribution of our training targets.
+
+Distribution of our validation targets.
+
+The value "-" appears as part of our training and validation targets. We will skip these samples.
+
+One-hot encode training, validation, and test labels.
+
+Create a custom data generator.
+
+Build the model.
+
+Create train and validation data generators.
+
+Train the Model.
+
+Training is done only for the top layers to perform "feature extraction", which will allow the model to use the representations of the pretrained model.
+
+Fine-tuning.
+
+This step must only be performed after the feature extraction model has been trained to convergence on the new data.
+
+This is an optional last step where <code> is unfreezed and retrained with a very low learning rate. This can deliver meaningful improvement by incrementally adapting the pretrained features to the new data.
+
+Train the entire model end-to-end.
+
+Evaluate model on the test set.
+
+Inference on custom sentences.
+
+Check results on some example sentence pairs.
+
+Check results on some example sentence pairs.
+
+Check results on some example sentence pairs.
+
+Example available on HuggingFace.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.
+
+Chapter 15: Language models and the Transformer.

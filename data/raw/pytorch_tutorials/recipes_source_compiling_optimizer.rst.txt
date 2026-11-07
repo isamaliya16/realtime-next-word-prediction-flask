@@ -1,0 +1,19 @@
+(beta) Compiling the optimizer with torch.compile.
+
+The optimizer is a key algorithm for training any deep learning model. Since it is responsible for updating every model parameter, it can often become the bottleneck in training performance for large models. In this recipe, we will apply <code> to the optimizer to observe the GPU performance improvement.
+
+Model Setup For this example, we'll use a simple sequence of linear layers. Since we are only benchmarking the optimizer, the choice of model doesn't matter because optimizer performance is a function of the number of parameters.
+
+Depending on what machine you are using, your exact results may vary.
+
+Setting up and running the optimizer benchmark In this example, we'll use the Adam optimizer and create a helper function to wrap the step() in <code>.
+
+Sample Results:
+
+Eager runtime: 747.2437149845064us.
+
+Compiled runtime: 392.07384741178us.
+
+See Also.
+
+For an in-depth technical overview, see Compiling the optimizer with PT2.

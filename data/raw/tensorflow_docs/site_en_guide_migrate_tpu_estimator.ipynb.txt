@@ -1,0 +1,65 @@
+Migrate from TPUEstimator to TPUStrategy.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to migrate your workflows running on TPUs from TensorFlow 1's <code> API to TensorFlow 2's <code> API.
+
+In TensorFlow 1, the <code> API lets you train and evaluate a model, as well as perform inference and save your model (for serving) on (Cloud) TPUs.
+
+In TensorFlow 2, to perform synchronous training on TPUs and TPU Pods (a collection of TPU devices connected by dedicated high-speed network interfaces), you need to use a TPU distribution strategy—<code>. The strategy can work with the Keras APIs—including for model building (<code>), optimizers (<code>), and training (<code>)—as well as a custom training loop (with <code> and <code>).
+
+For end-to-end TensorFlow 2 examples, check out the Use TPUs guide—namely, the Classification on TPUs section—and the Solve GLUE tasks using BERT on TPU tutorial. You may also find the Distributed training guide useful, which covers all TensorFlow distribution strategies, including <code>.
+
+Setup.
+
+Start with imports and a simple dataset for demonstration purposes:
+
+TensorFlow 1: Drive a model on TPUs with TPUEstimator.
+
+This section of the guide demonstrates how to perform training and evaluation with <code> in TensorFlow 1.
+
+To use a <code>, first define a few functions: an input function for the training data, an evaluation input function for the evaluation data, and a model function that tells the <code> how the training op is defined with the features and labels:
+
+With those functions defined, create a <code> that provides the cluster information, and a <code> object. Along with the model function you have defined, you can now create a <code>. Here, you will simplify the flow by skipping checkpoint savings. Then, you will specify the batch size for both training and evaluation for the <code>.
+
+Call <code> to begin training the model:
+
+Then, call <code> to evaluate the model using the evaluation data:
+
+TensorFlow 2: Drive a model on TPUs with Keras Model.fit and TPUStrategy.
+
+In TensorFlow 2, to train on the TPU workers, use <code> together with the Keras APIs for model definition and training/evaluation. (Refer to the Use TPUs guide for more examples of training with Keras <code> and a custom training loop (with <code> and <code>).).
+
+Since you need to perform some initialization work to connect to the remote cluster and initialize the TPU workers, start by creating a <code> to provide the cluster information and connect to the cluster. (Learn more in the TPU initialization section of the Use TPUs guide.).
+
+Next, once your data is prepared, you will create a <code>, define a model, metrics, and an optimizer under the scope of this strategy.
+
+To achieve comparable training speed with <code>, you should make sure to pick a number for <code> in <code> because it specifies the number of batches to run during each <code> call, and is critical for performance. This argument is similar to <code> used in a <code>. If you are using custom training loops, you should make sure multiple steps are run within the <code>-ed training function. Go to the Improving performance with multiple steps inside tf.function section of the Use TPUs guide for more information.
+
+<code> can support bounded dynamic shapes, which is the case that the upper bound of the dynamic shape computation can be inferred. But dynamic shapes may introduce some performance overhead compared to static shapes. So, it is generally recommended to make your input shapes static if possible, especially in training. One common op that returns a dynamic shape is <code>, since the number of samples remaining in a stream might be less than the batch size. Therefore, when training on the TPU, you should use <code> for best training performance.
+
+With that, you are ready to train the model with the training dataset:
+
+Finally, evaluate the model using the evaluation dataset:
+
+Next steps.
+
+To learn more about <code> in TensorFlow 2, consider the following resources:
+
+Guide: Use TPUs (covering training with Keras <code>/a custom training loop with <code>, as well as tips on improving the performance with <code>).
+
+Guide: Distributed training with TensorFlow.
+
+To learn more about customizing your training, refer to:
+
+Guide: Customize what happens in Model.fit.
+
+Guide: Writing a training loop from scratch.
+
+TPUs—Google's specialized ASICs for machine learning—are available through Google Colab, the TPU Research Cloud, and Cloud TPU.

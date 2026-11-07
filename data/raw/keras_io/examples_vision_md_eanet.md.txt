@@ -1,0 +1,35 @@
+Image classification with EANet (External Attention Transformer).
+
+Introduction.
+
+This example implements the EANet model for image classification, and demonstrates it on the CIFAR-100 dataset. EANet introduces a novel attention mechanism named external attention, based on two external, small, learnable, and shared memories, which can be implemented easily by simply using two cascaded linear layers and two normalization layers. It conveniently replaces self-attention as used in existing architectures. External attention has linear complexity, as it only implicitly considers the correlations between all samples.
+
+Setup.
+
+Prepare the data.
+
+Configure the hyperparameters.
+
+Use data augmentation.
+
+Implement the patch extraction and encoding layer.
+
+Implement the external attention block.
+
+Implement the MLP block.
+
+Implement the Transformer block.
+
+Implement the EANet model.
+
+The EANet model leverages external attention. The computational complexity of traditional self attention is <code>, where <code> is the embedding size, and <code> is the number of patch. the authors find that most pixels are closely related to just a few other pixels, and an <code>-to-<code> attention matrix may be redundant. So, they propose as an alternative an external attention module where the computational complexity of external attention is <code>. As <code> and <code> are hyper-parameters, the proposed algorithm is linear in the number of pixels. In fact, this is equivalent to a drop patch operation, because a lot of information contained in a patch in an image is redundant and unimportant.
+
+Train on CIFAR-100.
+
+Let's visualize the training progress of the model.
+
+Let's display the final results of the test on CIFAR-100.
+
+EANet just replaces self attention in Vit with external attention. The traditional Vit achieved a ~73% test top-5 accuracy and ~41 top-1 accuracy after training 50 epochs, but with 0.6M parameters. Under the same experimental environment and the same hyperparameters, The EANet model we just trained has just 0.3M parameters, and it gets us to ~73% test top-5 accuracy and ~43% top-1 accuracy. This fully demonstrates the effectiveness of external attention.
+
+We only show the training process of EANet, you can train Vit under the same experimental conditions and observe the test results.

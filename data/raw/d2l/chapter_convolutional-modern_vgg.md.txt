@@ -1,0 +1,61 @@
+Networks Using Blocks (VGG).
+
+While AlexNet offered empirical evidence that deep CNNs can achieve good results, it did not provide a general template to guide subsequent researchers in designing new networks. In the following sections, we will introduce several heuristic concepts commonly used to design deep networks.
+
+Progress in this field mirrors that of VLSI (very large scale integration) in chip design where engineers moved from placing transistors to logical elements to logic blocks . Similarly, the design of neural network architectures has grown progressively more abstract, with researchers moving from thinking in terms of individual neurons to whole layers, and now to blocks, repeating patterns of layers. A decade later, this has now progressed to researchers using entire trained models to repurpose them for different, albeit related, tasks. Such large pretrained models are typically called foundation models .
+
+Back to network design. The idea of using blocks first emerged from the Visual Geometry Group (VGG) at Oxford University, in their eponymously-named VGG network . It is easy to implement these repeated structures in code with any modern deep learning framework by using loops and subroutines.
+
+(VGG Blocks).
+
+The basic building block of CNNs is a sequence of the following: (i) a convolutional layer with padding to maintain the resolution, (ii) a nonlinearity such as a ReLU, (iii) a pooling layer such as max-pooling to reduce the resolution. One of the problems with this approach is that the spatial resolution decreases quite rapidly. In particular, this imposes a hard limit of <math> convolutional layers on the network before all dimensions (<math>) are used up. For instance, in the case of ImageNet, it would be impossible to have more than 8 convolutional layers in this way.
+
+The key idea of was to use multiple convolutions in between downsampling via max-pooling in the form of a block. They were primarily interested in whether deep or wide networks perform better. For instance, the successive application of two <math> convolutions touches the same pixels as a single <math> convolution does. At the same time, the latter uses approximately as many parameters (<math>) as three <math> convolutions do (<math>). In a rather detailed analysis they showed that deep and narrow networks significantly outperform their shallow counterparts. This set deep learning on a quest for ever deeper networks with over 100 layers for typical applications. Stacking <math> convolutions has become a gold standard in later deep networks (a design decision only to be revisited recently by ). Consequently, fast implementations for small convolutions have become a staple on GPUs .
+
+Back to VGG: a VGG block consists of a sequence of convolutions with <math> kernels with padding of 1 (keeping height and width) followed by a <math> max-pooling layer with stride of 2 (halving height and width after each block). In the code below, we define a function called <code> to implement one VGG block.
+
+The function below takes two arguments, corresponding to the number of convolutional layers <code> and the number of output channels <code>.
+
+[VGG Network].
+
+Like AlexNet and LeNet, the VGG Network can be partitioned into two parts: the first consisting mostly of convolutional and pooling layers and the second consisting of fully connected layers that are identical to those in AlexNet. The key difference is that the convolutional layers are grouped in nonlinear transformations that leave the dimensonality unchanged, followed by a resolution-reduction step, as depicted in section <num>.
+
+The convolutional part of the network connects several VGG blocks from section <num> (also defined in the <code> function) in succession. This grouping of convolutions is a pattern that has remained almost unchanged over the past decade, although the specific choice of operations has undergone considerable modifications. The variable <code> consists of a list of tuples (one per block), where each contains two values: the number of convolutional layers and the number of output channels, which are precisely the arguments required to call the <code> function. As such, VGG defines a family of networks rather than just a specific manifestation. To build a specific network we simply iterate over <code> to compose the blocks.
+
+The original VGG network had five convolutional blocks, among which the first two have one convolutional layer each and the latter three contain two convolutional layers each. The first block has 64 output channels and each subsequent block doubles the number of output channels, until that number reaches 512. Since this network uses eight convolutional layers and three fully connected layers, it is often called VGG-11.
+
+As you can see, we halve height and width at each block, finally reaching a height and width of 7 before flattening the representations for processing by the fully connected part of the network. described several other variants of VGG. In fact, it has become the norm to propose families of networks with different speed--accuracy trade-off when introducing a new architecture.
+
+Training.
+
+[Since VGG-11 is computationally more demanding than AlexNet we construct a network with a smaller number of channels.] This is more than sufficient for training on Fashion-MNIST. The [model training] process is similar to that of AlexNet in section <num>. Again observe the close match between validation and training loss, suggesting only a small amount of overfitting.
+
+Summary.
+
+One might argue that VGG is the first truly modern convolutional neural network. While AlexNet introduced many of the components of what make deep learning effective at scale, it is VGG that arguably introduced key properties such as blocks of multiple convolutions and a preference for deep and narrow networks. It is also the first network that is actually an entire family of similarly parametrized models, giving the practitioner ample trade-off between complexity and speed. This is also the place where modern deep learning frameworks shine. It is no longer necessary to generate XML configuration files to specify a network but rather, to assemble said networks through simple Python code.
+
+More recently ParNet demonstrated that it is possible to achieve competitive performance using a much more shallow architecture through a large number of parallel computations. This is an exciting development and there is hope that it will influence architecture designs in the future. For the remainder of the chapter, though, we will follow the path of scientific progress over the past decade.
+
+Exercises.
+
+Compared with AlexNet, VGG is much slower in terms of computation, and it also needs more GPU memory.
+
+Compare the number of parameters needed for AlexNet and VGG.
+
+Compare the number of floating point operations used in the convolutional layers and in the fully connected layers.
+
+How could you reduce the computational cost created by the fully connected layers?
+
+When displaying the dimensions associated with the various layers of the network, we only see the information associated with eight blocks (plus some auxiliary transforms), even though the network has 11 layers. Where did the remaining three layers go?
+
+Use Table 1 in the VGG paper to construct other common models, such as VGG-16 or VGG-19.
+
+Upsampling the resolution in Fashion-MNIST eight-fold from <math> to <math> dimensions is very wasteful. Try modifying the network architecture and resolution conversion, e.g., to 56 or to 84 dimensions for its input instead. Can you do so without reducing the accuracy of the network? Consult the VGG paper for ideas on adding more nonlinearities prior to downsampling.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

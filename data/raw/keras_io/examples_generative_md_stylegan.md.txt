@@ -1,0 +1,51 @@
+Face image generation with StyleGAN.
+
+Introduction.
+
+The key idea of StyleGAN is to progressively increase the resolution of the generated images and to incorporate style features in the generative process.This StyleGAN implementation is based on the book Hands-on Image Generation with TensorFlow. The code from the book's GitHub repository was refactored to leverage a custom <code> to enable faster training time via compilation and distribution.
+
+Setup.
+
+Install latest TFA.
+
+Prepare the dataset.
+
+In this example, we will train using the CelebA from TensorFlow Datasets.
+
+Utility function to display images after each epoch.
+
+Custom Layers.
+
+The following are building blocks that will be used to construct the generators and discriminators of the StyleGAN model.
+
+Next we build the following:
+
+A model mapping to map the random noise into style code.
+
+The generator.
+
+The discriminator.
+
+For the generator, we build generator blocks at multiple resolutions, e.g. 4x4, 8x8, ...up to 1024x1024. We only use 4x4 in the beginning and we use progressively larger-resolution blocks as the training proceeds. Same for the discriminator.
+
+Build StyleGAN with custom train step.
+
+Training.
+
+We first build the StyleGAN at smallest resolution, such as 4x4 or 8x8. Then we progressively grow the model to higher resolution by appending new generator and discriminator blocks.
+
+The training for each new resolution happens in two phases - "transition" and "stable". In the transition phase, the features from the previous resolution are mixed with the current resolution. This allows for a smoother transition when scaling up. We use each epoch in <code> as a phase.
+
+StyleGAN can take a long time to train, in the code below, a small <code> value of 1 is used to sanity-check the code is working alright. In practice, a larger <code> value (over 10000) is required to get decent results.
+
+Results.
+
+We can now run some inference using pre-trained 64x64 checkpoints. In general, the image fidelity increases with the resolution. You can try to train this StyleGAN to resolutions above 128x128 with the CelebA HQ dataset.
+
+Style Mixing.
+
+We can also mix styles from two images to create a new image.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

@@ -1,0 +1,77 @@
+The Dataset for Pretraining Word Embeddings.
+
+Now that we know the technical details of the word2vec models and approximate training methods, let's walk through their implementations. Specifically, we will take the skip-gram model in section <num> and negative sampling in section <num> as an example. In this section, we begin with the dataset for pretraining the word embedding model: the original format of the data will be transformed into minibatches that can be iterated over during training.
+
+Reading the Dataset.
+
+The dataset that we use here is Penn Tree Bank (PTB). This corpus is sampled from Wall Street Journal articles, split into training, validation, and test sets. In the original format, each line of the text file represents a sentence of words that are separated by spaces. Here we treat each word as a token.
+
+After reading the training set, we build a vocabulary for the corpus, where any word that appears less than 10 times is replaced by the " " token. Note that the original dataset also contains " " tokens that represent rare (unknown) words.
+
+Subsampling.
+
+Text data typically have high-frequency words such as "the", "a", and "in": they may even occur billions of times in very large corpora. However, these words often co-occur with many different words in context windows, providing little useful signals. For instance, consider the word "chip" in a context window: intuitively its co-occurrence with a low-frequency word "intel" is more useful in training than the co-occurrence with a high-frequency word "a". Moreover, training with vast amounts of (high-frequency) words is slow. Thus, when training word embedding models, high-frequency words can be subsampled . Specifically, each indexed word <math> in the dataset will be discarded with probability.
+
+<math>.
+
+where <math> is the ratio of the number of words <math> to the total number of words in the dataset, and the constant <math> is a hyperparameter (<math> in the experiment). We can see that only when the relative frequency <math> can the (high-frequency) word <math> be discarded, and the higher the relative frequency of the word, the greater the probability of being discarded.
+
+The following code snippet plots the histogram of the number of tokens per sentence before and after subsampling. As expected, subsampling significantly shortens sentences by dropping high-frequency words, which will lead to training speedup.
+
+For individual tokens, the sampling rate of the high-frequency word "the" is less than 1/20.
+
+In contrast, low-frequency words "join" are completely kept.
+
+After subsampling, we map tokens to their indices for the corpus.
+
+Extracting Center Words and Context Words.
+
+The following <code> function extracts all the center words and their context words from <code>. It uniformly samples an integer between 1 and <code> at random as the context window size. For any center word, those words whose distance from it does not exceed the sampled context window size are its context words.
+
+Next, we create an artificial dataset containing two sentences of 7 and 3 words, respectively. Let the maximum context window size be 2 and print all the center words and their context words.
+
+When training on the PTB dataset, we set the maximum context window size to 5. The following extracts all the center words and their context words in the dataset.
+
+Negative Sampling.
+
+We use negative sampling for approximate training. To sample noise words according to a predefined distribution, we define the following <code> class, where the (possibly unnormalized) sampling distribution is passed via the argument <code>.
+
+For example, we can draw 10 random variables <math> among indices 1, 2, and 3 with sampling probabilities <math>, and <math> as follows.
+
+For a pair of center word and context word, we randomly sample <code> (5 in the experiment) noise words. According to the suggestions in the word2vec paper, the sampling probability <math> of a noise word <math> is set to its relative frequency in the dictionary raised to the power of 0.75 .
+
+Loading Training Examples in Minibatches.
+
+After all the center words together with their context words and sampled noise words are extracted, they will be transformed into minibatches of examples that can be iteratively loaded during training.
+
+In a minibatch, the <math> example includes a center word and its <math> context words and <math> noise words. Due to varying context window sizes, <math> varies for different <math>. Thus, for each example we concatenate its context words and noise words in the <code> variable, and pad zeros until the concatenation length reaches <math> (<code>). To exclude paddings in the calculation of the loss, we define a mask variable <code>. There is a one-to-one correspondence between elements in <code> and elements in <code>, where zeros (otherwise ones) in <code> correspond to paddings in <code>.
+
+To distinguish between positive and negative examples, we separate context words from noise words in <code> via a <code> variable. Similar to <code>, there is also a one-to-one correspondence between elements in <code> and elements in <code>, where ones (otherwise zeros) in <code> correspond to context words (positive examples) in <code>.
+
+The above idea is implemented in the following <code> function. Its input <code> is a list with length equal to the batch size, where each element is an example consisting of the center word <code>, its context words <code>, and its noise words <code>. This function returns a minibatch that can be loaded for calculations during training, such as including the mask variable.
+
+Let's test this function using a minibatch of two examples.
+
+Putting It All Together.
+
+Last, we define the <code> function that reads the PTB dataset and returns the data iterator and the vocabulary.
+
+Let's print the first minibatch of the data iterator.
+
+Summary.
+
+High-frequency words may not be so useful in training. We can subsample them for speedup in training.
+
+For computational efficiency, we load examples in minibatches. We can define other variables to distinguish paddings from non-paddings, and positive examples from negative ones.
+
+Exercises.
+
+How does the running time of code in this section changes if not using subsampling?
+
+The <code> class caches <code> random sampling results. Set <code> to other values and see how it affects the data loading speed.
+
+What other hyperparameters in the code of this section may affect the data loading speed?
+
+Discussions.
+
+Discussions.

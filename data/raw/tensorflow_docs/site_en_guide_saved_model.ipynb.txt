@@ -1,0 +1,233 @@
+Using the SavedModel format.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+A SavedModel contains a complete TensorFlow program, including trained parameters (i.e, <code>s) and computation. It does not require the original model building code to run, which makes it useful for sharing or deploying with TFLite, TensorFlow.js, TensorFlow Serving, or TensorFlow Hub.
+
+You can save and load a model in the SavedModel format using the following APIs:
+
+Low-level <code> API. This document describes how to use this API in detail.
+
+Save: <code>.
+
+Load: <code>.
+
+High-level <code> API. Refer to the keras save and serialize guide.
+
+If you just want to save/load weights during training, refer to the checkpoints guide.
+
+Caution: TensorFlow models are code and it is important to be careful with untrusted code. Learn more in Using TensorFlow securely.
+
+Creating a SavedModel from Keras.
+
+Deprecated: For Keras objects, it's recommended to use the new high-level <code> format and <code>, as demonstrated in the guide here. The low-level SavedModel format continues to be supported for existing code.
+
+For a quick introduction, this section exports a pre-trained Keras model and serves image classification requests with it. The rest of the guide will fill in details and discuss other ways to create SavedModels.
+
+You'll use an image of Grace Hopper as a running example, and a Keras pre-trained image classification model since it's easy to use. Custom models work too, and are covered in detail later.
+
+The top prediction for this image is "military uniform".
+
+The save-path follows a convention used by TensorFlow Serving where the last path component (<code> here) is a version number for your model - it allows tools like Tensorflow Serving to reason about the relative freshness.
+
+You can load the SavedModel back into Python with <code> and see how Admiral Hopper's image is classified.
+
+Imported signatures always return dictionaries. To customize signature names and output dictionary keys, see Specifying signatures during export.
+
+Running inference from the SavedModel gives the same result as the original model.
+
+Running a SavedModel in TensorFlow Serving.
+
+SavedModels are usable from Python (more on that below), but production environments typically use a dedicated service for inference without running Python code. This is easy to set up from a SavedModel using TensorFlow Serving.
+
+See the TensorFlow Serving REST tutorial for an end-to-end tensorflow-serving example.
+
+The SavedModel format on disk.
+
+A SavedModel is a directory containing serialized signatures and the state needed to run them, including variable values and vocabularies.
+
+The <code> file stores the actual TensorFlow program, or model, and a set of named signatures, each identifying a function that accepts tensor inputs and produces tensor outputs.
+
+SavedModels may contain multiple variants of the model (multiple <code>, identified with the <code> flag to <code>), but this is rare. APIs which create multiple variants of a model include <code> and in TensorFlow 1.x <code>.
+
+The <code> directory contains a standard training checkpoint (see the guide to training checkpoints).
+
+The <code> directory contains files used by the TensorFlow graph, for example text files used to initialize vocabulary tables. It is unused in this example.
+
+SavedModels may have an <code> directory for any files not used by the TensorFlow graph, for example information for consumers about what to do with the SavedModel. TensorFlow itself does not use this directory.
+
+The <code> file contains the fingerprint) of the SavedModel, which is composed of several 64-bit hashes that uniquely identify the contents of the SavedModel. The fingerprinting API is currently experimental, but <code> can be used to read the SavedModel fingerprint into a <code> object.
+
+Saving a custom model.
+
+<code> supports saving <code> objects and its subclasses, like <code> and <code>.
+
+Let's look at an example of saving and restoring a <code>.
+
+When you save a <code>, any <code> attributes, <code>-decorated methods, and <code>s found via recursive traversal are saved. (See the Checkpoint tutorial for more about this recursive traversal.) However, any Python attributes, functions, and data are lost. This means that when a <code> is saved, no Python code is saved.
+
+If no Python code is saved, how does SavedModel know how to restore the function?
+
+Briefly, <code> works by tracing the Python code to generate a ConcreteFunction (a callable wrapper around <code>). When saving a <code>, you're really saving the <code>'s cache of ConcreteFunctions.
+
+To learn more about the relationship between <code> and ConcreteFunctions, refer to the tf.function guide.
+
+Loading and using a custom model.
+
+When you load a SavedModel in Python, all <code> attributes, <code>-decorated methods, and <code>s are restored in the same object structure as the original saved <code>.
+
+Because no Python code is saved, calling a <code> with a new input signature will fail:
+
+ValueError: Could not find matching function to call for canonicalized inputs (( ,), {}). Only existing signatures are [((TensorSpec(shape=(), dtype=tf.float32, name=u'x'),), {})].
+
+Basic fine-tuning.
+
+Variable objects are available, and you can backprop through imported functions. That is enough to fine-tune (i.e. retrain) a SavedModel in simple cases.
+
+General fine-tuning.
+
+A SavedModel from Keras provides more details than a plain <code> to address more advanced cases of fine-tuning. TensorFlow Hub recommends to provide the following of those, if applicable, in SavedModels shared for the purpose of fine-tuning:
+
+If the model uses dropout or another technique in which the forward pass differs between training and inference (like batch normalization), the <code> method takes an optional, Python-valued <code> argument that defaults to <code> but can be set to <code>.
+
+Next to the <code> attribute, there are <code> and <code> attributes with the corresponding lists of variables. A variable that was originally trainable but is meant to be frozen during fine-tuning is omitted from <code>.
+
+For the sake of frameworks like Keras that represent weight regularizers as attributes of layers or sub-models, there can also be a <code> attribute. It holds a list of zero-argument functions whose values are meant for addition to the total loss.
+
+Going back to the initial MobileNet example, you can see some of those in action:
+
+Specifying signatures during export.
+
+Tools like TensorFlow Serving and <code> can interact with SavedModels. To help these tools determine which ConcreteFunctions to use, you need to specify serving signatures. <code>s automatically specify serving signatures, but you'll have to explicitly declare a serving signature for our custom modules.
+
+IMPORTANT: Unless you need to export your model to an environment other than TensorFlow 2.x with Python, you probably don't need to export signatures explicitly. If you're looking for a way of enforcing an input signature for a specific function, see the <code> argument to <code>.
+
+By default, no signatures are declared in a custom <code>.
+
+To declare a serving signature, specify a ConcreteFunction using the <code> kwarg. When specifying a single signature, its signature key will be <code>, which is saved as the constant <code>.
+
+To export multiple signatures, pass a dictionary of signature keys to ConcreteFunctions. Each signature key corresponds to one ConcreteFunction.
+
+By default, the output tensor names are fairly generic, like <code>. To control the names of outputs, modify your <code> to return a dictionary that maps output names to outputs. The names of inputs are derived from the Python function arg names.
+
+Proto-splitting.
+
+Note: This feature will be part of the TensorFlow 2.15 release. It is currently available in the nightly build which you cqan install with <code>.
+
+Due to limits of the protobuf implementation, proto sizes cannot exceed 2GB. This can lead to the following errors when attempting to save very large models:
+
+If you wish to save models that exceed the 2GB limit, then you'll need to save using the new proto-splitting option:
+
+More information can be found in the Proto Splitter / Merger Library guide.
+
+Load a SavedModel in C++.
+
+The C++ version of the SavedModel loader provides an API to load a SavedModel from a path, while allowing SessionOptions and RunOptions. You have to specify the tags associated with the graph to be loaded. The loaded version of SavedModel is referred to as SavedModelBundle and contains the MetaGraphDef and the session within which it is loaded.
+
+Details of the SavedModel command line interface.
+
+You can use the SavedModel Command Line Interface (CLI) to inspect and execute a SavedModel. For example, you can use the CLI to inspect the model's <code>s. The CLI enables you to quickly confirm that the input Tensor dtype and shape match the model. Moreover, if you want to test your model, you can use the CLI to do a sanity check by passing in sample inputs in various formats (for example, Python expressions) and then fetching the output.
+
+Install the SavedModel CLI.
+
+Broadly speaking, you can install TensorFlow in either of the following two ways:
+
+By installing a pre-built TensorFlow binary.
+
+By building TensorFlow from source code.
+
+If you installed TensorFlow through a pre-built TensorFlow binary, then the SavedModel CLI is already installed on your system at pathname <code>.
+
+If you built TensorFlow from source code, you must run the following additional command to build <code>:
+
+Overview of commands.
+
+The SavedModel CLI supports the following two commands on a SavedModel:
+
+<code>, which shows the computations available from a SavedModel.
+
+<code>, which runs a computation from a SavedModel.
+
+<code> command.
+
+A SavedModel contains one or more model variants (technically, <code>s), identified by their tag-sets. To serve a model, you might wonder what kind of <code>s are in each model variant, and what are their inputs and outputs. The <code> command let you examine the contents of the SavedModel in hierarchical order. Here's the syntax:
+
+For example, the following command shows all available tag-sets in the SavedModel:
+
+The following command shows all available <code> keys for a tag set:
+
+If there are multiple tags in the tag-set, you must specify all tags, each tag separated by a comma. For example:
+
+$ savedmodelcli show --dir /tmp/savedmodeldir --tag_set serve,gpu.
+
+To show all inputs and outputs TensorInfo for a specific <code>, pass in the <code> key to <code> option. This is very useful when you want to know the tensor key value, dtype and shape of the input tensors for executing the computation graph later. For example:
+
+To show all available information in the SavedModel, use the <code> option. For example:
+
+$ savedmodelcli show --dir /tmp/savedmodeldir --all MetaGraphDef with tag-set: 'serve' contains the following SignatureDefs:
+
+signaturedef['classifyx2toy3']: The given SavedModel SignatureDef contains the following input(s): inputs['inputs'] tensorinfo: dtype: DTFLOAT shape: (-1, 1) name: x2:0 The given SavedModel SignatureDef contains the following output(s): outputs['scores'] tensorinfo: dtype: DTFLOAT shape: (-1, 1) name: y3:0 Method name is: tensorflow/serving/classify.
+
+signaturedef['servingdefault']: The given SavedModel SignatureDef contains the following input(s): inputs['x'] tensorinfo: dtype: DTFLOAT shape: (-1, 1) name: x:0 The given SavedModel SignatureDef contains the following output(s): outputs['y'] tensorinfo: dtype: DTFLOAT shape: (-1, 1) name: y:0 Method name is: tensorflow/serving/predict.
+
+<code> command.
+
+Invoke the <code> command to run a graph computation, passing inputs and then displaying (and optionally saving) the outputs. Here's the syntax:
+
+The <code> command provides the following three ways to pass inputs to the model:
+
+<code> option enables you to pass numpy ndarray in files.
+
+<code> option enables you to pass Python expressions.
+
+<code> option enables you to pass <code>.
+
+<code>.
+
+To pass input data in files, specify the <code> option, which takes the following general format:
+
+where INPUTS is either of the following formats:
+
+<code>.
+
+<code>.
+
+You may pass multiple INPUTS. If you do pass multiple inputs, use a semicolon to separate each of the INPUTS.
+
+<code> uses <code> to load the filename. The filename may be in any of the following formats:
+
+<code>.
+
+<code>.
+
+pickle format.
+
+A <code> file always contains a numpy ndarray. Therefore, when loading from a <code> file, the content will be directly assigned to the specified input tensor. If you specify a variable_name with that <code> file, the variable_name will be ignored and a warning will be issued.
+
+When loading from a <code> (zip) file, you may optionally specify a variable_name to identify the variable within the zip file to load for the input tensor key. If you don't specify a variable_name, the SavedModel CLI will check that only one file is included in the zip file and load it for the specified input tensor key.
+
+When loading from a pickle file, if no <code> is specified in the square brackets, whatever that is inside the pickle file will be passed to the specified input tensor key. Otherwise, the SavedModel CLI will assume a dictionary is stored in the pickle file and the value corresponding to the variable_name will be used.
+
+<code>.
+
+To pass inputs through Python expressions, specify the <code> option. This can be useful for when you don't have data files lying around, but still want to sanity check the model with some simple inputs that match the dtype and shape of the model's <code>s. For example:
+
+In addition to Python expressions, you may also pass numpy functions. For example:
+
+(Note that the <code> module is already available to you as <code>.).
+
+<code>.
+
+To pass <code> as inputs, specify the <code> option. For each input key, it takes a list of dictionary, where each dictionary is an instance of <code>. The dictionary keys are the features and the values are the value lists for each feature. For example:
+
+Save output.
+
+By default, the SavedModel CLI writes output to stdout. If a directory is passed to <code> option, the outputs will be saved as <code> files named after output tensor keys under the given directory.
+
+Use <code> to overwrite existing output files.

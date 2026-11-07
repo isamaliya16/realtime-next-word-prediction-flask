@@ -1,0 +1,757 @@
+In artificial neural networks, batch normalization (also known as batch norm) is a normalization technique used to make training faster and more stable by adjusting the inputs to each layer—re-centering them around zero and re-scaling them to a standard size. It was introduced by Sergey Ioffe and Christian Szegedy in 2015. Experts still debate why batch normalization works so well. It was initially thought to tackle internal covariate shift, a problem where parameter initialization and changes in the distribution of the inputs of each layer affect the learning rate of the network. However, newer research suggests it does not fix this shift but instead smooths the objective function—a mathematical guide the network follows to improve—enhancing performance. In very deep networks, batch normalization can initially cause a severe gradient explosion—where updates to the network grow uncontrollably large—but this is managed with shortcuts called skip connections in residual networks. Another theory is that batch normalization adjusts data by handling its size and path separately, speeding up training.
+
+Internal covariate shift.
+
+Each layer in a neural network has inputs that follow a specific distribution, which shifts during training due to two main factors: the random starting values of the network’s settings (parameter initialization) and the natural variation in the input data. This shifting pattern affecting the inputs to the network’s inner layers is called internal covariate shift. While a strict definition is not fully agreed upon, experiments show that it involves changes in the means and variances of these inputs during training. Batch normalization was first developed to address internal covariate shift. During training, as the parameters of preceding layers adjust, the distribution of inputs to the current layer changes accordingly, such that the current layer needs to constantly readjust to new distributions. This issue is particularly severe in deep networks, because small changes in shallower hidden layers will be amplified as they propagate within the network, resulting in significant shift in deeper hidden layers. Batch normalization was proposed to reduced these unwanted shifts to speed up training and produce more reliable models. Beyond possibly tackling internal covariate shift, batch normalization offers several additional advantages. It allows the network to use a higher learning rate—a setting that controls how quickly the network learns—without causing problems like vanishing or exploding gradients, where updates become too small or too large. It also appears to have a regularizing effect, improving the network’s ability to generalize to new data, reducing the need for dropout, a technique used to prevent overfitting (when a model learns the training data too well and fails on new data). Additionally, networks using batch normalization are less sensitive to the choice of starting settings or learning rates, making them more robust and adaptable.
+
+Procedures.
+
+Transformation.
+
+In a neural network, batch normalization is achieved through a normalization step that fixes the means and variances of each layer's inputs. Ideally, the normalization would be conducted over the entire training set, but to use this step jointly with stochastic optimization methods, it is impractical to use the global information. Thus, normalization is restrained to each mini-batch in the training process. Let us use B to denote a mini-batch of size m of the entire training set. The empirical mean and variance of B could thus be denoted as.
+
+<math>.
+
+and.
+
+<math>.
+
+. For a layer of the network with d-dimensional input.
+
+<math>.
+
+, each dimension of its input is then normalized (i.e. re-centered and re-scaled) separately.
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+<math>.
+
+and.
+
+<math>.
+
+are the per-dimension mean and standard deviation, respectively.
+
+<math>.
+
+is added in the denominator for numerical stability and is an arbitrarily small positive constant. The resulting normalized activation.
+
+<math>.
+
+have zero mean and unit variance, if.
+
+<math>.
+
+is not taken into account. To restore the representation power of the network, a transformation step then follows as.
+
+<math>.
+
+, where the parameters.
+
+<math>.
+
+and.
+
+<math>.
+
+are subsequently learned in the optimization process. Formally, the operation that implements batch normalization is a transform.
+
+<math>.
+
+called the Batch Normalizing transform. The output of the BN transform.
+
+<math>.
+
+is then passed to other network layers, while the normalized output.
+
+<math>.
+
+remains internal to the current layer.
+
+Backpropagation.
+
+The described BN transform is a differentiable operation, and the gradient of the loss.
+
+<math>.
+
+with respect to the different parameters can be computed directly with the chain rule. Specifically.
+
+<math>.
+
+depends on the choice of activation function, and the gradient against other parameters could be expressed as a function of.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+, and.
+
+<math>.
+
+Inference.
+
+During the training stage, the normalization steps depend on the mini-batches to ensure efficient and reliable training. However, in the inference stage, this dependence is not useful any more. Instead, the normalization step in this stage is computed with the population statistics such that the output could depend on the input in a deterministic manner. The population mean.
+
+<math>.
+
+, and variance.
+
+Var ⁡ [.
+
+<math>.
+
+, are computed as:
+
+<math>.
+
+, and.
+
+Var ⁡ [.
+
+<math>.
+
+. The population statistics thus is a complete representation of the mini-batches. The BN transform in the inference step thus becomes.
+
+inf.
+
+Var ⁡ [.
+
+<math>.
+
+, where.
+
+<math>.
+
+is passed on to next layers instead of.
+
+<math>.
+
+. Since the parameters are fixed in this transformation, the batch normalization procedure is essentially applying a linear transform to the activation function.
+
+Theory.
+
+Although batch normalization has become popular due to its strong empirical performance, the working mechanism of the method is not yet well-understood. The explanation made in the original paper was that batch norm works by reducing internal covariate shift, but this has been challenged by more recent work. One experiment trained a VGG-16 network under 3 different training regimes: standard (no batch norm), batch norm, and batch norm with noise added to each layer during training. In the third model, the noise has non-zero mean and non-unit variance, i.e. it explicitly introduces covariate shift. Despite this, it showed similar accuracy to the second model, and both performed better than the first, suggesting that covariate shift is not the reason that batch norm improves performance. Using batch normalization causes the items in a batch to no longer be iid, which can lead to difficulties in training due to lower quality gradient estimation.
+
+Smoothness.
+
+One alternative explanation is that the improvement with batch normalization is instead due to producing a smoother parameter space and smoother gradients, as formalized by a smaller Lipschitz constant. Consider two identical networks, one contains batch normalization layers and the other does not, the behaviors of these two networks are then compared. Denote the loss functions as.
+
+<math>.
+
+and.
+
+<math>.
+
+, respectively. Let the input to both networks be.
+
+<math>.
+
+, and the output be.
+
+<math>.
+
+, for which.
+
+<math>.
+
+, where.
+
+<math>.
+
+is the layer weights. For the second network.
+
+<math>.
+
+additionally goes through a batch normalization layer. Denote the normalized activation as.
+
+<math>.
+
+, which has zero mean and unit variance. Let the transformed activation be.
+
+<math>.
+
+, and suppose.
+
+<math>.
+
+and.
+
+<math>.
+
+are constants. Finally, denote the standard deviation over a mini-batch.
+
+<math>.
+
+as.
+
+<math>.
+
+. First, it can be shown that the gradient magnitude of a batch normalized network.
+
+<math>.
+
+, is bounded, with the bound expressed as.
+
+<math>.
+
+. Since the gradient magnitude represents the Lipschitzness of the loss, this relationship indicates that a batch normalized network could achieve greater Lipschitzness comparatively. Notice that the bound gets tighter when the gradient.
+
+<math>.
+
+correlates with the activation.
+
+<math>.
+
+, which is a common phenomena. The scaling of.
+
+<math>.
+
+is also significant, since the variance is often large. Secondly, the quadratic form of the loss Hessian with respect to activation in the gradient direction can be bounded as.
+
+<math>.
+
+. The scaling of.
+
+<math>.
+
+indicates that the loss Hessian is resilient to the mini-batch variance, whereas the second term on the right hand side suggests that it becomes smoother when the Hessian and the inner product are non-negative. If the loss is locally convex, then the Hessian is positive semi-definite, while the inner product is positive if.
+
+<math>.
+
+is in the direction towards the minimum of the loss. It could thus be concluded from this inequality that the gradient generally becomes more predictive with the batch normalization layer. It then follows to translate the bounds related to the loss with respect to the normalized activation to a bound on the loss with respect to the network weights:
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+. In addition to the smoother landscape, it is further shown that batch normalization could result in a better initialization with the following inequality:
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+are the local optimal weights for the two networks, respectively. Some scholars argue that the above analysis cannot fully capture the performance of batch normalization, because the proof only concerns the largest eigenvalue, or equivalently, one direction in the landscape at all points. It is suggested that the complete eigenspectrum needs to be taken into account to make a conclusive analysis.
+
+Measure.
+
+Since it is hypothesized that batch normalization layers could reduce internal covariate shift, an experiment is set up to measure quantitatively how much covariate shift is reduced. First, the notion of internal covariate shift needs to be defined mathematically. Specifically, to quantify the adjustment that a layer's parameters make in response to updates in previous layers, the correlation between the gradients of the loss before and after all previous layers are updated is measured, since gradients could capture the shifts from the first-order training method. If the shift introduced by the changes in previous layers is small, then the correlation between the gradients would be close to 1. The correlation between the gradients are computed for four models: a standard VGG network, a VGG network with batch normalization layers, a 25-layer deep linear network (DLN) trained with full-batch gradient descent, and a DLN network with batch normalization layers. Interestingly, it is shown that the standard VGG and DLN models both have higher correlations of gradients compared with their counterparts, indicating that the additional batch normalization layers are not reducing internal covariate shift.
+
+Vanishing/exploding gradients.
+
+Even though batch norm was originally introduced to alleviate gradient vanishing or explosion problems, a deep batch norm network in fact suffers from gradient explosion at initialization time, no matter what it uses for nonlinearity. Thus, the optimization landscape is very far from smooth for a randomly initialized, deep batch norm network. More precisely, if the network has.
+
+<math>.
+
+layers, then the gradient of the first layer weights has norm c.
+
+<math>.
+
+for some.
+
+<math>.
+
+depending only on the nonlinearity. For any fixed nonlinearity.
+
+<math>.
+
+decreases as the batch size increases. For example, for ReLU.
+
+<math>.
+
+decreases to.
+
+<math>.
+
+as the batch size tends to infinity. Practically, this means deep batch norm networks are untrainable. This is only relieved by skip connections in the fashion of residual networks. This gradient explosion on the surface contradicts the smoothness property explained in the previous section, but in fact they are consistent. The previous section studies the effect of inserting a single batch norm in a network, while the gradient explosion depends on stacking batch norms typical of modern deep neural networks.
+
+Decoupling.
+
+Another possible reason for the success of batch normalization is that it decouples the length and direction of the weight vectors and thus facilitates better training. By interpreting batch norm as a reparametrization of weight space, it can be shown that the length and the direction of the weights are separated and can thus be trained separately. For a particular neural network unit with input.
+
+<math>.
+
+and weight vector.
+
+<math>.
+
+, denote its output as.
+
+<math>.
+
+, where.
+
+<math>.
+
+is the activation function, and denote.
+
+<math>.
+
+. Assume that.
+
+<math>.
+
+, and that the spectrum of the matrix.
+
+<math>.
+
+is bounded as.
+
+<math>.
+
+<math>.
+
+, such that.
+
+<math>.
+
+is symmetric positive definite. Adding batch normalization to this unit thus results in.
+
+<math>.
+
+, by definition. The variance term can be simplified such that.
+
+<math>.
+
+. Assume that.
+
+<math>.
+
+has zero mean and.
+
+<math>.
+
+can be omitted, then it follows that.
+
+<math>.
+
+, where.
+
+<math>.
+
+is the induced norm of.
+
+<math>.
+
+<math>.
+
+. Hence, it could be concluded that.
+
+<math>.
+
+, where.
+
+<math>.
+
+, and.
+
+<math>.
+
+and.
+
+<math>.
+
+account for its length and direction separately. This property could then be used to prove the faster convergence of problems with batch normalization.
+
+Linear convergence.
+
+Least-square problem.
+
+With the reparametrization interpretation, it could then be proved that applying batch normalization to the ordinary least squares problem achieves a linear convergence rate in gradient descent, which is faster than the regular gradient descent with only sub-linear convergence. Denote the objective of minimizing an ordinary least squares problem as.
+
+min.
+
+min.
+
+min.
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+. Since.
+
+<math>.
+
+, the objective thus becomes.
+
+min.
+
+min.
+
+<math>.
+
+, where 0 is excluded to avoid 0 in the denominator. Since the objective is convex with respect to.
+
+<math>.
+
+, its optimal value could be calculated by setting the partial derivative of the objective against.
+
+<math>.
+
+to 0. The objective could be further simplified to be.
+
+min.
+
+min.
+
+<math>.
+
+. Note that this objective is a form of the generalized Rayleigh quotient.
+
+<math>.
+
+, where.
+
+<math>.
+
+is a symmetric matrix and.
+
+<math>.
+
+is a symmetric positive definite matrix. It is proven that the gradient descent convergence rate of the generalized Rayleigh quotient is.
+
+<math>.
+
+, where.
+
+<math>.
+
+is the largest eigenvalue of.
+
+<math>.
+
+<math>.
+
+is the second largest eigenvalue of.
+
+<math>.
+
+, and.
+
+<math>.
+
+is the smallest eigenvalue of.
+
+<math>.
+
+. In our case.
+
+<math>.
+
+is a rank one matrix, and the convergence result can be simplified accordingly. Specifically, consider gradient descent steps of the form.
+
+<math>.
+
+with step size.
+
+<math>.
+
+, and starting from.
+
+<math>.
+
+, then.
+
+<math>.
+
+Learning halfspace problem.
+
+The problem of learning halfspaces refers to the training of the Perceptron, which is the simplest form of neural network. The optimization problem in this case is.
+
+min.
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+is an arbitrary loss function. Suppose that.
+
+<math>.
+
+is infinitely differentiable and has a bounded derivative. Assume that the objective function.
+
+<math>.
+
+is.
+
+<math>.
+
+smooth, and that a solution.
+
+<math>.
+
+exists and is bounded such that.
+
+<math>.
+
+. Also assume.
+
+<math>.
+
+is a multivariate normal random variable. With the Gaussian assumption, it can be shown that all critical points lie on the same line, for any choice of loss function.
+
+<math>.
+
+. Specifically, the gradient of.
+
+<math>.
+
+could be represented as.
+
+<math>.
+
+, where.
+
+<math>.
+
+<math>.
+
+, and.
+
+<math>.
+
+is the.
+
+<math>.
+
+th derivative of.
+
+<math>.
+
+. By setting the gradient to 0, it thus follows that the bounded critical points.
+
+<math>.
+
+can be expressed as.
+
+<math>.
+
+, where.
+
+<math>.
+
+depends on.
+
+<math>.
+
+and.
+
+<math>.
+
+. Combining this global property with length-direction decoupling, it could thus be proved that this optimization problem converges linearly. First, a variation of gradient descent with batch normalization, Gradient Descent in Normalized Parameterization (GDNP), is designed for the objective function.
+
+min.
+
+<math>.
+
+, such that the direction and length of the weights are updated separately. Denote the stopping criterion of GDNP as.
+
+<math>.
+
+. Let the step size be.
+
+<math>.
+
+. For each step, if.
+
+<math>.
+
+, then update the direction as.
+
+<math>.
+
+. Then update the length according to.
+
+Bisection.
+
+<math>.
+
+, where.
+
+Bisection().
+
+<math>.
+
+is the classical bisection algorithm, and.
+
+<math>.
+
+is the total iterations ran in the bisection step. Denote the total number of iterations as.
+
+<math>.
+
+, then the final output of GDNP is.
+
+<math>.
+
+. The GDNP algorithm thus slightly modifies the batch normalization step for the ease of mathematical analysis. It can be shown that in GDNP, the partial derivative of.
+
+<math>.
+
+against the length component converges to zero at a linear rate, such that.
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+are the two starting points of the bisection algorithm on the left and on the right, correspondingly. Further, for each iteration, the norm of the gradient of.
+
+<math>.
+
+with respect to.
+
+<math>.
+
+converges linearly, such that.
+
+<math>.
+
+. Combining these two inequalities, a bound could thus be obtained for the gradient with respect to.
+
+<math>.
+
+<math>.
+
+, such that the algorithm is guaranteed to converge linearly. Although the proof stands on the assumption of Gaussian input, it is also shown in experiments that GDNP could accelerate optimization without this constraint.
+
+Neural networks.
+
+Consider a multilayer perceptron (MLP) with one hidden layer and.
+
+<math>.
+
+hidden units with mapping from input.
+
+<math>.
+
+to a scalar output described as.
+
+<math>.
+
+, where.
+
+<math>.
+
+and.
+
+<math>.
+
+are the input and output weights of unit.
+
+<math>.
+
+correspondingly, and.
+
+<math>.
+
+is the activation function and is assumed to be a tanh function. The input and output weights could then be optimized with.
+
+min.
+
+<math>.
+
+, where.
+
+<math>.
+
+is a loss function.
+
+<math>.
+
+, and.
+
+<math>.
+
+. Consider fixed.
+
+<math>.
+
+and optimizing only.
+
+<math>.
+
+, it can be shown that the critical points of.
+
+<math>.
+
+of a particular hidden unit.
+
+<math>.
+
+<math>.
+
+, all align along one line depending on incoming information into the hidden layer, such that.
+
+<math>.
+
+, where.
+
+<math>.
+
+is a scalar.
+
+<math>.
+
+. This result could be proved by setting the gradient of.
+
+<math>.
+
+to zero and solving the system of equations. Apply the GDNP algorithm to this optimization problem by alternating optimization over the different hidden units. Specifically, for each hidden unit, run GDNP to find the optimal.
+
+<math>.
+
+and.
+
+<math>.
+
+. With the same choice of stopping criterion and stepsize, it follows that.
+
+<math>.
+
+. Since the parameters of each hidden unit converge linearly, the whole optimization problem has a linear rate of convergence.

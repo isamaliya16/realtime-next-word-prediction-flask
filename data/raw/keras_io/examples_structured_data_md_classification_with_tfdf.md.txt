@@ -1,0 +1,119 @@
+Classification with TensorFlow Decision Forests.
+
+Introduction.
+
+TensorFlow Decision Forests is a collection of state-of-the-art algorithms of Decision Forest models that are compatible with Keras APIs. The models include Random Forests, Gradient Boosted Trees, and CART, and can be used for regression, classification, and ranking task. For a beginner's guide to TensorFlow Decision Forests, please refer to this tutorial.
+
+This example uses Gradient Boosted Trees model in binary classification of structured data, and covers the following scenarios:
+
+Build a decision forests model by specifying the input feature usage.
+
+Implement a custom Binary Target encoder as a Keras Preprocessing layer to encode the categorical features with respect to their target value co-occurrences, and then use the encoded features to build a decision forests model.
+
+Encode the categorical features as embeddings, train these embeddings in a simple NN model, and then use the trained embeddings as inputs to build decision forests model.
+
+This example uses TensorFlow 2.7 or higher, as well as TensorFlow Decision Forests, which you can install using the following command:
+
+Setup.
+
+Prepare the data.
+
+This example uses the United States Census Income Dataset provided by the UC Irvine Machine Learning Repository. The task is binary classification to determine whether a person makes over 50K a year.
+
+The dataset includes ~300K instances with 41 input features: 7 numerical features and 34 categorical features.
+
+First we load the data from the UCI Machine Learning Repository into a Pandas DataFrame.
+
+Define dataset metadata.
+
+Here, we define the metadata of the dataset that will be useful for encoding the input features with respect to their types.
+
+Now we perform basic data preparation.
+
+Now let's show the shapes of the training and test dataframes, and display some instances.
+
+Configure hyperparameters.
+
+You can find all the parameters of the Gradient Boosted Tree model in the documentation.
+
+Implement a training and evaluation procedure.
+
+The <code> method is responsible loading the train and test datasets, training a given model, and evaluating the trained model.
+
+Note that when training a Decision Forests model, only one epoch is needed to read the full dataset. Any extra steps will result in unnecessary slower training. Therefore, the default <code> is used in the <code> method.
+
+Experiment 1: Decision Forests with raw features.
+
+Specify model input feature usages.
+
+You can attach semantics to each feature to control how it is used by the model. If not specified, the semantics are inferred from the representation type. It is recommended to specify the feature usages explicitly to avoid incorrect inferred semantics is incorrect. For example, a categorical value identifier (integer) will be be inferred as numerical, while it is semantically categorical.
+
+For numerical features, you can set the <code> parameters to the number of buckets by which the numerical feature should be discretized. This makes the training faster but may lead to worse models.
+
+Create a Gradient Boosted Trees model.
+
+When compiling a decision forests model, you may only provide extra evaluation metrics. The loss is specified in the model construction, and the optimizer is irrelevant to decision forests models.
+
+Train and evaluate the model.
+
+Inspect the model.
+
+The <code> method will display several types of information about your decision trees model, model type, task, input features, and feature importance.
+
+Experiment 2: Decision Forests with target encoding.
+
+Target encoding is a common preprocessing technique for categorical features that convert them into numerical features. Using categorical features with high cardinality as-is may lead to overfitting. Target encoding aims to replace each categorical feature value with one or more numerical values that represent its co-occurrence with the target labels.
+
+More precisely, given a categorical feature, the binary target encoder in this example will produce three new numerical features:
+
+<code>: How many times each feature value occurred with a positive target label.
+
+<code>: How many times each feature value occurred with a negative target label.
+
+<code>: The probability that the target label is positive, given the feature value, which is computed as <code>. The <code> term is added in to make the division more stable for rare categorical values. The default value for <code> is 1.0.
+
+Note that target encoding is effective with models that cannot automatically learn dense representations to categorical features, such as decision forests or kernel methods. If neural network models are used, its recommended to encode categorical features as embeddings.
+
+Implement Binary Target Encoder.
+
+For simplicity, we assume that the inputs for the <code> and <code> methods are in the expected data types and shapes, so no validation logic is added.
+
+It is recommended to pass the <code> of the categorical feature to the <code> constructor. If not specified, it will be computed during the <code> method execution.
+
+Let's test the binary target encoder.
+
+Create model inputs.
+
+Implement a feature encoding with target encoding.
+
+Create a Gradient Boosted Trees model with a preprocessor.
+
+In this scenario, we use the target encoding as a preprocessor for the Gradient Boosted Tree model, and let the model infer semantics of the input features.
+
+Train and evaluate the model.
+
+Experiment 3: Decision Forests with trained embeddings.
+
+In this scenario, we build an encoder model that codes the categorical features to embeddings, where the size of the embedding for a given categorical feature is the square root to the size of its vocabulary.
+
+We train these embeddings in a simple NN model through backpropagation. After the embedding encoder is trained, we used it as a preprocessor to the input features of a Gradient Boosted Tree model.
+
+Note that the embeddings and a decision forest model cannot be trained synergically in one phase, since decision forest models do not train with backpropagation. Rather, embeddings has to be trained in an initial phase, and then used as static inputs to the decision forest model.
+
+Implement feature encoding with embeddings.
+
+Build an NN model to train the embeddings.
+
+Train and evaluate a Gradient Boosted Tree model with embeddings.
+
+Concluding remarks.
+
+TensorFlow Decision Forests provide powerful models, especially with structured data. In our experiments, the Gradient Boosted Tree model achieved 95.79% test accuracy. When using the target encoding with categorical feature, the same model achieved 95.81% test accuracy. When pretraining embeddings to be used as inputs to the Gradient Boosted Tree model, we achieved 95.82% test accuracy.
+
+Decision Forests can be used with Neural Networks, either by.
+
+using Neural Networks to learn useful representation of the input data, and then using Decision Forests for the supervised learning task, or by.
+
+creating an ensemble of both Decision Forests and Neural Network models.
+
+Note that TensorFlow Decision Forests does not (yet) support hardware accelerators. All training and inference is done on the CPU. Besides, Decision Forests require a finite dataset that fits in memory for their training procedures. However, there are diminishing returns for increasing the size of the dataset, and Decision Forests algorithms arguably need fewer examples for convergence than large Neural Network models.

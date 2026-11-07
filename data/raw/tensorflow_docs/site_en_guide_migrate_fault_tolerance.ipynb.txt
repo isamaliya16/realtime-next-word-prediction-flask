@@ -1,0 +1,85 @@
+Migrate the fault tolerance mechanism.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Fault tolerance refers to a mechanism of periodically saving the states of trackable objects, such as parameters and models. This enables you to recover them in the event of a program/machine failure during training.
+
+This guide first demonstrates how to add fault tolerance to training with <code> in TensorFlow 1 by specifying metric saving with <code>. Then, you will learn how to implement fault tolerance for training in Tensorflow 2 in two ways:
+
+If you use the Keras <code> API, you can pass the <code> callback to it.
+
+If you use a custom training loop (with <code>), you can arbitrarily save checkpoints using the <code> and <code> APIs.
+
+Both of these methods will back up and restore the training states in checkpoint files.
+
+Setup.
+
+Install <code>, as the frequency of checkpoint saving at a particular step with the <code> argument in <code> is introduced from TensorFlow 2.10:
+
+TensorFlow 1: Save checkpoints with <code>.
+
+In TensorFlow 1, you can configure a <code> to save checkpoints every step by configuring <code>.
+
+In this example, start by writing a hook that artificially throws an error during the fifth checkpoint:
+
+Next, configure <code> to save every checkpoint and use the MNIST dataset:
+
+Begin training the model. An artificial exception will be raised by the hook you defined earlier.
+
+Rebuild the <code> using the last saved checkpoint and continue training:
+
+TensorFlow 2: Back up and restore with a callback and <code>.
+
+In TensorFlow 2, if you use the Keras <code> API for training, you can provide the <code> callback to add the fault tolerance functionality.
+
+To help demonstrate this, first start by defining a Keras <code> class that artificially throws an error during the fourth epoch checkpoint:
+
+Then, define and instantiate a simple Keras model, define the loss function, call <code>, and set up a <code> callback that will save the checkpoints in a temporary directory at epoch boundaries:
+
+Start training the model with <code>. During training, checkpoints will be saved thanks to <code> instantiated above, while the <code> class will raise an artificial exception to simulate a failure after the fourth epoch.
+
+Next, instantiate the Keras model, call <code>, and continue training the model with <code> from a previously saved checkpoint:
+
+Define another <code> class that artificially throws an error during the 140th step:
+
+Note: This section uses features that are only available in <code> until Tensorflow 2.10 is released.
+
+To make sure the checkpoints are saved every 30 steps, set the <code> in the <code> callback to <code>. The <code> will raise an artificial exception to simulate a failure at epoch 1 and step 40 (total step count 140). The checkpoint would be last saved at epoch 1 and step 20.
+
+Next, instantiate the Keras model, call <code>, and continue training the model with <code> from a previously saved checkpoint. Notice that the training starts from epoch 2 and step 21.
+
+TensorFlow 2: Write manual checkpoints with a custom training loop.
+
+If you use a custom training loop in TensorFlow 2, you can implement a fault tolerance mechanism with the <code> and <code> APIs.
+
+This example demonstrates how to:
+
+Use a <code> object to manually create a checkpoint, where the trackable objects you want to save are set as attributes.
+
+Use a <code> to manage multiple checkpoints.
+
+Start by defining and instantiating the Keras model, the optimizer, and the loss function. Then, create a <code> that manages two objects with trackable states (the model and the optimizer), as well as a <code> for logging and keeping several checkpoints in a temporary directory.
+
+Now, implement a custom training loop where after the first epoch every time a new epoch starts the last checkpoint is loaded:
+
+Next steps.
+
+To learn more about fault tolerance and checkpointing in TensorFlow 2, consider the following documentation:
+
+The <code> callback API docs.
+
+The <code> and <code> API docs.
+
+The Training checkpoints guide, including the Writing checkpoints section.
+
+You may also find the following material related to distributed training useful:
+
+The Fault tolerance section in the Multi-worker training with Keras tutorial.
+
+The Handing task failure section in the Parameter server training tutorial.

@@ -1,0 +1,67 @@
+Image classification with Perceiver.
+
+Introduction.
+
+This example implements the Perceiver: General Perception with Iterative Attention model by Andrew Jaegle et al. for image classification, and demonstrates it on the CIFAR-100 dataset.
+
+The Perceiver model leverages an asymmetric attention mechanism to iteratively distill inputs into a tight latent bottleneck, allowing it to scale to handle very large inputs.
+
+In other words: let's assume that your input data array (e.g. image) has <code> elements (i.e. patches), where <code> is large. In a standard Transformer model, a self-attention operation is performed for the <code> elements. The complexity of this operation is <code>. However, the Perceiver model creates a latent array of size <code> elements, where <code>, and performs two operations iteratively:
+
+Cross-attention Transformer between the latent array and the data array - The complexity of this operation is <code>.
+
+Self-attention Transformer on the latent array - The complexity of this operation is <code>.
+
+This example requires Keras 3.0 or higher.
+
+Setup.
+
+Prepare the data.
+
+Configure the hyperparameters.
+
+Note that, in order to use each pixel as an individual input in the data array, set <code> to 1.
+
+Use data augmentation.
+
+Implement Feedforward network (FFN).
+
+Implement patch creation as a layer.
+
+Implement the patch encoding layer.
+
+The <code> layer will linearly transform a patch by projecting it into a vector of size <code>. In addition, it adds a learnable position embedding to the projected vector.
+
+Note that the orginal Perceiver paper uses the Fourier feature positional encodings.
+
+Build the Perceiver model.
+
+The Perceiver consists of two modules: a cross-attention module and a standard Transformer with self-attention.
+
+Cross-attention module.
+
+The cross-attention expects a <code> latent array, and the <code> data array as inputs, to produce a <code> latent array as an output. To apply cross-attention, the <code> vectors are generated from the latent array, while the <code> and <code> vectors are generated from the encoded image.
+
+Note that the data array in this example is the image, where the <code> is set to the <code>.
+
+Transformer module.
+
+The Transformer expects the output latent vector from the cross-attention module as an input, applies multi-head self-attention to its <code> elements, followed by feedforward network, to produce another <code> latent array.
+
+Perceiver model.
+
+The Perceiver model repeats the cross-attention and Transformer modules <code> times—with shared weights and skip connections—to allow the latent array to iteratively extract information from the input image as it is needed.
+
+Compile, train, and evaluate the mode.
+
+Note that training the perceiver model with the current settings on a V100 GPUs takes around 200 seconds.
+
+After 40 epochs, the Perceiver model achieves around 53% accuracy and 81% top-5 accuracy on the test data.
+
+As mentioned in the ablations of the Perceiver paper, you can obtain better results by increasing the latent array size, increasing the (projection) dimensions of the latent array and data array elements, increasing the number of blocks in the Transformer module, and increasing the number of iterations of applying the cross-attention and the latent Transformer modules. You may also try to increase the size the input images and use different patch sizes.
+
+The Perceiver benefits from inceasing the model size. However, larger models needs bigger accelerators to fit in and train efficiently. This is why in the Perceiver paper they used 32 TPU cores to run the experiments.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

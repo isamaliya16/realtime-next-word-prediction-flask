@@ -1,0 +1,161 @@
+Making new layers and models via subclassing.
+
+Introduction.
+
+This guide will cover everything you need to know to build your own subclassed layers and models. In particular, you'll learn about the following features:
+
+The <code> class.
+
+The <code> method.
+
+Trainable and non-trainable weights.
+
+The <code> method.
+
+Making sure your layers can be used with any backend.
+
+The <code> method.
+
+The <code> argument in <code>.
+
+The <code> argument in <code>.
+
+Making sure your layers can be serialized.
+
+Let's dive in.
+
+Setup.
+
+The <code> class: the combination of state (weights) and some computation.
+
+One of the central abstractions in Keras is the <code> class. A layer encapsulates both a state (the layer's "weights") and a transformation from inputs to outputs (a "call", the layer's forward pass).
+
+Here's a densely-connected layer. It has two state variables: the variables <code> and <code>.
+
+You would use a layer by calling it on some tensor input(s), much like a Python function.
+
+Note that the weights <code> and <code> are automatically tracked by the layer upon being set as layer attributes:
+
+Layers can have non-trainable weights.
+
+Besides trainable weights, you can add non-trainable weights to a layer as well. Such weights are meant not to be taken into account during backpropagation, when you are training the layer.
+
+Here's how to add and use a non-trainable weight:
+
+It's part of <code>, but it gets categorized as a non-trainable weight:
+
+Best practice: deferring weight creation until the shape of the inputs is known.
+
+Our <code> layer above took an <code> argument that was used to compute the shape of the weights <code> and <code> in <code>:
+
+In many cases, you may not know in advance the size of your inputs, and you would like to lazily create weights when that value becomes known, some time after instantiating the layer.
+
+In the Keras API, we recommend creating layer weights in the <code> method of your layer. Like this:
+
+The <code> method of your layer will automatically run build the first time it is called. You now have a layer that's lazy and thus easier to use:
+
+Implementing <code> separately as shown above nicely separates creating weights only once from using weights in every call.
+
+Layers are recursively composable.
+
+If you assign a Layer instance as an attribute of another Layer, the outer layer will start tracking the weights created by the inner layer.
+
+We recommend creating such sublayers in the <code> method and leave it to the first <code> to trigger building their weights.
+
+Backend-agnostic layers and backend-specific layers.
+
+As long as a layer only uses APIs from the <code> namespace (or other Keras namespaces such as <code>, <code>, or <code>), then it can be used with any backend -- TensorFlow, JAX, or PyTorch.
+
+All layers you've seen so far in this guide work with all Keras backends.
+
+The <code> namespace gives you access to:
+
+The NumPy API, e.g. <code>, <code>, <code>, <code>, etc.
+
+Neural networks-specific APIs such as <code>, <code>, <code>, <code>, etc.
+
+You can also use backend-native APIs in your layers (such as <code> functions), but if you do this, then your layer will only be usable with the backend in question. For instance, you could write the following JAX-specific layer using <code>:
+
+This would be the equivalent TensorFlow-specific layer:
+
+And this would be the equivalent PyTorch-specific layer:
+
+Because cross-backend compatibility is a tremendously useful property, we strongly recommend that you seek to always make your layers backend-agnostic by leveraging only Keras APIs.
+
+The <code> method.
+
+When writing the <code> method of a layer, you can create loss tensors that you will want to use later, when writing your training loop. This is doable by calling <code>:
+
+These losses (including those created by any inner layer) can be retrieved via <code>. This property is reset at the start of every <code> to the top-level layer, so that <code> always contains the loss values created during the last forward pass.
+
+In addition, the <code> property also contains regularization losses created for the weights of any inner layer:
+
+These losses are meant to be taken into account when writing custom training loops.
+
+They also work seamlessly with <code> (they get automatically summed and added to the main loss, if any):
+
+You can optionally enable serialization on your layers.
+
+If you need your custom layers to be serializable as part of a Functional model, you can optionally implement a <code> method:
+
+Note that the <code> method of the base <code> class takes some keyword arguments, in particular a <code> and a <code>. It's good practice to pass these arguments to the parent class in <code> and to include them in the layer config:
+
+If you need more flexibility when deserializing the layer from its config, you can also override the <code> class method. This is the base implementation of <code>:
+
+To learn more about serialization and saving, see the complete guide to saving and serializing models.
+
+Privileged <code> argument in the <code> method.
+
+Some layers, in particular the <code> layer and the <code> layer, have different behaviors during training and inference. For such layers, it is standard practice to expose a <code> (boolean) argument in the <code> method.
+
+By exposing this argument in <code>, you enable the built-in training and evaluation loops (e.g. <code>) to correctly use the layer in training and inference.
+
+Privileged <code> argument in the <code> method.
+
+The other privileged argument supported by <code> is the <code> argument.
+
+You will find it in all Keras RNN layers. A mask is a boolean tensor (one boolean value per timestep in the input) used to skip certain input timesteps when processing timeseries data.
+
+Keras will automatically pass the correct <code> argument to <code> for layers that support it, when a mask is generated by a prior layer. Mask-generating layers are the <code> layer configured with <code>, and the <code> layer.
+
+The <code> class.
+
+In general, you will use the <code> class to define inner computation blocks, and will use the <code> class to define the outer model -- the object you will train.
+
+For instance, in a ResNet50 model, you would have several ResNet blocks subclassing <code>, and a single <code> encompassing the entire ResNet50 network.
+
+The <code> class has the same API as <code>, with the following differences:
+
+It exposes built-in training, evaluation, and prediction loops (<code>, <code>, <code>).
+
+It exposes the list of its inner layers, via the <code> property.
+
+It exposes saving and serialization APIs (<code>, <code>...).
+
+Effectively, the <code> class corresponds to what we refer to in the literature as a "layer" (as in "convolution layer" or "recurrent layer") or as a "block" (as in "ResNet block" or "Inception block").
+
+Meanwhile, the <code> class corresponds to what is referred to in the literature as a "model" (as in "deep learning model") or as a "network" (as in "deep neural network").
+
+So if you're wondering, "should I use the <code> class or the <code> class?", ask yourself: will I need to call <code> on it? Will I need to call <code> on it? If so, go with <code>. If not (either because your class is just a block in a bigger system, or because you are writing training & saving code yourself), use <code>.
+
+For instance, we could take our mini-resnet example above, and use it to build a <code> that we could train with <code>, and that we could save with <code>:
+
+Putting it all together: an end-to-end example.
+
+Here's what you've learned so far:
+
+A <code> encapsulate a state (created in <code> or <code>) and some computation (defined in <code>).
+
+Layers can be recursively nested to create new, bigger computation blocks.
+
+Layers are backend-agnostic as long as they only use Keras APIs. You can use backend-native APIs (such as <code>, <code> or <code>), but then your layer will only be usable with that specific backend.
+
+Layers can create and track losses (typically regularization losses) via <code>.
+
+The outer container, the thing you want to train, is a <code>. A <code> is just like a <code>, but with added training and serialization utilities.
+
+Let's put all of these things together into an end-to-end example: we're going to implement a Variational AutoEncoder (VAE) in a backend-agnostic fashion -- so that it runs the same with TensorFlow, JAX, and PyTorch. We'll train it on MNIST digits.
+
+Our VAE will be a subclass of <code>, built as a nested composition of layers that subclass <code>. It will feature a regularization loss (KL divergence).
+
+Let's train it on MNIST using the <code> API:

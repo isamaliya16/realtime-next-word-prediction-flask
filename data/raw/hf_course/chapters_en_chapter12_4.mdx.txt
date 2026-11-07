@@ -1,0 +1,89 @@
+Implementing GRPO in TRL.
+
+In this page, we'll learn how to implement Group Relative Policy Optimization (GRPO) using the Transformer Reinforcement Learning (TRL) library. We'll focus on practical implementation with minimal code.
+
+We'll explore the core concepts of GRPO as they are embodied in TRL's GRPOTrainer, using snippets from the official TRL documentation to guide us.
+
+This chapter is aimed at TRL beginners. If you are already familiar with TRL, you might want to also check out the Open R1 implementation of GRPO.
+
+First, let's remind ourselves of some of the important concepts of GRPO algorithm:
+
+Group Formation: The model generates multiple completions for each prompt.
+
+Preference Learning: The model learns from a reward function that compares groups of completions.
+
+Training Configuration: The model uses a configuration to control the training process.
+
+What do we need to do to implement GRPO?
+
+Define a dataset of prompts.
+
+Define a reward function that takes a list of completions and returns a list of rewards.
+
+Configure the training process with a GRPOConfig.
+
+Train the model using the GRPOTrainer.
+
+Here's a minimal example to get started with GRPO training:
+
+Key Components.
+
+1. Dataset Format.
+
+Your dataset should contain prompts that the model will respond to. The GRPO trainer will generate multiple completions for each prompt and use the reward function to compare them.
+
+2. Reward Function.
+
+The reward function is crucial - it determines how the model learns. Here are two practical examples:
+
+3. Training Configuration.
+
+Key parameters to consider in <code>:
+
+The <code> parameter is particularly important for GRPO as it defines the group size - how many different completions the model will generate for each prompt. This is a key differentiator from other RL methods:
+
+Too small (e.g., 2-3): May not provide enough diversity for meaningful comparisons.
+
+Recommended (4-16): Provides good balance between diversity and computational efficiency.
+
+Larger values: May improve learning but significantly increases computational cost.
+
+The group size should be chosen based on your computational resources and the complexity of your task. For simple tasks, smaller groups (4-8) may be sufficient, while more complex reasoning tasks might benefit from larger groups (8-16).
+
+Tips for Success.
+
+Memory Management: Adjust <code> and <code> based on your GPU memory.
+
+Speed: Enable <code> for faster generation if your model is supported.
+
+Monitoring: Watch the logged metrics during training:
+
+<code>: Average reward across completions.
+
+<code>: Standard deviation within reward groups.
+
+<code>: KL divergence from reference model.
+
+Reward Function Design.
+
+The DeepSeek R1 paper demonstrates several effective approaches to reward function design that you can adapt for your own GRPO implementation:
+
+1. Length-Based Rewards.
+
+One of the easiest rewards to implement is a length-based reward. You can reward longer completions:
+
+This reward function penalizes completions that are too short or too long, encouraging the model to generate completions that are close to the ideal length of 20 tokens.
+
+2. Rule-Based Rewards for Verifiable Tasks.
+
+For tasks with objectively correct answers (like mathematics or coding), you can implement rule-based reward functions:
+
+3. Format-Based Rewards.
+
+You can also reward proper formatting, which was important in the DeepSeek R1 training:
+
+These examples demonstrate how you can implement reward functions inspired by the DeepSeek R1 training process, focusing on correctness, formatting, and combined signals.
+
+That's it!
+
+In the next section, you will follow an exercise to implement GRPO in TRL.

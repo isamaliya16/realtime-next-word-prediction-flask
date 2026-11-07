@@ -1,0 +1,83 @@
+Introduction to Gradio Blocks.
+
+In the previous sections we have explored and created demos using the <code> class. In this section we will introduce our newly developed low-level API called <code>.
+
+Now, what's the difference between <code> and <code>?
+
+⚡ <code>: a high-level API that allows you to create a full machine learning demo simply by providing a list of inputs and outputs.
+
+🧱 <code>: a low-level API that allows you to have full control over the data flows and layout of your application. You can build very complex, multi-step applications using <code> (as in "building blocks").
+
+Why Blocks 🧱?
+
+As we saw in the previous sections, the <code> class allows you to easily create full-fledged machine learning demos with just a few lines of code. The <code> API is extremely easy to use but lacks the flexibility that the <code> API provides. For example, you might want to:
+
+Group together related demos as multiple tabs in one web application.
+
+Change the layout of your demo, e.g. to specify where the inputs and outputs are located.
+
+Have multi-step interfaces, in which the output of one model becomes the input to the next model, or have more flexible data flows in general.
+
+Change a component's properties (for example, the choices in a dropdown) or its visibility based on user input.
+
+We will explore all of these concepts below.
+
+Creating a simple demo using Blocks.
+
+After you have installed Gradio, run the code below as a Python script, a Jupyter notebook, or a Colab notebook.
+
+This simple example above introduces 4 concepts that underlie Blocks:
+
+Blocks allow you to build web applications that combine markdown, HTML, buttons, and interactive components simply by instantiating objects in Python inside of a <code> context.
+
+🙋If you're not familiar with the <code> statement in Python, we recommend checking out the excellent tutorial from Real Python. Come back here after reading that 🤗 The order in which you instantiate components matters as each element gets rendered into the web app in the order it was created. (More complex layouts are discussed below).
+
+You can define regular Python functions anywhere in your code and run them with user input using <code>. In our example, we have a simple function that "flips" the input text, but you can write any Python function, from a simple calculation to processing the predictions from a machine learning model.
+
+You can assign events to any <code> component. This will run your function when the component is clicked, changed, etc. When you assign an event, you pass in three parameters: <code>: the function that should be called, <code>: the (list) of input component(s), and <code>: the (list) of output components that should be called.
+
+In the example above, we run the <code> function when the value in the <code> named input <code> changes. The event reads the value in <code>, passes it as the name parameter to <code>, which then returns a value that gets assigned to our second <code> named <code>.
+
+To see a list of events that each component supports, see the Gradio documentation.
+
+Blocks automatically figures out whether a component should be interactive (accept user input) or not, based on the event triggers you define. In our example, the first textbox is interactive, since its value is used by the <code> function. The second textbox is not interactive, since its value is never used as an input. In some cases, you might want to override this, which you can do by passing a boolean to the <code> parameter of the component (e.g. <code>).
+
+Customizing the layout of your demo.
+
+How can we use <code> to customize the layout of our demo? By default, <code> renders the components that you create vertically in one column. You can change that by creating additional columns <code> or rows <code> and creating components within those contexts.
+
+Here's what you should keep in mind: any components created under a <code> (this is also the default) will be laid out vertically. Any component created under a <code> will be laid out horizontally, similar to the flexbox model in web development.
+
+Finally, you can also create tabs for your demo by using the <code> context manager. Within this context, you can create multiple tabs by specifying <code> children. Any component created inside of a <code> context appears in that tab.
+
+Now let's add a <code> function to our demo and add a new tab that flips images. Below is an example with 2 tabs and also uses a Row:
+
+You'll notice that in this example, we've also created a <code> component in each tab, and we've assigned a click event to each button, which is what actually runs the function.
+
+Exploring events and state.
+
+Just as you can control the layout, <code> gives you fine-grained control over what events trigger function calls. Each component and many layouts have specific events that they support.
+
+For example, the <code> component has 2 events: <code> (when the value inside of the textbox changes), and <code> (when a user presses the enter key while focused on the textbox). More complex components can have even more events: for example, the <code> component also has separate events for when the audio file is played, cleared, paused, etc. See the documentation for the events each component supports.
+
+You can attach event trigger to none, one, or more of these events. You create an event trigger by calling the name of the event on the component instance as a function -- e.g. <code> or <code>. The function takes in three parameters, as discussed above:
+
+<code>: the function to run.
+
+<code>: a (list of) component(s) whose values should supplied as the input parameters to the function. Each component's value gets mapped to the corresponding function parameter, in order. This parameter can be None if the function does not take any parameters.
+
+<code>: a (list of) component(s) whose values should be updated based on the values returned by the function. Each return value sets the corresponding component's value, in order. This parameter can be None if the function does not return anything.
+
+You can even make the input and output component be the same component, as we do in this example that uses a GPT model to do text completion:
+
+Creating multi-step demos.
+
+In some cases, you might want a multi-step demo, in which you reuse the output of one function as the input to the next. This is really easy to do with <code>, as you can use a component for the input of one event trigger but the output of another. Take a look at the text component in the example below, its value is the result of a speech-to-text model, but also gets passed into a sentiment analysis model:
+
+Updating Component Properties.
+
+So far, we have seen how to create events to update the value of another component. But what happens if you want to change other properties of a component, like the visibility of a textbox or the choices in a radio button group? You can do this by returning a component class's <code> method instead of a regular return value from your function.
+
+This is most easily illustrated with an example:
+
+We just explored all the core concepts of <code>! Just like with <code>, you can create cool demos that can be shared by using <code> in the <code> method or deployed on Hugging Face Spaces.

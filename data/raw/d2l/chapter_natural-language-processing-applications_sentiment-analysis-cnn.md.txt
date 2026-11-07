@@ -1,0 +1,79 @@
+Sentiment Analysis: Using Convolutional Neural Networks.
+
+In section <num>, we investigated mechanisms for processing two-dimensional image data with two-dimensional CNNs, which were applied to local features such as adjacent pixels. Though originally designed for computer vision, CNNs are also widely used for natural language processing. Simply put, just think of any text sequence as a one-dimensional image. In this way, one-dimensional CNNs can process local features such as <math>-grams in text.
+
+In this section, we will use the textCNN model to demonstrate how to design a CNN architecture for representing single text . Compared with section <num> that uses an RNN architecture with GloVe pretraining for sentiment analysis, the only difference in section <num> lies in the choice of the architecture.
+
+One-Dimensional Convolutions.
+
+Before introducing the model, let's see how a one-dimensional convolution works. Bear in mind that it is just a special case of a two-dimensional convolution based on the cross-correlation operation.
+
+As shown in section <num>, in the one-dimensional case, the convolution window slides from left to right across the input tensor. During sliding, the input subtensor (e.g., <math> and <math> in section <num>) contained in the convolution window at a certain position and the kernel tensor (e.g., <math> and <math> in section <num>) are multiplied elementwise. The sum of these multiplications gives the single scalar value (e.g., <math> in section <num>) at the corresponding position of the output tensor.
+
+We implement one-dimensional cross-correlation in the following <code> function. Given an input tensor <code> and a kernel tensor <code>, it returns the output tensor <code>.
+
+We can construct the input tensor <code> and the kernel tensor <code> from section <num> to validate the output of the above one-dimensional cross-correlation implementation.
+
+For any one-dimensional input with multiple channels, the convolution kernel needs to have the same number of input channels. Then for each channel, perform a cross-correlation operation on the one-dimensional tensor of the input and the one-dimensional tensor of the convolution kernel, summing the results over all the channels to produce the one-dimensional output tensor. section <num> shows a one-dimensional cross-correlation operation with 3 input channels.
+
+We can implement the one-dimensional cross-correlation operation for multiple input channels and validate the results in section <num>.
+
+Note that multi-input-channel one-dimensional cross-correlations are equivalent to single-input-channel two-dimensional cross-correlations. To illustrate, an equivalent form of the multi-input-channel one-dimensional cross-correlation in section <num> is the single-input-channel two-dimensional cross-correlation in section <num>, where the height of the convolution kernel has to be the same as that of the input tensor.
+
+Both the outputs in section <num> and section <num> have only one channel. Same as two-dimensional convolutions with multiple output channels described in section <num>, we can also specify multiple output channels for one-dimensional convolutions.
+
+Max-Over-Time Pooling.
+
+Similarly, we can use pooling to extract the highest value from sequence representations as the most important feature across time steps. The max-over-time pooling used in textCNN works like the one-dimensional global max-pooling . For a multi-channel input where each channel stores values at different time steps, the output at each channel is the maximum value for that channel. Note that the max-over-time pooling allows different numbers of time steps at different channels.
+
+The textCNN Model.
+
+Using the one-dimensional convolution and max-over-time pooling, the textCNN model takes individual pretrained token representations as input, then obtains and transforms sequence representations for the downstream application.
+
+For a single text sequence with <math> tokens represented by <math>-dimensional vectors, the width, height, and number of channels of the input tensor are <math>, <math>, and <math>, respectively. The textCNN model transforms the input into the output as follows:
+
+Define multiple one-dimensional convolution kernels and perform convolution operations separately on the inputs. Convolution kernels with different widths may capture local features among different numbers of adjacent tokens.
+
+Perform max-over-time pooling on all the output channels, and then concatenate all the scalar pooling outputs as a vector.
+
+Transform the concatenated vector into the output categories using the fully connected layer. Dropout can be used for reducing overfitting.
+
+section <num> illustrates the model architecture of textCNN with a concrete example. The input is a sentence with 11 tokens, where each token is represented by a 6-dimensional vectors. So we have a 6-channel input with width 11. Define two one-dimensional convolution kernels of widths 2 and 4, with 4 and 5 output channels, respectively. They produce 4 output channels with width <math> and 5 output channels with width <math>. Despite different widths of these 9 channels, the max-over-time pooling gives a concatenated 9-dimensional vector, which is finally transformed into a 2-dimensional output vector for binary sentiment predictions.
+
+Defining the Model.
+
+We implement the textCNN model in the following class. Compared with the bidirectional RNN model in section <num>, besides replacing recurrent layers with convolutional layers, we also use two embedding layers: one with trainable weights and the other with fixed weights.
+
+Let's create a textCNN instance. It has 3 convolutional layers with kernel widths of 3, 4, and 5, all with 100 output channels.
+
+Loading Pretrained Word Vectors.
+
+Same as section <num>, we load pretrained 100-dimensional GloVe embeddings as the initialized token representations. These token representations (embedding weights) will be trained in <code> and fixed in <code>.
+
+Training and Evaluating the Model.
+
+Now we can train the textCNN model for sentiment analysis.
+
+Below we use the trained model to predict the sentiment for two simple sentences.
+
+Summary.
+
+One-dimensional CNNs can process local features such as <math>-grams in text.
+
+Multi-input-channel one-dimensional cross-correlations are equivalent to single-input-channel two-dimensional cross-correlations.
+
+The max-over-time pooling allows different numbers of time steps at different channels.
+
+The textCNN model transforms individual token representations into downstream application outputs using one-dimensional convolutional layers and max-over-time pooling layers.
+
+Exercises.
+
+Tune hyperparameters and compare the two architectures for sentiment analysis in section <num> and in this section, such as in classification accuracy and computational efficiency.
+
+Can you further improve the classification accuracy of the model by using the methods introduced in the exercises of section <num>?
+
+Add positional encoding in the input representations. Does it improve the classification accuracy?
+
+Discussions.
+
+Discussions.

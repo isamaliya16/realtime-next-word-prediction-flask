@@ -1,0 +1,135 @@
+Image Classification with KerasHub.
+
+Classification is the process of predicting a categorical label for a given input image. While classification is a relatively straightforward computer vision task, modern approaches still are built of several complex components. Luckily, Keras provides APIs to construct commonly used components.
+
+This guide demonstrates KerasHub's modular approach to solving image classification problems at three levels of complexity:
+
+Inference with a pretrained classifier.
+
+Fine-tuning a pretrained backbone.
+
+Training a image classifier from scratch.
+
+KerasHub uses Keras 3 to work with any of TensorFlow, PyTorch or Jax. In the guide below, we will use the <code> backend. This guide runs in TensorFlow or PyTorch backends with zero changes, simply update the <code> below.
+
+We use Professor Keras, the official Keras mascot, as a visual reference for the complexity of the material:
+
+Inference with a pretrained classifier.
+
+Let's get started with the simplest KerasHub API: a pretrained classifier. In this example, we will construct a classifier that was pretrained on the ImageNet dataset. We'll use this model to solve the age old "Cat or Dog" problem.
+
+The highest level module in KerasHub is a task. A task is a <code> consisting of a (generally pretrained) backbone model and task-specific layers. Here's an example using <code> with an ResNet Backbone.
+
+ResNet is a great starting model when constructing an image classification pipeline. This architecture manages to achieve high accuracy, while using a compact parameter count. If a ResNet is not powerful enough for the task you are hoping to solve, be sure to check out KerasHub's other available Backbones!
+
+You may notice a small deviation from the old <code> API; where you would construct the class with <code>. While the old API was great for classification, it did not scale effectively to other use cases that required complex architectures, like object detection and semantic segmentation.
+
+We first create a utility function for plotting images throughout this tutorial:
+
+Now that our classifier is built, let's apply it to this cute cat picture!
+
+Next, let's get some predictions from our classifier:
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 12s/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 12s 12s/step.
+
+Predictions come in the form of softmax-ed category rankings. We can use Keras' <code> function to map them to class names:
+
+0/35363 37m━━━━━━━━━━━━━━━━━━━━ 0s 0s/step.
+
+35363/35363 ━━━━━━━━━━━━━━━━━━━━ 0s 0us/step.
+
+Great! Both of these appear to be correct! However, one of the classes is "Bath towel". We're trying to classify Cats VS Dogs. We don't care about the towel!
+
+Ideally, we'd have a classifier that only performs computation to determine if an image is a cat or a dog, and has all of its resources dedicated to this task. This can be solved by fine tuning our own classifier.
+
+Fine tuning a pretrained classifier.
+
+When labeled images specific to our task are available, fine-tuning a custom classifier can improve performance. If we want to train a Cats vs Dogs Classifier, using explicitly labeled Cat vs Dog data should perform better than the generic classifier! For many tasks, no relevant pretrained model will be available (e.g., categorizing images specific to your application).
+
+First, let's get started by loading some data:
+
+Meow!
+
+Next let's construct our model. The use of imagenet in the preset name indicates that the backbone was pretrained on the ImageNet dataset. Pretrained backbones extract more information from our labeled examples by leveraging patterns extracted from potentially much larger datasets.
+
+Next lets put together our classifier:
+
+Here our classifier is just a simple <code>. All that is left to do is call <code>:
+
+1/727 [37m━━━━━━━━━━━━━━━━━━━━ 4:54:54 24s/step - accuracy: 0.5312 - loss: 4.9475 2/727 [37m━━━━━━━━━━━━━━━━━━━━ 2:59 247ms/step - accuracy: 0.5469 - loss: 4.9475.
+
+3/727 [37m━━━━━━━━━━━━━━━━━━━━ 2:51 236ms/step - accuracy: 0.5660 - loss: 4.9475.
+
+727/727 ━━━━━━━━━━━━━━━━━━━━ 219s 268ms/step - accuracy: 0.6553 - loss: 0.7275.
+
+Let's look at how our model performs after the fine tuning:
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 2s/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 2s 2s/step.
+
+Awesome - looks like the model correctly classified the image.
+
+Train a Classifier from Scratch.
+
+Now that we've gotten our hands dirty with classification, let's take on one last task: training a classification model from scratch! A standard benchmark for image classification is the ImageNet dataset, however due to licensing constraints we will use the CalTech 101 image classification dataset in this tutorial. While we use the simpler CalTech 101 dataset in this guide, the same training template may be used on ImageNet to achieve near state-of-the-art scores.
+
+Let's start out by tackling data loading:
+
+The CalTech101 dataset has different sizes for every image, so we resize images before batching them using the <code> API.
+
+Data Augmentation.
+
+In our previous finetuning example, we performed a static resizing operation and did not utilize any image augmentation. This is because a single pass over the training set was sufficient to achieve decent results. When training to solve a more difficult task, you'll want to include data augmentation in your data pipeline.
+
+Data augmentation is a technique to make your model robust to changes in input data such as lighting, cropping, and orientation. Keras includes some of the most useful augmentations in the <code> API. Creating an optimal pipeline of augmentations is an art, but in this section of the guide we'll offer some tips on best practices for classification.
+
+One caveat to be aware of with image data augmentation is that you must be careful to not shift your augmented data distribution too far from the original data distribution. The goal is to prevent overfitting and increase generalization, but samples that lie completely out of the data distribution simply add noise to the training process.
+
+The first augmentation we'll use is <code>. This augmentation behaves more or less how you'd expect: it either flips the image or not. While this augmentation is useful in CalTech101 and ImageNet, it should be noted that it should not be used on tasks where the data distribution is not vertical mirror invariant. An example of a dataset where this occurs is MNIST hand written digits. Flipping a <code> over the vertical axis will make the digit appear more like a <code> than a <code>, but the label will still show a <code>.
+
+Half of the images have been flipped!
+
+The next augmentation we'll use is <code>. This operation selects a random subset of the image. By using this augmentation, we force our classifier to become spatially invariant.
+
+Let's add a <code> to our set of augmentations:
+
+We can also rotate images by a random angle using Keras' <code> layer. Let's apply a rotation by a randomly selected angle in the interval -45°...45°:
+
+Now let's apply our final augmenter to the training data:
+
+We also need to resize our evaluation set to get dense batches of the image size expected by our model. We directly use the deterministic <code> in this case to avoid adding noise to our evaluation metric due to applying random augmentations.
+
+Finally, lets unpackage our datasets and prepare to pass them to <code>, which accepts a tuple of <code>.
+
+Data augmentation is by far the hardest piece of training a modern classifier. Congratulations on making it this far!
+
+Optimizer Tuning.
+
+To achieve optimal performance, we need to use a learning rate schedule instead of a single learning rate. While we won't go into detail on the Cosine decay with warmup schedule used here, [you can read more about it here.
+
+The schedule looks a as we expect.
+
+Next let's construct this optimizer:
+
+At long last, we can now build our model and call <code>! Here, we directly instantiate our <code>, specifying all architectural parameters, which gives us full control to tweak the architecture.
+
+We employ label smoothing to prevent the model from overfitting to artifacts of our augmentation process.
+
+Let's compile our model:
+
+and finally call fit().
+
+1/96 [37m━━━━━━━━━━━━━━━━━━━━ 11:13 7s/step - categoricalaccuracy: 0.0000e+00 - loss: 12.2444 - topkcategoricalaccuracy: 0.0938.
+
+96/96 ━━━━━━━━━━━━━━━━━━━━ 38s 327ms/step - categoricalaccuracy: 0.0089 - loss: 8.5603 - topkcategoricalaccuracy: 0.0593 - valcategoricalaccuracy: 0.0092 - valloss: 5.7528 - valtopk_categoricalaccuracy: 0.0761.
+
+Congratulations! You now know how to train a powerful image classifier from scratch using KerasHub. Depending on the availability of labeled data for your application, training from scratch may or may not be more powerful than using transfer learning in addition to the data augmentations discussed above. For smaller datasets, pretrained models generally produce high accuracy and faster convergence.
+
+Conclusions.
+
+While image classification is perhaps the simplest problem in computer vision, the modern landscape has numerous complex components. Luckily, KerasHub offers robust, production-grade APIs to make assembling most of these components possible in one line of code. Through the use of KerasHub's <code> API, pretrained weights, and Keras' data augmentations you can assemble everything you need to train a powerful classifier in a few hundred lines of code!
+
+As a follow up exercise, try fine tuning a KerasHub classifier on your own dataset!

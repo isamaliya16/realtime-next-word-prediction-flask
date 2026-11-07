@@ -1,0 +1,57 @@
+Adadelta.
+
+Adadelta is yet another variant of AdaGrad (section <num>). The main difference lies in the fact that it decreases the amount by which the learning rate is adaptive to coordinates. Moreover, traditionally it referred to as not having a learning rate since it uses the amount of change itself as calibration for future change. The algorithm was proposed in . It is fairly straightforward, given the discussion of previous algorithms so far.
+
+The Algorithm.
+
+In a nutshell, Adadelta uses two state variables, <math> to store a leaky average of the second moment of the gradient and <math> to store a leaky average of the second moment of the change of parameters in the model itself. Note that we use the original notation and naming of the authors for compatibility with other publications and implementations (there is no other real reason why one should use different Greek variables to indicate a parameter serving the same purpose in momentum, Adagrad, RMSProp, and Adadelta).
+
+Here are the technical details of Adadelta. Given the parameter du jour is <math>, we obtain the following leaky updates similarly to section <num>:
+
+<math>.
+
+The difference to section <num> is that we perform updates with the rescaled gradient <math>, i.e.
+
+<math>.
+
+So what is the rescaled gradient <math>? We can calculate it as follows:
+
+<math>.
+
+where <math> is the leaky average of the squared rescaled gradients <math>. We initialize <math> to be <math> and update it at each step with <math>, i.e.
+
+<math>.
+
+and <math> (a small value such as <math>) is added to maintain numerical stability.
+
+Implementation.
+
+Adadelta needs to maintain two state variables for each variable, <math> and <math>. This yields the following implementation.
+
+Choosing <math> amounts to a half-life time of 10 for each parameter update. This tends to work quite well. We get the following behavior.
+
+For a concise implementation we simply use the Adadelta algorithm from high-level APIs. This yields the following one-liner for a much more compact invocation.
+
+Summary.
+
+Adadelta has no learning rate parameter. Instead, it uses the rate of change in the parameters itself to adapt the learning rate.
+
+Adadelta requires two state variables to store the second moments of gradient and the change in parameters.
+
+Adadelta uses leaky averages to keep a running estimate of the appropriate statistics.
+
+Exercises.
+
+Adjust the value of <math>. What happens?
+
+Show how to implement the algorithm without the use of <math>. Why might this be a good idea?
+
+Is Adadelta really learning rate free? Could you find optimization problems that break Adadelta?
+
+Compare Adadelta to Adagrad and RMS prop to discuss their convergence behavior.
+
+Discussions.
+
+Discussions.
+
+Discussions.

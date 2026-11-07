@@ -1,0 +1,249 @@
+Native Function Calling with FunctionGemma in KerasHub.
+
+Introduction.
+
+This example demonstrates how to build a multi-tool AI Assistant using FunctionGemma native function calling capabilities in KerasHub. The Assistant can execute multiple tools including web search, stock prices, world time, and system stats.
+
+Overview.
+
+Function calling enables language models to interact with external APIs and tools by generating structured function calls. This implementation uses FunctionGemma native function calling format with proper tool declarations and function call parsing.
+
+Architecture.
+
+The Assistant follows this flow:
+
+Tool Definition: Tools are defined in Function Calling Format JSON format.
+
+Prompt Formatting: Tools are injected into the prompt using FunctionGemma template.
+
+Model Generation: The model generates a structured function call.
+
+Parsing: Extract function name and arguments from the response.
+
+Execution: Execute the corresponding Python function.
+
+Response: Return formatted results to the user.
+
+Key Components.
+
+<code>: Function Calling Format tool schemas.
+
+<code>: Manual chat template implementation.
+
+<code>: Extract function calls from model output.
+
+<code>: Registry mapping tool names to Python functions.
+
+Setup.
+
+Before starting this tutorial, complete the following steps:
+
+Get access to <code> by logging into your Kaggle account and selecting Acknowledge license for a FunctionGemma model.
+
+Generate a <code> by visiting kaggle settings page and add it to your Colab Secrets:
+
+<code>.
+
+<code>.
+
+This notebook will run on either CPU or GPU.
+
+Install Python packages.
+
+Tool Implementations.
+
+We'll start by defining the actual Python functions that our Assistant will be able to call. Each of these functions represents a "tool" that extends the model's capabilities beyond just text generation.
+
+Web Search Tool.
+
+This function allows the model to search the web for information using DuckDuckGo. In a real application, you might use more sophisticated search APIs or custom search implementations tailored to your domain.
+
+Stock Price Tool.
+
+This function retrieves real-time stock prices from Yahoo Finance. The model can use this to answer questions about current market prices for publicly traded companies.
+
+System Statistics Tool.
+
+This function provides information about the current system's CPU and memory usage. It demonstrates how the model can interact with the local environment.
+
+Time and Timezone Helpers.
+
+These functions work together to provide accurate time information for locations worldwide. We maintain a mapping of common locations to their timezone identifiers, then use Python's pytz library to calculate the current time.
+
+World Time Tool.
+
+This function gets the current time for a specific location. It uses the helper function <code> to determine the correct timezone and then returns the formatted time, date, and day.
+
+Tool Definitions (Function Calling Format).
+
+Now we need to tell the model about these tools. We do this by defining tool schemas in a format that the model can understand. Each tool definition includes:
+
+Name: The function name.
+
+Parameters: The arguments the function accepts.
+
+This format follows the standard function calling convention used by FunctionGemma.
+
+Tool Registry.
+
+This dictionary maps tool names (as strings) to their actual Python function implementations. When the model generates a function call like <code>, we use this registry to look up and execute the corresponding Python function.
+
+This pattern allows for dynamic tool execution - we can easily add or remove tools by updating both <code> and this registry.
+
+Helper Functions For Function Calling.
+
+The following functions handle the mechanics of function calling:
+
+Parsing function calls from model output.
+
+Formatting tool declarations for the prompt.
+
+Constructing the full conversation prompt.
+
+Formatting tool results for display.
+
+Function Call Parser.
+
+This function is responsible for extracting the structured function call from the model's text output. It looks for the special <code> tags and parses the function name and arguments into a Python dictionary.
+
+Tool Declaration Formatter.
+
+This function converts our Python tool definitions into the specific format expected by <code>. It handles the mapping of types and descriptions to the <code> string format used in the system prompt.
+
+Prompt Constructor.
+
+This is the core function for building the prompt. It combines:
+
+The system prompt with tool declarations.
+
+Few-shot examples to guide the model.
+
+The conversation history (user and assistant messages).
+
+The final generation prompt.
+
+Tool Response Formatter.
+
+After a tool is executed, this function formats the result back into a string that can be displayed to the user or fed back into the model. It handles specific formatting for different tools (like adding currency to stock prices).
+
+Interactive Chat Loop.
+
+This section implements the main conversation loop. The agent:
+
+Formats the prompt with tool declarations.
+
+Generates a response (which may include a function call).
+
+Executes the function if called.
+
+Returns the result to the user.
+
+After each successful tool execution, we clear the conversation history to prevent token overflow and keep the model focused.
+
+Model Loading.
+
+This function loads the FunctionGemma, a specialized version of our Gemma 3 270M model tuned for function calling using KerasHub's <code> method. You can load it from Kaggle using the preset name <code> or from a local path if you've downloaded the model to your machine.
+
+Update the path to match your model location. The model is loaded once at startup and then used throughout the chat session.
+
+This is the main function that runs the interactive conversation with the user.
+
+It handles the complete cycle of:
+
+Displaying capabilities and waiting for user input.
+
+Formatting the prompt with tool declarations and conversation history.
+
+Generating a response from the model.
+
+Parsing any function calls from the response.
+
+Executing the requested tools.
+
+Formatting and displaying results to the user.
+
+Managing conversation history to prevent token overflow.
+
+The loop continues until the user types 'exit', 'quit', or 'q'.
+
+This is where the program starts execution. When you run this script:
+
+The FunctionGemma model is loaded from the specified path.
+
+The interactive chat loop begins, waiting for user input.
+
+The Assistant processes queries and executes tools until the user types 'exit'.
+
+Conclusion.
+
+What You've Achieved.
+
+By following this guide, you've learned how to build a production-ready AI Assistant with native function calling capabilities using FunctionGemma in KerasHub. Here's what you've accomplished:
+
+Native Function Calling Implementation:
+
+Implemented FunctionGemma native function calling format without relying on external APIs.
+
+Learned to construct proper tool declarations and parse structured function calls.
+
+Built a manual chat template that replicates HuggingFace's applychattemplate().
+
+Multi-Tool Assistant Architecture:
+
+Created four distinct tools: web search, stock prices, world time, and system stats.
+
+Designed tools with clear error handling and user-friendly responses.
+
+Implemented explicit error messages.
+
+Prompt Engineering Best Practices:
+
+Used few-shot examples to guide model behavior and improve tool selection.
+
+Structured prompts with proper role separation (developer, user, model).
+
+Managed conversation history to prevent token overflow.
+
+Error Handling and User Experience:
+
+Implemented graceful degradation (e.g., UTC fallback for unknown timezones).
+
+Provided clear, actionable error messages for invalid inputs.
+
+Added contextual information (dates, notes) to make responses more informative.
+
+Real-World Applications:
+
+This pattern can be extended to build:
+
+Customer service chatbots with database access.
+
+Data analysis assistants with computation tools.
+
+Personal productivity Assistants with calendar and email integration.
+
+Domain-specific assistants (medical, legal, financial) with specialized tools.
+
+Key Takeaways.
+
+Small models can be powerful: Even a 270M parameter model can reliably use tools when given proper guidance through few-shot examples and clear tool descriptions.
+
+Transparency matters: Explicit error handling and clear responses build user trust more effectively.
+
+Function calling is composable: The same pattern works for any number of tools, making it easy to extend your Assistant's capabilities.
+
+Next Steps.
+
+To further improve this agent, consider:
+
+Fine-tuning the model on domain-specific tool usage examples to optimize performance.
+
+Adding authentication and rate limiting for production deployment.
+
+Implementing tool result caching to reduce API calls.
+
+Creating a web interface using Gradio or Streamlit.
+
+Adding more sophisticated error recovery strategies.
+
+Happy building! 🚀.

@@ -1,0 +1,91 @@
+Uploading Models with KerasHub.
+
+Introduction.
+
+Fine-tuning a machine learning model can yield impressive results for specific tasks. Uploading your fine-tuned model to a model hub allows you to share it with the broader community. By sharing your models, you'll enhance accessibility for other researchers and developers, making your contributions an integral part of the machine learning landscape. This can also streamline the integration of your model into real-world applications.
+
+This guide walks you through how to upload your fine-tuned models to popular model hubs such as Kaggle Models and Hugging Face Hub.
+
+Setup.
+
+Let's start by installing and importing all the libraries we need. We use KerasHub for this guide.
+
+Data.
+
+We can use the IMDB reviews dataset for this guide. Let's load the dataset from <code>.
+
+We only use a small subset of the training samples to make the guide run faster. However, if you need a higher quality model, consider using a larger number of training samples.
+
+Task Upload.
+
+A <code>, wraps a <code> and a <code> to create a model that can be directly used for training, fine-tuning, and prediction for a given text problem. In this section, we explain how to create a <code>, fine-tune and upload it to a model hub.
+
+Load Model.
+
+If you want to build a Causal LM based on a base model, simply call <code> and pass a built-in preset identifier.
+
+Fine-tune Model.
+
+After loading the model, you can call <code> on the model to fine-tune it. Here, we fine-tune the model on the IMDB reviews which makes the model movie domain-specific.
+
+100/100 ━━━━━━━━━━━━━━━━━━━━ 151s 1s/step - loss: 1.0198 - sparsecategoricalaccuracy: 0.3271.
+
+Save the Model Locally.
+
+To upload a model, you need to first save the model locally using <code>.
+
+Let's see the saved files.
+
+Load a Locally Saved Model.
+
+A model that is saved to a local preset can be loaded using <code>. What you save in, is what you get back out.
+
+You can also load the <code> and <code> objects from this preset directory. Note that these objects are equivalent to <code> and <code> above.
+
+Upload the Model to a Model Hub.
+
+After saving a preset to a directory, this directory can be uploaded to a model hub such as Kaggle or Hugging Face directly from the KerasHub library. To upload the model to Kaggle, the URI must start with <code> and to upload to Hugging Face, it should start with <code>.
+
+Upload to Kaggle.
+
+To upload a model to Kaggle, first, we need to authenticate with Kaggle. This can in one of the following ways:
+
+Set environment variables <code> and <code>.
+
+Provide a local <code>.
+
+Call <code>.
+
+Let's make sure we are logged in before continuing.
+
+To upload a model we can use <code> API where <code> has the format of <code> for uploading to Kaggle and <code> is the directory that the model is saved in.
+
+Running the following uploads the model that is saved in <code> to Kaggle:
+
+Upload to Hugging Face.
+
+To upload a model to Hugging Face, first, we need to authenticate with Hugging Face. This can in one of the following ways:
+
+Set environment variables <code> and <code>.
+
+Call <code>.
+
+Let's make sure we are logged in before coninuing.
+
+<code> can be used to upload a model to Hugging Face if <code> has the format of <code>.
+
+Running the following uploads the model that is saved in <code> to Hugging Face:
+
+Load a User Uploaded Model.
+
+After verifying that the model is uploaded to Kaggle, we can load the model by calling <code>.
+
+We can also load the model uploaded to Hugging Face by calling <code>.
+
+Classifier Upload.
+
+Uploading a classifier model is similar to Causal LM upload. To upload the fine-tuned model, first, the model should be saved to a local directory using <code> API and then it can be uploaded via <code>.
+
+100/100 ━━━━━━━━━━━━━━━━━━━━ 7s 31ms/step - loss: 0.6975 - sparsecategoricalaccuracy: 0.5164.
+
+After verifying that the model is uploaded to Kaggle, we can load the model by calling <code>.

@@ -1,0 +1,47 @@
+Automatic Speech Recognition with Transformer.
+
+Introduction.
+
+Automatic speech recognition (ASR) consists of transcribing audio speech segments into text. ASR can be treated as a sequence-to-sequence problem, where the audio can be represented as a sequence of feature vectors and the text as a sequence of characters, words, or subword tokens.
+
+For this demonstration, we will use the LJSpeech dataset from the LibriVox project. It consists of short audio clips of a single speaker reading passages from 7 non-fiction books. Our model will be similar to the original Transformer (both encoder and decoder) as proposed in the paper, "Attention is All You Need".
+
+References:
+
+Attention is All You Need.
+
+Very Deep Self-Attention Networks for End-to-End Speech Recognition.
+
+Speech Transformers.
+
+LJSpeech Dataset.
+
+Define the Transformer Input Layer.
+
+When processing past target tokens for the decoder, we compute the sum of position embeddings and token embeddings.
+
+When processing audio features, we apply convolutional layers to downsample them (via convolution strides) and process local relationships.
+
+Transformer Encoder Layer.
+
+Transformer Decoder Layer.
+
+Complete the Transformer model.
+
+Our model takes audio spectrograms as inputs and predicts a sequence of characters. During training, we give the decoder the target character sequence shifted to the left as input. During inference, the decoder uses its own past predictions to predict the next token.
+
+Download the dataset.
+
+Note: This requires ~3.6 GB of disk space and takes ~5 minutes for the extraction of files.
+
+Preprocess the dataset.
+
+Callbacks to display predictions.
+
+Learning rate schedule.
+
+Create & train the end-to-end model.
+
+In practice, you should train for around 100 epochs or more.
+
+Some of the predicted text at or around epoch 35 may look as follows:

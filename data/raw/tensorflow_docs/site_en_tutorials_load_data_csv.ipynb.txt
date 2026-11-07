@@ -1,0 +1,259 @@
+Load CSV data.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial provides examples of how to use CSV data with TensorFlow.
+
+There are two main parts to this:
+
+Loading the data off disk.
+
+Pre-processing it into a form suitable for training.
+
+This tutorial focuses on the loading, and gives some quick examples of preprocessing. To learn more about the preprocessing aspect, check out the Working with preprocessing layers guide and the Classify structured data using Keras preprocessing layers tutorial.
+
+Setup.
+
+In memory data.
+
+For any small CSV dataset the simplest way to train a TensorFlow model on it is to load it into memory as a pandas <code> or a NumPy array.
+
+A relatively simple example is the abalone dataset.
+
+The dataset is small.
+
+All the input features are limited-range floating point values.
+
+Here is how to download the data into a <code>:
+
+The dataset contains a set of measurements of abalone, a type of sea snail.
+
+“Abalone shell” (by Nicki Dugan Pogue, CC BY-SA 2.0).
+
+The nominal task for this dataset is to predict the age from the other measurements, so separate the features and labels for training:
+
+For this dataset you will treat all features identically. Pack the features into a single NumPy array.:
+
+Next make a regression model predict the age. Since there is only a single input tensor, a <code> model is sufficient here.
+
+To train that model, pass the features and labels to <code>:
+
+You have just seen the most basic way to train a model using CSV data. Next, you will learn how to apply preprocessing to normalize numeric columns.
+
+Basic preprocessing.
+
+It's good practice to normalize the inputs to your model. The Keras preprocessing layers provide a convenient way to build this normalization into your model.
+
+The <code> layer precomputes the mean and variance of each column, and uses these to normalize the data.
+
+First, create the layer:
+
+Then, use the <code> method to adapt the normalization layer to your data.
+
+Note: Only use your training data with the <code> method. Do not use your validation or test data.
+
+Then, use the normalization layer in your model:
+
+Mixed data types.
+
+In the previous sections, you worked with a dataset where all the features were limited-range floating point values. But not all datasets are limited to a single data type.
+
+The "Titanic" dataset contains information about the passengers on the Titanic. The nominal task on this dataset is to predict who survived.
+
+Image from Wikimedia.
+
+The raw data can easily be loaded as a Pandas <code>, but is not immediately usable as input to a TensorFlow model.
+
+Because of the different data types and ranges, you can't simply stack the features into a NumPy array and pass it to a <code> model. Each column needs to be handled individually.
+
+As one option, you could preprocess your data offline (using any tool you like) to convert categorical columns to numeric columns, then pass the processed output to your TensorFlow model. The disadvantage to that approach is that if you save and export your model the preprocessing is not saved with it. The Keras preprocessing layers avoid this problem because they're part of the model.
+
+In this example, you'll build a model that implements the preprocessing logic using Keras functional API. You could also do it by subclassing.
+
+The functional API operates on "symbolic" tensors. Normal "eager" tensors have a value. In contrast these "symbolic" tensors do not. Instead they keep track of which operations are run on them, and build a representation of the calculation, that you can run later. Here's a quick example:
+
+To build the preprocessing model, start by building a set of symbolic <code> objects, matching the names and data-types of the CSV columns.
+
+The first step in your preprocessing logic is to concatenate the numeric inputs together, and run them through a normalization layer:
+
+Collect all the symbolic preprocessing results, to concatenate them later:
+
+For the string inputs use the <code> function to map from strings to integer indices in a vocabulary. Next, use <code> to convert the indexes into <code> data appropriate for the model.
+
+The default settings for the <code> layer create a one-hot vector for each input. A <code> would also work. Check out the Working with preprocessing layers guide and the Classify structured data using Keras preprocessing layers tutorial for more on this topic.
+
+With the collection of <code> and <code>, you can concatenate all the preprocessed inputs together, and build a model that handles the preprocessing:
+
+This model just contains the input preprocessing. You can run it to see what it does to your data. Keras models don't automatically convert pandas <code>s because it's not clear if it should be converted to one tensor or to a dictionary of tensors. So, convert it to a dictionary of tensors:
+
+Slice out the first training example and pass it to this preprocessing model, you see the numeric features and string one-hots all concatenated together:
+
+Now, build the model on top of this:
+
+When you train the model, pass the dictionary of features as <code>, and the label as <code>.
+
+Since the preprocessing is part of the model, you can save the model and reload it somewhere else and get identical results:
+
+Using tf.data.
+
+In the previous section you relied on the model's built-in data shuffling and batching while training the model.
+
+If you need more control over the input data pipeline or need to use data that doesn't easily fit into memory: use <code>.
+
+For more examples, refer to the <code>: Build TensorFlow input pipelines guide.
+
+On in memory data.
+
+As a first example of applying <code> to CSV data, consider the following code to manually slice up the dictionary of features from the previous section. For each index, it takes that index for each feature:
+
+Run this and print the first example:
+
+The most basic <code> in memory data loader is the <code> constructor. This returns a <code> that implements a generalized version of the above <code> function, in TensorFlow.
+
+You can iterate over a <code> like any other python iterable:
+
+The <code> function can handle any structure of nested dictionaries or tuples. The following code makes a dataset of <code> pairs:
+
+To train a model using this <code>, you'll need to at least <code> and <code> the data.
+
+Instead of passing <code> and <code> to <code>, you pass the dataset:
+
+From a single file.
+
+So far this tutorial has worked with in-memory data. <code> is a highly scalable toolkit for building data pipelines, and provides a few functions for loading CSV files.
+
+Now read the CSV data from the file and create a <code>.
+
+(For the full documentation, see <code>).
+
+This function includes many convenient features, so the data is easy to work with. This includes:
+
+Using the column headers as dictionary keys.
+
+Automatically determining the type of each column.
+
+Caution: Make sure to set the <code> argument in <code>, otherwise the default behavior for <code> is to loop endlessly.
+
+Note: If you run the above cell twice it will produce different results. The default settings for <code> include <code>, which is more than sufficient for this small dataset, but may not be for a real-world dataset.
+
+It can also decompress the data on the fly. Here's a gzipped CSV file containing the metro interstate traffic dataset.
+
+Image from Wikimedia.
+
+Set the <code> argument to read directly from the compressed file:
+
+Note: If you need to parse those date-time strings in the <code> pipeline, you can use <code>.
+
+Caching.
+
+There is some overhead to parsing the CSV data. For small models this can be the bottleneck in training.
+
+Depending on your use case, it may be a good idea to use <code> or <code>, so that the CSV data is only parsed on the first epoch.
+
+The main difference between the <code> and <code> methods is that <code> files can only be used by the TensorFlow process that created them, but <code> files can be read by other processes.
+
+For example, iterating over the <code> 20 times may take around 15 seconds without caching, or about two seconds with caching.
+
+Note: <code> stores the data from the first epoch and replays it in order. So, using the <code> method disables any shuffles earlier in the pipeline. Below, <code> is added back in after <code>.
+
+Note: The <code> files are meant for temporary storage of a dataset while in use. This is not a format for long term storage. The file format is considered an internal detail, and not guaranteed between TensorFlow versions.
+
+If your data loading is slowed by loading CSV files, and <code> and <code> are insufficient for your use case, consider re-encoding your data into a more streamlined format.
+
+Multiple files.
+
+All the examples so far in this section could easily be done without <code>. One place where <code> can really simplify things is when dealing with collections of files.
+
+For example, the character font images dataset is distributed as a collection of csv files, one per font.
+
+Image by Willi Heidelbach from Pixabay.
+
+Download the dataset, and review the files inside:
+
+When dealing with a bunch of files, you can pass a glob-style <code> to the <code> function. The order of the files is shuffled each iteration.
+
+Use the <code> argument to set how many files are read in parallel and interleaved together.
+
+These CSV files have the images flattened out into a single row. The column names are formatted <code>. Here's the first batch:
+
+Optional: Packing fields.
+
+You probably don't want to work with each pixel in separate columns like this. Before trying to use this dataset be sure to pack the pixels into an image-tensor.
+
+Here is code that parses the column names to build images for each example:
+
+Apply that function to each batch in the dataset:
+
+Plot the resulting images:
+
+Lower level functions.
+
+So far this tutorial has focused on the highest-level utilities for reading csv data. There are two other APIs that may be helpful for advanced users if your use-case doesn't fit the basic patterns.
+
+<code>: a function for parsing lines of text into a list of CSV column tensors.
+
+<code>: a lower-level CSV dataset constructor.
+
+This section recreates functionality provided by <code>, to demonstrate how this lower-level functionality can be used.
+
+<code>.
+
+This function decodes a string, or list of strings into a list of columns.
+
+Unlike <code> this function does not try to guess column data-types. You specify the column types by providing a list of <code> containing a value of the correct type, for each column.
+
+To read the Titanic data as strings using <code> you would say:
+
+To parse them with their actual types, create a list of <code> of the corresponding types:
+
+Note: It is more efficient to call <code> on large batches of lines than on individual lines of CSV text.
+
+<code>.
+
+The <code> class provides a minimal CSV <code> interface without the convenience features of the <code> function: column header parsing, column type-inference, automatic shuffling, file interleaving.
+
+This constructor uses <code> the same way as <code>:
+
+The above code is basically equivalent to:
+
+Multiple files.
+
+To parse the fonts dataset using <code>, you first need to determine the column types for the <code>. Start by inspecting the first row of one file:
+
+Only the first two fields are strings, the rest are integers or floats, and you can get the total number of features by counting the commas:
+
+The <code> constructor can take a list of input files, but reads them sequentially. The first file in the list of CSVs is <code>:
+
+So, when you pass the list of files to <code>, the records from <code> are read first:
+
+To interleave multiple files, use <code>.
+
+Here's an initial dataset that contains the CSV file names:
+
+This shuffles the file names each epoch:
+
+The <code> method takes a <code> that creates a child-<code> for each element of the parent-<code>.
+
+Here, you want to create a <code> from each element of the dataset of files:
+
+The <code> returned by interleave returns elements by cycling over a number of the child-<code>s. Note, below, how the dataset cycles over <code> three font files:
+
+Performance.
+
+Earlier, it was noted that <code> is more efficient when run on a batch of strings.
+
+It is possible to take advantage of this fact, when using large batch sizes, to improve CSV loading performance (but try caching first).
+
+With the built-in loader 20, 2048-example batches take about 17s.
+
+Passing batches of text lines to<code> runs faster, in about 5s:
+
+For another example of increasing CSV performance by using large batches, refer to the Overfit and underfit tutorial.
+
+This sort of approach may work, but consider other options like <code> and <code>, or re-encoding your data into a more streamlined format.

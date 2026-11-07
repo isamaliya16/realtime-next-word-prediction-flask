@@ -1,0 +1,29 @@
+Grad-CAM class activation visualization.
+
+Adapted from Deep Learning with Python (2017).
+
+Setup.
+
+Configurable parameters.
+
+You can change these to another model.
+
+To get the values for <code> use <code> to see the names of all layers in the model.
+
+The Grad-CAM algorithm.
+
+Let's test-drive it.
+
+Create a superimposed visualization.
+
+Let's try another image.
+
+We will see how the grad cam explains the model's outputs for a multi-label image. Let's try an image with a cat and a dog together, and see how the grad cam behaves.
+
+We generate class activation heatmap for "chow," the class index is 260.
+
+We generate class activation heatmap for "egyptian cat," the class index is 285.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 10: Interpreting what ConvNets learn.

@@ -1,0 +1,163 @@
+Classification with Gated Residual and Variable Selection Networks with HyperParameters tuning.
+
+Introduction.
+
+The following example extends the script <code> by incorporating hyperparameters tuning using Autokeras and KerasTuner. Specifics regarding which APIs are used from the these two packages will be described in detail in the relevant code sections.
+
+This example demonstrates the use of Gated Residual Networks (GRN) and Variable Selection Networks (VSN), proposed by Bryan Lim et al. in Temporal Fusion Transformers (TFT) for Interpretable Multi-horizon Time Series Forecasting, for structured data classification. GRNs give the flexibility to the model to apply non-linear processing only where needed. VSNs allow the model to softly remove any unnecessary noisy inputs which could negatively impact performance. Together, those techniques help improving the learning capacity of deep neural network models.
+
+Note that this example implements only the GRN and VSN components described in in the paper, rather than the whole TFT model, as GRN and VSN can be useful on their own for structured data learning tasks.
+
+To run the code you need to use TensorFlow 2.3 or higher.
+
+The dataset.
+
+Our dataset is provided by the Cleveland Clinic Foundation for Heart Disease. It's a CSV file with 303 rows. Each row contains information about a patient (a sample), and each column describes an attribute of the patient (a feature). We use the features to predict whether a patient has a heart disease (binary classification).
+
+Here's the description of each feature:
+
+Column| Description| Feature Type ------------|--------------------|---------------------- Age | Age in years | Numerical Sex | (1 = male; 0 = female) | Categorical CP | Chest pain type (0, 1, 2, 3, 4) | Categorical Trestbpd | Resting blood pressure (in mm Hg on admission) | Numerical Chol | Serum cholesterol in mg/dl | Numerical FBS | fasting blood sugar in 120 mg/dl (1 = true; 0 = false) | Categorical RestECG | Resting electrocardiogram results (0, 1, 2) | Categorical Thalach | Maximum heart rate achieved | Numerical Exang | Exercise induced angina (1 = yes; 0 = no) | Categorical Oldpeak | ST depression induced by exercise relative to rest | Numerical Slope | Slope of the peak exercise ST segment | Numerical CA | Number of major vessels (0-3) colored by fluoroscopy | Both numerical & categorical Thal | 3 = normal; 6 = fixed defect; 7 = reversible defect | Categorical Target | Diagnosis of heart disease (1 = true; 0 = false) | Target.
+
+Setup.
+
+Preparing the data.
+
+Let's download the data and load it into a Pandas dataframe:
+
+The dataset includes 303 samples with 14 columns per sample (13 features, plus the target label):
+
+Here's a preview of a few samples:
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+age sex cp trestbps chol fbs restecg thalach exang oldpeak slope ca thal target.
+
+0 63 1 1 145 233 1 2 150 0 2.3 3 0 fixed 0.
+
+1 67 1 4 160 286 0 2 108 1 1.5 2 3 normal 1.
+
+2 67 1 4 120 229 0 2 129 1 2.6 2 2 reversible 0.
+
+3 37 1 3 130 250 0 0 187 0 3.5 3 0 normal 0.
+
+4 41 0 2 130 204 0 2 172 0 1.4 1 0 normal 0.
+
+The last column, "target", indicates whether the patient has a heart disease (1) or not (0).
+
+Let's split the data into a training and validation set:
+
+Define dataset metadata.
+
+Here, we define the metadata of the dataset that will be useful for reading and parsing the data into input features, and encoding the input features with respect to their types.
+
+Feature preprocessing with Keras layers.
+
+The following features are categorical features encoded as integers:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+We will encode these features using one-hot encoding. We have two options here:
+
+Use <code>, which requires knowing the range of input values and will error on input outside the range.
+
+Use <code> which will build a lookup table for inputs and reserve an output index for unkown input values.
+
+For this example, we want a simple solution that will handle out of range inputs at inference, so we will use <code>.
+
+We also have a categorical feature encoded as a string: <code>. We will create an index of all possible features and encode output using the <code> layer.
+
+Finally, the following feature are continuous numerical features:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+For each of these features, we will use a <code> layer to make sure the mean of each feature is 0 and its standard deviation is 1.
+
+Below, we define a utility function to do the operations:
+
+<code> to one-hot encode string or integer categorical features.
+
+Let's generate <code> objects for each dataframe:
+
+Each <code> yields a tuple <code> where <code> is a dictionary of features and <code> is the value <code> or <code>:
+
+Let's batch the datasets:
+
+Subclassing Autokeras Graph.
+
+Here we subclass the Autokeras <code>.
+
+<code>: we override this method to be able to handle model <code> passed as dictionaries. In structured data analysis Inputs are normally passed as dictionaries for each feature of interest.
+
+Subclassing Autokeras <code>.
+
+Here we subclass the Autokeras Input node object and override the dtype attribute from None to a user supplied value. We also override the <code> method to use user supplied name for Inputs layers.
+
+Subclassing ClassificationHead.
+
+Here we subclass Autokeras ClassificationHead and override the init method, and we add the method <code> to infer the labels shape. We remove the preprocessing fuctionality as we prefer to conduct such manually.
+
+GatedLinearUnit Layer.
+
+This is a keras layer defined in the script <code> More details about this layer maybe found in the relevant script.
+
+GatedResidualNetwork Layer.
+
+This is a keras layer defined in the script <code> More details about this layer maybe found in the relevant script.
+
+Building the Autokeras <code>.
+
+We have converted the following keras layer to an Autokeras Block to include hyperapameters to tune. Refer to Autokeras blocks API for writing custom Blocks.
+
+We create the HyperModel (from KerasTuner) Inputs which will be built into Keras Input objects.
+
+KerasTuner <code>.
+
+Here we use the Autokeras <code> API to construct a network of BlocksSSS which will be built into a KerasTuner HyperModel and finally to a Keras Model.
+
+Using <code> Tuner to find best HyperParameters.
+
+We use the RandomSearch tuner to serach for hyparameters in the search space We also display the search space.
+
+Extracting the best model.
+
+Model: "functional".
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩ │ age ( InputLayer ) │ ( None , 1 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ chol ( InputLayer ) │ ( None , 1 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ oldpeak │ ( None , 1 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ slope ( InputLayer ) │ ( None , 1 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ thalach │ ( None , 1 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ trestbps │ ( None , 1 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat32 │ ( None , 1 ) │ 0 │ age 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ ca ( InputLayer ) │ ( None , 4 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat322 │ ( None , 1 ) │ 0 │ chol 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ cp ( InputLayer ) │ ( None , 5 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ exang ( InputLayer ) │ ( None , 2 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ fbs ( InputLayer ) │ ( None , 2 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat326 │ ( None , 1 ) │ 0 │ oldpeak 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ restecg │ ( None , 3 ) │ 0 │ - │ │ ( InputLayer ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ sex ( InputLayer ) │ ( None , 2 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat329 │ ( None , 1 ) │ 0 │ slope 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ thal ( InputLayer ) │ ( None , 5 ) │ 0 │ - │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat3211 │ ( None , 1 ) │ 0 │ thalach 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat3212 │ ( None , 1 ) │ 0 │ trestbps 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ normalization │ ( None , 1 ) │ 3 │ casttofloat32 … │ │ ( Normalization ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat321 │ ( None , 4 ) │ 0 │ ca[ 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ normalization1 │ ( None , 1 ) │ 3 │ casttofloat32… │ │ ( Normalization ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat323 │ ( None , 5 ) │ 0 │ cp 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat324 │ ( None , 2 ) │ 0 │ exang 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat325 │ ( None , 2 ) │ 0 │ fbs 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ normalization2 │ ( None , 1 ) │ 3 │ casttofloat32… │ │ ( Normalization ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat327 │ ( None , 3 ) │ 0 │ restecg 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat328 │ ( None , 2 ) │ 0 │ sex 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ normalization3 │ ( None , 1 ) │ 3 │ casttofloat32… │ │ ( Normalization ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ casttofloat3210 │ ( None , 5 ) │ 0 │ thal 0 │ │ ( CastToFloat32 ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ normalization4 │ ( None , 1 ) │ 3 │ casttofloat32… │ │ ( Normalization ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ normalization5 │ ( None , 1 ) │ 3 │ casttofloat32… │ │ ( Normalization ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense ( Dense ) │ ( None , 16 ) │ 32 │ normalization[ 0 ]… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense1 ( Dense ) │ ( None , 16 ) │ 80 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense2 ( Dense ) │ ( None , 16 ) │ 32 │ normalization1 … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense3 ( Dense ) │ ( None , 16 ) │ 96 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense4 ( Dense ) │ ( None , 16 ) │ 48 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense5 ( Dense ) │ ( None , 16 ) │ 48 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense6 ( Dense ) │ ( None , 16 ) │ 32 │ normalization2[ … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense7 ( Dense ) │ ( None , 16 ) │ 64 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense8 ( Dense ) │ ( None , 16 ) │ 48 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense9 ( Dense ) │ ( None , 16 ) │ 32 │ normalization3[ … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense10 ( Dense ) │ ( None , 16 ) │ 96 │ casttofloat32… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense11 ( Dense ) │ ( None , 16 ) │ 32 │ normalization4[ … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense12 ( Dense ) │ ( None , 16 ) │ 32 │ normalization5[ … │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ concatenate │ ( None , 208 ) │ 0 │ dense[ 0 , │ │ ( Concatenate ) │ │ │ dense1 0 , │ │ │ │ │ dense2 0 , │ │ │ │ │ dense3 0 , │ │ │ │ │ dense4 0 , │ │ │ │ │ dense5 0 , │ │ │ │ │ dense6 0 , │ │ │ │ │ dense7 0 , │ │ │ │ │ dense8 0 , │ │ │ │ │ dense9 0 , │ │ │ │ │ dense10 0 , │ │ │ │ │ dense11 0 , │ │ │ │ │ dense12 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 7,536 │ concatenate 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense18 ( Dense ) │ ( None , 13 ) │ 221 │ gatedresidualn… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ expanddims │ ( None , 13 , 1 ) │ 0 │ dense18 0 │ │ ( ExpandDims ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense1 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense2 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense3 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense4 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense5 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense6 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense7 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense8 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense9 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense10 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense11 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ gatedresidualnet… │ ( None , 16 ) │ 1,120 │ dense12 0 │ │ ( GatedResidualNetw… │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ transpose │ ( None , 1 , 13 ) │ 0 │ expanddims 0 │ │ ( Transpose ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ stack ( Stack ) │ ( None , 13 , 16 ) │ 0 │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ │ │ │ │ gatedresidualn… │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ matmul ( Matmul ) │ ( None , 1 , 16 ) │ 0 │ transpose 0 , │ │ │ │ │ stack 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ squeeze ( Squeeze ) │ ( None , 16 ) │ 0 │ matmul 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dropout14 │ ( None , 16 ) │ 0 │ squeeze 0 │ │ ( Dropout ) │ │ │ │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ dense84 ( Dense ) │ ( None , 1 ) │ 17 │ dropout14 0 │ ├─────────────────────┼───────────────────┼────────────┼───────────────────┤ │ classifierhead1 │ ( None , 1 ) │ 0 │ dense84 0 │ │ ( Activation ) │ │ │ │ └─────────────────────┴───────────────────┴────────────┴───────────────────┘.
+
+Total params: 23,024 (89.96 KB).
+
+Trainable params: 23,006 (89.87 KB).
+
+Non-trainable params: 18 (96.00 B).
+
+Inference on new data.
+
+To get a prediction for a new sample, you can simply call <code>. There are just two things you need to do:
+
+wrap scalars into a list so as to have a batch dimension (models only process batches of data, not single samples).
+
+Call <code> on each feature.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 136ms/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 162ms/step.

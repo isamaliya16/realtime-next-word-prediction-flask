@@ -1,0 +1,87 @@
+Migrate from Estimator to Keras APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to migrate from TensorFlow 1's <code> APIs to TensorFlow 2's <code> APIs. First, you will set up and run a basic model for training and evaluation with <code>. Then, you will perform the equivalent steps in TensorFlow 2 with the <code> APIs. You will also learn how to customize the training step by subclassing <code> and using <code>.
+
+In TensorFlow 1, the high-level <code> APIs let you train and evaluate a model, as well as perform inference and save your model (for serving).
+
+In TensorFlow 2, use the Keras APIs to perform the aforementioned tasks, such as model building, gradient application, training, evaluation, and prediction.
+
+(For migrating model/checkpoint saving workflows to TensorFlow 2, check out the SavedModel and Checkpoint migration guides.).
+
+Setup.
+
+Start with imports and a simple dataset:
+
+TensorFlow 1: Train and evaluate with tf.estimator.Estimator.
+
+This example shows how to perform training and evaluation with <code> in TensorFlow 1.
+
+Start by defining a few functions: an input function for the training data, an evaluation input function for the evaluation data, and a model function that tells the <code> how the training op is defined with the features and labels:
+
+Instantiate your <code>, and train the model:
+
+Evaluate the program with the evaluation set:
+
+TensorFlow 2: Train and evaluate with the built-in Keras methods.
+
+This example demonstrates how to perform training and evaluation with Keras <code> and <code> in TensorFlow 2. (You can learn more in the Training and evaluation with the built-in methods guide.).
+
+Start by preparing the dataset pipeline with the <code> APIs.
+
+Define a simple Keras Sequential model with one linear (<code>) layer.
+
+Instantiate an Adagrad optimizer (<code>).
+
+Configure the model for training by passing the <code> variable and the mean-squared error (<code>) loss to <code>.
+
+With that, you are ready to train the model by calling <code>:
+
+Finally, evaluate the model with <code>:
+
+TensorFlow 2: Train and evaluate with a custom training step and built-in Keras methods.
+
+In TensorFlow 2, you can also write your own custom training step function with <code> to perform forward and backward passes, while still taking advantage of the built-in training support, such as <code> and <code>. (Learn more in Customizing what happens in Model.fit and Writing custom training loops from scratch.).
+
+In this example, start by creating a custom <code> by subclassing <code> that overrides <code>. (Learn more about subclassing tf.keras.Model). Inside that class, define a custom <code> function that for each batch of data performs a forward pass and backward pass during one training step.
+
+Next, as before:
+
+Prepare the dataset pipeline with <code>.
+
+Define a simple model with one <code> layer.
+
+Instantiate Adagrad (<code>).
+
+Configure the model for training with <code>, while using mean-squared error (<code>) as the loss function.
+
+Call <code> to train the model:
+
+And, finally, evaluate the program with <code>:
+
+Next steps.
+
+Additional Keras resources you may find useful:
+
+Guide: Training and evaluation with the built-in methods.
+
+Guide: Customize what happens in Model.fit.
+
+Guide: Writing a training loop from scratch.
+
+Guide: Making new Keras layers and models via subclassing.
+
+The following guides can assist with migrating distribution strategy workflows from <code> APIs:
+
+Migrate from TPUEstimator to TPUStrategy.
+
+Migrate single-worker multiple-GPU training.
+
+Migrate multi-worker CPU/GPU training.

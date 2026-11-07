@@ -1,0 +1,91 @@
+Customizing what happens in <code> with PyTorch.
+
+Introduction.
+
+When you're doing supervised learning, you can use <code> and everything works smoothly.
+
+When you need to take control of every little detail, you can write your own training loop entirely from scratch.
+
+But what if you need a custom training algorithm, but you still want to benefit from the convenient features of <code>, such as callbacks, built-in distribution support, or step fusing?
+
+A core principle of Keras is progressive disclosure of complexity. You should always be able to get into lower-level workflows in a gradual way. You shouldn't fall off a cliff if the high-level functionality doesn't exactly match your use case. You should be able to gain more control over the small details while retaining a commensurate amount of high-level convenience.
+
+When you need to customize what <code> does, you should override the training step function of the <code> class. This is the function that is called by <code> for every batch of data. You will then be able to call <code> as usual -- and it will be running your own learning algorithm.
+
+Note that this pattern does not prevent you from building models with the Functional API. You can do this whether you're building <code> models, Functional API models, or subclassed models.
+
+Let's see how that works.
+
+Setup.
+
+A first simple example.
+
+Let's start from a simple example:
+
+We create a new class that subclasses <code>.
+
+We just override the method <code>.
+
+We return a dictionary mapping metric names (including the loss) to their current value.
+
+The input argument <code> is what gets passed to fit as training data:
+
+If you pass NumPy arrays, by calling <code>, then <code> will be the tuple <code>.
+
+If you pass a <code> or a <code>, by calling <code>, then <code> will be what gets yielded by <code> at each batch.
+
+In the body of the <code> method, we implement a regular training update, similar to what you are already familiar with. Importantly, we compute the loss via <code>, which wraps the loss(es) function(s) that were passed to <code>.
+
+Similarly, we call <code> on metrics from <code>, to update the state of the metrics that were passed in <code>, and we query results from <code> at the end to retrieve their current value.
+
+Let's try this out:
+
+Going lower-level.
+
+Naturally, you could just skip passing a loss function in <code>, and instead do everything manually in <code>. Likewise for metrics.
+
+Here's a lower-level example, that only uses <code> to configure the optimizer:
+
+We start by creating <code> instances to track our loss and a MAE score (in <code>).
+
+We implement a custom <code> that updates the state of these metrics (by calling <code> on them), then query them (via <code>) to return their current average value, to be displayed by the progress bar and to be pass to any callback.
+
+Note that we would need to call <code> on our metrics between each epoch! Otherwise calling <code> would return an average since the start of training, whereas we usually work with per-epoch averages. Thankfully, the framework can do that for us: just list any metric you want to reset in the <code> property of the model. The model will call <code> on any object listed here at the beginning of each <code> epoch or at the beginning of a call to <code>.
+
+Supporting <code> & <code>.
+
+You may have noticed that our first basic example didn't make any mention of sample weighting. If you want to support the <code> arguments <code> and <code>, you'd simply do the following:
+
+Unpack <code> from the <code> argument.
+
+Pass it to <code> & <code> (of course, you could also just apply it manually if you don't rely on <code> for losses & metrics).
+
+That's it.
+
+Providing your own evaluation step.
+
+What if you want to do the same for calls to <code>? Then you would override <code> in exactly the same way. Here's what it looks like:
+
+1/32 [37m━━━━━━━━━━━━━━━━━━━━ 0s 2ms/step - mae: 0.8706 - loss: 0.9344.
+
+32/32 ━━━━━━━━━━━━━━━━━━━━ 0s 1ms/step - mae: 0.8959 - loss: 0.9952.
+
+Wrapping up: an end-to-end GAN example.
+
+Let's walk through an end-to-end example that leverages everything you just learned.
+
+Let's consider:
+
+A generator network meant to generate 28x28x1 images.
+
+A discriminator network meant to classify 28x28x1 images into two classes ("fake" and "real").
+
+One optimizer for each.
+
+A loss function to train the discriminator.
+
+Here's a feature-complete GAN class, overriding <code> to use its own signature, and implementing the entire GAN algorithm in 17 lines in <code>:
+
+Let's test-drive it:
+
+The ideas behind deep learning are simple, so why should their implementation be painful?

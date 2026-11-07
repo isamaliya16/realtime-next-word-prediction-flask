@@ -1,0 +1,325 @@
+Better performance with tf.function.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+In TensorFlow 2, eager execution is turned on by default. The user interface is intuitive and flexible (running one-off operations is much easier and faster), but this can come at the expense of performance and deployability.
+
+You can use <code> to make graphs out of your programs. It is a transformation tool that creates Python-independent dataflow graphs out of your Python code. This will help you create performant and portable models, and it is required to use <code>.
+
+This guide will help you conceptualize how <code> works under the hood, so you can use it effectively.
+
+The main takeaways and recommendations are:
+
+Debug in eager mode, then decorate with <code>.
+
+Don't rely on Python side effects like object mutation or list appends.
+
+<code> works best with TensorFlow ops; NumPy and Python calls are converted to constants.
+
+Setup.
+
+Define a helper function to demonstrate the kinds of errors you might encounter:
+
+Basics.
+
+Usage.
+
+A <code> that you define (for example by applying the <code> decorator) is just like a core TensorFlow operation: You can execute it eagerly; you can compute gradients; and so on.
+
+You can use <code>s inside other <code>s.
+
+<code>s can be faster than eager code, especially for graphs with many small ops. But for graphs with a few expensive ops (like convolutions), you may not see much speedup.
+
+Tracing.
+
+This section exposes how <code> works under the hood, including implementation details which may change in the future. However, once you understand why and when tracing happens, it's much easier to use <code> effectively!
+
+What is "tracing"?
+
+A <code> runs your program in a TensorFlow Graph. However, a <code> cannot represent all the things that you'd write in an eager TensorFlow program. For instance, Python supports polymorphism, but <code> requires its inputs to have a specified data type and dimension. Or you may perform side tasks like reading command-line arguments, raising an error, or working with a more complex Python object; none of these things can run in a <code>.
+
+<code> bridges this gap by separating your code in two stages:
+
+In the first stage, referred to as "tracing", <code> creates a new <code>. Python code runs normally, but all TensorFlow operations (like adding two Tensors) are deferred: they are captured by the <code> and not run.
+
+In the second stage, a <code> which contains everything that was deferred in the first stage is run. This stage is much faster than the tracing stage.
+
+Depending on its inputs, <code> will not always run the first stage when it is called. See "Rules of tracing" below to get a better sense of how it makes that determination. Skipping the first stage and only executing the second stage is what gives you TensorFlow's high performance.
+
+When <code> does decide to trace, the tracing stage is immediately followed by the second stage, so calling the <code> both creates and runs the <code>. Later you will see how you can run only the tracing stage with <code>.
+
+When you pass arguments of different types into a <code>, both stages are run:
+
+Note that if you repeatedly call a <code> with the same argument type, TensorFlow will skip the tracing stage and reuse a previously traced graph, as the generated graph would be identical.
+
+You can use <code> to see all of the available traces:
+
+So far, you've seen that <code> creates a cached, dynamic dispatch layer over TensorFlow's graph tracing logic. To be more specific about the terminology:
+
+A <code> is the raw, language-agnostic, portable representation of a TensorFlow computation.
+
+Tracing is the process through which new <code>s are generated from Python code.
+
+An instance of <code> is specialized to the specific input types it was traced with. Differing types require retracing.
+
+Each traced <code> has a corresponding <code>.
+
+A <code> manages a cache of <code>s and picks the right one for your inputs.
+
+<code> wraps the Python function that will be traced, returning a <code> object.
+
+Rules of tracing.
+
+When called, a <code> first evaluates the type of each input argument using the <code> of each argument. This is used to construct a <code> describing the signature of the desired <code>. We compare this <code> to the <code>s of existing <code>s. If a matching <code> is found, the call is dispatched to it. If no match is found, a new <code> is traced for the desired <code>.
+
+If multiple matches are found, the most specific signature is chosen. Matching is done by subtyping, much like normal function calls in C++ or Java, for instance. For example, <code> is a subtype of <code> and so a call to the tf.function with <code> can be dispatched to the <code> produced with <code> but if a <code> with <code> also exists then it will be prioritized since it is more specific.
+
+The <code> is determined from input arguments as follows:
+
+For <code>, the type is parameterized by the <code>'s <code> and <code>; ranked shapes are a subtype of unranked shapes; fixed dimensions are a subtype of unknown dimensions.
+
+For <code>, the type is similar to <code>, but also includes a unique resource ID of the variable, necessary to correctly wire control dependencies.
+
+For Python primitive values, the type corresponds to the value itself. For example, the <code> of the value <code> is <code>, not <code>.
+
+For Python ordered containers such as <code> and <code>, etc., the type is parameterized by the types of their elements; for example, the type of <code> is <code> and the type for <code> is <code> which is different.
+
+For Python mappings such as <code>, the type is also a mapping from the same keys but to the types of values instead of the actual values. For example, the type of <code>, is <code>. However, unlike ordered containers, <code> and <code> have equivalent types.
+
+For Python objects which implement the <code> method, the type is whatever that method returns.
+
+For any other Python objects, the type is a generic <code>, and the matching precedure is:
+
+First it checks if the object is the same object used in the previous trace (using Python <code> or <code>). Note that this will still match if the object has changed, so if you use Python objects as <code> arguments it's best to use immutable ones.
+
+Next it checks if the object is equal to the object used in the previous trace (using Python <code>).
+
+Note that this procedure only keeps a weakref to the object and hence only works as long as the object is in scope/not deleted.
+
+Note: <code> is based on the <code> input parameters so changes to global and free variables alone will not create a new trace. See this section for recommended practices when dealing with Python global and free variables.
+
+Controlling retracing.
+
+Retracing, which is when your <code> creates more than one trace, helps ensure that TensorFlow generates correct graphs for each set of inputs. However, tracing is an expensive operation! If your <code> retraces a new graph for every call, you'll find that your code executes more slowly than if you didn't use <code>.
+
+To control the tracing behavior, you can use the following techniques:
+
+Pass a fixed <code> to <code>.
+
+This forces <code> to constrain itself to only one <code> composed of the types enumerated by the <code>. Calls that cannot be dispatched to this <code> will throw an error.
+
+Use unknown dimensions for flexibility.
+
+Since TensorFlow matches tensors based on their shape, using a <code> dimension as a wildcard will allow <code>s to reuse traces for variably-sized input. Variably-sized input can occur if you have sequences of different length, or images of different sizes for each batch. You can check out the Transformer and Deep Dream tutorials for examples.
+
+Use <code> for automatic flexibility.
+
+When <code> is enabled, <code> automatically identifies supertypes of the input types it is observing and chooses to trace more generalized graphs automatically. It is less efficient than setting the <code> directly but useful when many types need to be supported.
+
+Pass tensors instead of python literals.
+
+Often, Python arguments are used to control hyperparameters and graph constructions - for example, <code> or <code> or <code>. So, if the Python argument changes, it makes sense that you'd have to retrace the graph.
+
+However, it's possible that a Python argument is not being used to control graph construction. In these cases, a change in the Python value can trigger needless retracing. Take, for example, this training loop, which AutoGraph will dynamically unroll. Despite the multiple traces, the generated graph is actually identical, so retracing is unnecessary.
+
+If you need to force retracing, create a new <code>. Separate <code> objects are guaranteed not to share traces.
+
+Use the tracing protocol.
+
+Where possible, you should prefer converting the Python type into a <code> instead. Moreover, the <code> of an <code> is the <code> associated with it. Therefore, if needed, you can simply override the default <code> to take control of an <code>'s <code>. Refer to the Customizing the ExtensionType's TypeSpec section in the Extension types guide for details.
+
+Otherwise, for direct control over when <code> should retrace in regards to a particular Python type, you can implement the <code> for it yourself.
+
+Obtaining concrete functions.
+
+Every time a function is traced, a new concrete function is created. You can directly obtain a concrete function, by using <code>.
+
+Printing a <code> displays a summary of its input arguments (with types) and its output type.
+
+You can also directly retrieve a concrete function's signature.
+
+Using a concrete trace with incompatible types will throw an error.
+
+You may notice that Python arguments are given special treatment in a concrete function's input signature. Prior to TensorFlow 2.3, Python arguments were simply removed from the concrete function's signature. Starting with TensorFlow 2.3, Python arguments remain in the signature, but are constrained to take the value set during tracing.
+
+Obtaining graphs.
+
+Although retrieving the actual <code> object is not something you'll normally need to do, you can obtain it easily from any concrete function.
+
+In reality, <code>s are not directly callable. We actually use an <code> to perform the computations described by the <code>. You can access the <code> describing the traced <code> and call it directly instead of the <code>:
+
+This has the advantage of having lower Python overhead for high-performance scenarios. But it should only be used for forward inference (no gradient support), and captured tensor values (if any) would need to be explicitly supplied.
+
+Debugging.
+
+In general, debugging code is easier in eager mode than inside <code>. You should ensure that your code executes error-free in eager mode before decorating with <code>. To assist in the debugging process, you can call <code> to globally disable and reenable <code>.
+
+When tracking down issues that only appear within <code>, here are some tips:
+
+Plain old Python <code> calls only execute during tracing, helping you track down when your function gets (re)traced.
+
+<code> calls will execute every time, and can help you track down intermediate values during execution.
+
+<code> is an easy way to track down where NaNs and Inf are created.
+
+<code> (the Python debugger) can help you understand what's going on during tracing. (Caveat: <code> will drop you into AutoGraph-transformed source code.).
+
+AutoGraph transformations.
+
+AutoGraph is a library that is on by default in <code>, and transforms a subset of Python eager code into graph-compatible TensorFlow ops. This includes control flow like <code>, <code>, <code>.
+
+TensorFlow ops like <code> and <code> continue to work, but control flow is often easier to write and understand when written in Python.
+
+If you're curious you can inspect the code AutoGraph generates.
+
+Conditionals.
+
+AutoGraph will convert some <code> statements into the equivalent <code> calls. This substitution is made if <code> is a Tensor. Otherwise, the <code> statement is executed as a Python conditional.
+
+A Python conditional executes during tracing, so exactly one branch of the conditional will be added to the graph. Without AutoGraph, this traced graph would be unable to take the alternate branch if there is data-dependent control flow.
+
+<code> traces and adds both branches of the conditional to the graph, dynamically selecting a branch at execution time. Tracing can have unintended side effects; check out AutoGraph tracing effects for more information.
+
+See the reference documentation for additional restrictions on AutoGraph-converted if statements.
+
+Loops.
+
+AutoGraph will convert some <code> and <code> statements into the equivalent TensorFlow looping ops, like <code>. If not converted, the <code> or <code> loop is executed as a Python loop.
+
+This substitution is made in the following situations:
+
+<code>: if <code> is a Tensor, convert to <code>. In the special case where <code> is a <code>, a combination of <code> ops are generated.
+
+<code>: if <code> is a Tensor, convert to <code>.
+
+A Python loop executes during tracing, adding additional ops to the <code> for every iteration of the loop.
+
+A TensorFlow loop traces the body of the loop, and dynamically selects how many iterations to run at execution time. The loop body only appears once in the generated <code>.
+
+See the reference documentation for additional restrictions on AutoGraph-converted <code> and <code> statements.
+
+Looping over Python data.
+
+A common pitfall is to loop over Python/NumPy data within a <code>. This loop will execute during the tracing process, adding a copy of your model to the <code> for each iteration of the loop.
+
+If you want to wrap the entire training loop in <code>, the safest way to do this is to wrap your data as a <code> so that AutoGraph will dynamically unroll the training loop.
+
+When wrapping Python/NumPy data in a Dataset, be mindful of <code> versus <code>. The former will keep the data in Python and fetch it via <code> which can have performance implications, whereas the latter will bundle a copy of the data as one large <code> node in the graph, which can have memory implications.
+
+Reading data from files via <code>, <code>, etc. is the most effective way to consume data, as then TensorFlow itself can manage the asynchronous loading and prefetching of data, without having to involve Python. To learn more, see the <code>: Build TensorFlow input pipelines guide.
+
+Accumulating values in a loop.
+
+A common pattern is to accumulate intermediate values from a loop. Normally, this is accomplished by appending to a Python list or adding entries to a Python dictionary. However, as these are Python side effects, they will not work as expected in a dynamically unrolled loop. Use <code> to accumulate results from a dynamically unrolled loop.
+
+Limitations.
+
+<code> has a few limitations by design that you should be aware of when converting a Python function to a <code>.
+
+Executing Python side effects.
+
+Side effects, like printing, appending to lists, and mutating globals, can behave unexpectedly inside a <code>, sometimes executing twice or not all. They only happen the first time you call a <code> with a set of inputs. Afterwards, the traced <code> is reexecuted, without executing the Python code.
+
+The general rule of thumb is to avoid relying on Python side effects in your logic and only use them to debug your traces. Otherwise, TensorFlow APIs like <code>, <code>, <code>, <code>, and <code> are the best way to ensure your code will be executed by the TensorFlow runtime with each call.
+
+If you would like to execute Python code during each invocation of a <code>, <code> is an exit hatch. The drawbacks of <code> are that it's not portable or particularly performant, cannot be saved with <code>, and does not work well in distributed (multi-GPU, TPU) setups. Also, since <code> has to be wired into the graph, it casts all inputs/outputs to tensors.
+
+The <code> will trace the first time:
+
+But the <code> inside executes eagerly every time:
+
+Changing Python global and free variables.
+
+Changing Python global and free variables counts as a Python side effect, so it only happens during tracing.
+
+Sometimes unexpected behaviors are very hard to notice. In the example below, the <code> is intended to safeguard the increment of a variable. However because it is a python integer and not a TensorFlow object, it's value is captured during the first trace. When the <code> is used, the <code> will be recorded unconditionally in the underlying graph. Therefore <code> will increase by 1, every time the <code> is called. This issue is common among users that try to migrate their Graph-mode Tensorflow code to Tensorflow 2 using <code> decorators, when python side-effects (the <code> in the example) are used to determine what ops to run (<code> in the example). Usually, users realize this only after seeing suspicious numerical results, or significantly lower performance than expected (e.g. if the guarded operation is very costly).
+
+A workaround to achieve the expected behavior is using <code> to lift the operations outside of the function graph. This ensures that the variable increment is only done once during tracing time. It should be noted <code> has other side effects including cleared control flow and gradient tape. Sometimes the usage of <code> can become too complex to manage realistically.
+
+In summary, as a rule of thumb, you should avoid mutating python objects such as integers or containers like lists that live outside the <code>. Instead, use arguments and TF objects. For example, the section "Accumulating values in a loop" has one example of how list-like operations can be implemented.
+
+You can, in some cases, capture and manipulate state if it is a <code>. This is how the weights of Keras models are updated with repeated calls to the same <code>.
+
+Using Python iterators and generators.
+
+Many Python features, such as generators and iterators, rely on the Python runtime to keep track of state. In general, while these constructs work as expected in eager mode, they are examples of Python side effects and therefore only happen during tracing.
+
+Just like how TensorFlow has a specialized <code> for list constructs, it has a specialized <code> for iteration constructs. See the section on AutoGraph transformations for an overview. Also, the <code> API can help implement generator patterns:
+
+All outputs of a tf.function must be return values.
+
+With the exception of <code>s, a tf.function must return all its outputs. Attempting to directly access any tensors from a function without going through return values causes "leaks".
+
+For example, the function below "leaks" the tensor <code> through the Python global <code>:
+
+This is true even if the leaked value is also returned:
+
+Usually, leaks such as these occur when you use Python statements or data structures. In addition to leaking inaccessible tensors, such statements are also likely wrong because they count as Python side effects, and are not guaranteed to execute at every function call.
+
+Common ways to leak local tensors also include mutating an external Python collection, or an object:
+
+Recursive tf.functions are not supported.
+
+Recursive <code>s are not supported and could cause infinite loops. For example.
+
+Even if a recursive <code> seems to work, the Python function will be traced multiple times and could have performance implications. For example.
+
+Known Issues.
+
+If your <code> is not evaluating correctly, the error may be explained by these known issues which are planned to be fixed in the future.
+
+Depending on Python global and free variables.
+
+<code> creates a new <code> when called with a new value of a Python argument. However, it does not do that for the Python closure, globals, or nonlocals of that <code>. If their value changes in between calls to the <code>, the <code> will still use the values they had when it was traced. This is different from how regular Python functions work.
+
+For that reason, you should follow a functional programming style that uses arguments instead of closing over outer names.
+
+Another way to update a global value is to make it a <code> and use the <code> method instead.
+
+Depending on Python objects.
+
+Passing custom Python objects as arguments to <code> is supported but has certain limitations.
+
+For maximum feature coverage, consider transforming the objects into Extension types before passing them to <code>. You can also use Python primitives and <code>-compatible structures.
+
+However, as covered in the rules of tracing, when a custom <code> is not provided by the custom Python class, <code> is forced to use instance-based equality which means it will not create a new trace when you pass the same object with modified attributes.
+
+Using the same <code> to evaluate the modified instance of the model will be buggy since it still has the same instance-based TraceType as the original model.
+
+For that reason, you're recommended to write your <code> to avoid depending on mutable object attributes or implement the Tracing Protocol for the objects to inform <code> about such attributes.
+
+If that is not possible, one workaround is to make new <code>s each time you modify your object to force retracing:
+
+As retracing can be expensive, you can use <code>s as object attributes, which can be mutated (but not changed, careful!) for a similar effect without needing a retrace.
+
+Creating tf.Variables.
+
+<code> only supports singleton <code>s created once on the first call, and reused across subsequent function calls. The code snippet below would create a new <code> in every function call, which results in a <code> exception.
+
+Example:
+
+A common pattern used to work around this limitation is to start with a Python None value, then conditionally create the <code> if the value is None:
+
+Using with multiple Keras optimizers.
+
+You may encounter <code> when using more than one Keras optimizer with a <code>. This error occurs because optimizers internally create <code>s when they apply gradients for the first time.
+
+If you need to change a stateful object between calls, it's simplest to define a <code> subclass, and create instances to hold those objects:
+
+You could also do this manually by creating multiple instances of the <code> wrapper, one for each optimizer:
+
+Using with multiple Keras models.
+
+You may also encounter <code> when passing different model instances to the same <code>.
+
+This error occurs because Keras models (which do not have their input shape defined) and Keras layers create <code>s when they are first called. You may be attempting to initialize those variables inside a <code>, which has already been called. To avoid this error, try calling <code> to initialize all the weights before training the model.
+
+Further reading.
+
+To learn about how to export and load a <code>, see the SavedModel guide. To learn more about graph optimizations that are performed after tracing, see the Grappler guide. To learn how to optimize your data pipeline and profile your model, see the Profiler guide.

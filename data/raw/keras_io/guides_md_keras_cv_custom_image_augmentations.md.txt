@@ -1,0 +1,123 @@
+Custom Image Augmentations with BaseImageAugmentationLayer.
+
+Overview.
+
+Data augmentation is an integral part of training any robust computer vision model. While KerasCV offers a plethora of prebuild high quality data augmentation techniques, you may still want to implement your own custom technique. KerasCV offers a helpful base class for writing data augmentation layers: <code>. Any augmentation layer built with <code> will automatically be compatible with the KerasCV <code> class.
+
+This guide will show you how to implement your own custom augmentation layers using <code>. As an example, we will implement a layer that tints all images blue.
+
+Currently, KerasCV's preprocessing layers only support the TensorFlow backend with Keras 3.
+
+First, let's implement some helper functions for visualization and some transformations.
+
+BaseImageAugmentationLayer Introduction.
+
+Image augmentation should operate on a sample-wise basis; not batch-wise. This is a common mistake many machine learning practitioners make when implementing custom techniques. <code> offers a set of clean abstractions to make implementing image augmentation techniques on a sample wise basis much easier. This is done by allowing the end user to override an <code> method and then performing automatic vectorization under the hood.
+
+Most augmentation techniques also must sample from one or more random distributions. KerasCV offers an abstraction to make random sampling end user configurable: the <code> API.
+
+Finally, many augmentation techniques requires some information about the pixel values present in the input images. KerasCV offers the <code> API to simplify the handling of this.
+
+In our example, we will use the <code> API, the <code> API, and <code> to implement a robust, configurable, and correct <code> layer.
+
+Overriding <code>.
+
+Let's start off with the minimum:
+
+Our layer overrides <code>. This method is used to augment images given to the layer. By default, using <code> gives you a few nice features for free:
+
+support for unbatched inputs (HWC Tensor).
+
+support for batched inputs (BHWC Tensor).
+
+automatic vectorization on batched inputs (more information on this in automatic vectorization performance).
+
+Let's check out the result. First, let's download a sample image:
+
+Next, let's augment it and visualize the result:
+
+Looks great! We can also call our layer on batched inputs:
+
+Adding Random Behavior with the <code> API.
+
+Usually an image augmentation technique should not do the same thing on every invocation of the layer's <code> method. KerasCV offers the <code> API to allow users to provide configurable random distributions.
+
+Now, we can configure the random behavior of ou <code> layer. We can give it a range of values to sample from:
+
+Each image is augmented differently with a random factor sampled from the range <code>.
+
+We can also configure the layer to draw from a normal distribution:
+
+As you can see, the augmentations now are drawn from a normal distributions. There are various types of <code> including <code>, <code>, and <code>. You can also implement you own.
+
+Overriding <code>.
+
+Now, suppose that your layer impacts the prediction targets: whether they are bounding boxes, classification labels, or regression targets. Your layer will need to have information about what augmentations are taken on the image when augmenting the label. Luckily, <code> was designed with this in mind.
+
+To handle this issue, <code> has an overridable <code> method alongside with <code>, <code> and <code>. <code> and others will be added in the future.
+
+Let's add this to our layer.
+
+To make use of these new methods, you will need to feed your inputs in with a dictionary maintaining a mapping from images to targets.
+
+As of now, KerasCV supports the following label types:
+
+labels via <code>.
+
+bounding_boxes via <code>.
+
+In order to use augmention layers alongside your prediction targets, you must package your inputs as follows:
+
+Now if we call our layer on the inputs:
+
+Both the inputs and labels are augmented. Note how when <code> is > 100 the label is modified to contain 2.0 as specified in the layer above.
+
+<code> support.
+
+Imagine you are using your new augmentation layer in many pipelines. Some pipelines have values in the range <code>, some pipelines have normalized their images to the range <code>, and some use a value range of <code>.
+
+If a user calls your layer with an image in value range <code>, the outputs will be nonsense!
+
+Note that this is an incredibly weak augmentation! Factor is only set to 0.1.
+
+Let's resolve this issue with KerasCV's <code> API.
+
+Now our elephants are only slgihtly blue tinted. This is the expected behavior when using a factor of <code>. Great!
+
+Now users can configure the layer to support any value range they may need. Note that only layers that interact with color information should use the value range API. Many augmentation techniques, such as <code> will not need this.
+
+Auto vectorization performance.
+
+If you are wondering: Does implementing my augmentations on an sample-wise basis carry performance implications?
+
+You are not alone!
+
+Luckily, I have performed extensive analysis on the performance of automatic vectorization, manual vectorization, and unvectorized implementations. In this benchmark, I implemented a RandomCutout layer using auto vectorization, no auto vectorization and manual vectorization. All of these were benchmarked inside of an <code> annotation. They were also each benchmarked with the <code> argument.
+
+The following chart shows the results of this benchmark:
+
+The primary takeaway should be that the difference between manual vectorization and automatic vectorization is marginal!
+
+Please note that Eager mode performance will be drastically different.
+
+Common gotchas.
+
+Some layers are not able to be automatically vectorizated. An example of this is GridMask.
+
+If you receive an error when invoking your layer, try adding the following to your constructor:
+
+Additionally, be sure to accept <code> to your <code> methods to ensure forwards compatibility. KerasCV will add additional label types in the future, and if you do not include a <code> argument your augmentation layers will not be forward compatible.
+
+Conclusion and next steps.
+
+KerasCV offers a standard set of APIs to streamline the process of implementing your own data augmentation techniques. These include <code>, the <code> API and the <code> API.
+
+We used these APIs to implement a highly configurable <code> layer. This layer can take inputs as standalone images, a dictionary with keys of <code> and labels, inputs that are unbatched, or inputs that are batched. Inputs may be in any value range, and the random distribution used to sample the tint values is end user configurable.
+
+As a follow up exercises you can:
+
+implement your own data augmentation technique using <code>.
+
+contribute an augmentation layer to KerasCV.
+
+read through the existing KerasCV augmentation layers.

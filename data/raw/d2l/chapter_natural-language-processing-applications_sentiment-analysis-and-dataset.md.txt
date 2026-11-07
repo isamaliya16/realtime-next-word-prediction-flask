@@ -1,0 +1,43 @@
+Sentiment Analysis and the Dataset.
+
+With the proliferation of online social media and review platforms, a plethora of opinionated data has been logged, bearing great potential for supporting decision making processes. Sentiment analysis studies people's sentiments in their produced text, such as product reviews, blog comments, and forum discussions. It enjoys wide applications to fields as diverse as politics (e.g., analysis of public sentiments towards policies), finance (e.g., analysis of sentiments of the market), and marketing (e.g., product research and brand management).
+
+Since sentiments can be categorized as discrete polarities or scales (e.g., positive and negative), we can consider sentiment analysis as a text classification task, which transforms a varying-length text sequence into a fixed-length text category. In this chapter, we will use Stanford's large movie review dataset for sentiment analysis. It consists of a training set and a testing set, either containing 25000 movie reviews downloaded from IMDb. In both datasets, there are equal number of "positive" and "negative" labels, indicating different sentiment polarities.
+
+Reading the Dataset.
+
+First, download and extract this IMDb review dataset in the path <code>.
+
+Next, read the training and test datasets. Each example is a review and its label: 1 for "positive" and 0 for "negative".
+
+Preprocessing the Dataset.
+
+Treating each word as a token and filtering out words that appear less than 5 times, we create a vocabulary out of the training dataset.
+
+After tokenization, let's plot the histogram of review lengths in tokens.
+
+As we expected, the reviews have varying lengths. To process a minibatch of such reviews at each time, we set the length of each review to 500 with truncation and padding, which is similar to the preprocessing step for the machine translation dataset in section <num>.
+
+Creating Data Iterators.
+
+Now we can create data iterators. At each iteration, a minibatch of examples are returned.
+
+Putting It All Together.
+
+Last, we wrap up the above steps into the <code> function. It returns training and test data iterators and the vocabulary of the IMDb review dataset.
+
+Summary.
+
+Sentiment analysis studies people's sentiments in their produced text, which is considered as a text classification problem that transforms a varying-length text sequence into a fixed-length text category.
+
+After preprocessing, we can load Stanford's large movie review dataset (IMDb review dataset) into data iterators with a vocabulary.
+
+Exercises.
+
+What hyperparameters in this section can we modify to accelerate training sentiment analysis models?
+
+Can you implement a function to load the dataset of Amazon reviews into data iterators and labels for sentiment analysis?
+
+Discussions.
+
+Discussions.

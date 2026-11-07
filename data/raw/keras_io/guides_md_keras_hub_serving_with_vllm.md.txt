@@ -1,0 +1,69 @@
+Serving KerasHub models with vLLM on TPU.
+
+Introduction.
+
+This guide shows how to serve a KerasHub <code> through vLLM's TPU backend. You do not convert the model, export the weights, or reimplement the architecture. The preset loads with <code> the way it always does, and the same KerasHub layers run the forward pass.
+
+The entry point is one class:
+
+KerasHub models generate text with <code>, which decodes a fixed batch of prompts in one static loop. That works well for experiments and for scoring a dataset offline. It works less well for serving, where requests arrive one at a time, have different lengths, and finish at different steps. A static loop makes every request in the batch wait for the longest one.
+
+vLLM is built for that case. It schedules requests continuously, keeps the KV cache in fixed-size pages so memory is not reserved for padding, and runs attention with a kernel written for paged memory.
+
+This guide needs a TPU runtime. On Colab, pick one under Runtime > Change runtime type.
+
+Setup.
+
+Install KerasHub and the TPU build of vLLM, which brings in <code>. Both pins are needed: Colab's TPU image has no <code>, and its <code> 0.11.2 predates what <code> requires.
+
+A few environment variables have to be set before Keras or vLLM is imported. Set <code> to <code> and <code> to <code> to run Keras on the JAX backend with NNX enabled. NNX is not optional here: it makes the backbone's variables NNX state, which is how the TPU runner carries the weights without a conversion step. <code> and <code> point JAX and vLLM at the TPU. <code> and <code> stop JAX from preallocating the whole device, which would leave nothing for the vLLM KV cache. <code> keeps the vLLM engine in this process instead of a subprocess, so its errors surface in the notebook, and <code> quietens the engine's routine progress logging.
+
+Most presets download from Kaggle without credentials. The gated ones (Gemma and Llama, among others) need you to accept the license on the model's Kaggle page and to set <code> and <code>. On Colab, add them in the Secrets panel (the key icon in the left sidebar) and enable notebook access.
+
+One last piece of setup. The first time a model runs, XLA compiles it, which takes a few minutes and dominates everything else on the clock. A compilation cache means you pay that once rather than once per session.
+
+The cache goes in a local directory here. A local directory lasts as long as the runtime, so to keep the cache across sessions on Colab, mount Drive and point the cache at it instead:
+
+Load a model.
+
+Pass any KerasHub <code> preset with the <code> prefix. Behind that call, <code> writes a temporary model directory for the preset holding a config file and the exported tokenizer, then starts a vLLM engine pointed at it. That directory holds no weights and is deleted with the <code> object. The weights come from a normal <code> call.
+
+<code> caps prompt plus generated tokens. Keep it near what you actually need: it sizes the KV cache and the shapes that get compiled, so a large value costs memory and compile time you may not use.
+
+vLLM logs a lot at startup, and its logger needs a real file behind stdout, which a notebook kernel does not provide. Sending the startup logs to a file covers both problems.
+
+If this raises, the reason is in <code>. The usual causes are a missing Kaggle license acceptance and a <code> too large for the memory left after the model is loaded.
+
+Generate.
+
+<code> returns one <code> per prompt. Pass a list to batch several at once; vLLM schedules them together.
+
+Sampling.
+
+Called with no <code>, <code> samples the way the preset would sample under <code>. Every KerasHub task compiles itself with <code>'s default sampler, which is <code>, and that setting is translated into the equivalent vLLM <code> for you. This is the one place <code> deliberately departs from <code>, which would otherwise apply its own generic defaults and quietly change how the model behaves.
+
+Length is not part of a KerasHub sampler, so vLLM's default of 16 output tokens applies. That is short. Pass <code> when you want more.
+
+Explicit <code> override the model's own settings completely. Use them whenever you want reproducible output: <code> is greedy decoding, which makes the model pick the highest-probability token every step.
+
+Serving many requests.
+
+The reason to serve through vLLM is what happens under load. Here 32 requests are submitted at once, as a rough stand-in for concurrent traffic. vLLM schedules them continuously, so a request that finishes early frees its slot instead of idling until the whole batch is done.
+
+The prompts are deliberately all different. vLLM enables prefix caching by default, so 32 copies of one prompt would let 31 of them skip most of the prefill and report a throughput you would never see on real traffic.
+
+The first <code> call is a warmup and is not timed. The engine precompiles its shape buckets at startup, so most of the compile cost is already paid by then, but the first call still touches things a timed run should not have to pay for.
+
+Supported models.
+
+A KerasHub model can serve through vLLM once its attention layer has a serving route. These families have one and have been run end to end on TPU:
+
+Everything else about a model is already generic, so adding a family means adding a route to one attention layer. A family without one fails loudly instead of falling back to something slower or wrong: the serving wrapper counts how many attention layers dispatched to the paged kernel, and raises if that does not match the number of transformer layers.
+
+Next steps.
+
+Try a different preset from the table above. Load one model per runtime session, since each engine holds the TPU for itself.
+
+Compare against <code> on the same weights. The gap is small for one request at a time and grows with concurrency and prompt length, which is exactly the workload vLLM is for.
+
+Read <code> once, even on a successful run. It shows the KV cache size vLLM settled on and how many shapes it compiled, which are the two numbers to adjust if you run out of memory.

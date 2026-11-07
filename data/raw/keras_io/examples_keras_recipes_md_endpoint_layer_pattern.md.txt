@@ -1,0 +1,19 @@
+Endpoint layer pattern.
+
+Setup.
+
+Usage of endpoint layers in the Functional API.
+
+An "endpoint layer" has access to the model's targets, and creates arbitrary losses in <code> using <code> and <code>. This enables you to define losses and metrics that don't match the usual signature <code>.
+
+Note that you could have separate metrics for training and eval with this pattern.
+
+Exporting an inference-only model.
+
+Simply don't include <code> in the model. The weights stay the same.
+
+Usage of loss endpoint layers in subclassed models.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

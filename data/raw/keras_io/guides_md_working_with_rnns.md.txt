@@ -1,0 +1,173 @@
+Working with RNNs.
+
+Introduction.
+
+Recurrent neural networks (RNN) are a class of neural networks that is powerful for modeling sequence data such as time series or natural language.
+
+Schematically, a RNN layer uses a <code> loop to iterate over the timesteps of a sequence, while maintaining an internal state that encodes information about the timesteps it has seen so far.
+
+The Keras RNN API is designed with a focus on:
+
+Ease of use: the built-in <code>, <code>, <code> layers enable you to quickly build recurrent models without having to make difficult configuration choices.
+
+Ease of customization: You can also define your own RNN cell layer (the inner part of the <code> loop) with custom behavior, and use it with the generic <code> layer (the <code> loop itself). This allows you to quickly prototype different research ideas in a flexible way with minimal code.
+
+Setup.
+
+Built-in RNN layers: a simple example.
+
+There are three built-in RNN layers in Keras:
+
+<code>, a fully-connected RNN where the output from previous timestep is to be fed to next timestep.
+
+<code>, first proposed in Cho et al., 2014.
+
+<code>, first proposed in Hochreiter & Schmidhuber, 1997.
+
+In early 2015, Keras had the first reusable open-source Python implementations of LSTM and GRU.
+
+Here is a simple example of a <code> model that processes sequences of integers, embeds each integer into a 64-dimensional vector, then processes the sequence of vectors using a <code> layer.
+
+Built-in RNNs support a number of useful features:
+
+Recurrent dropout, via the <code> and <code> arguments.
+
+Ability to process an input sequence in reverse, via the <code> argument.
+
+Loop unrolling (which can lead to a large speedup when processing short sequences on CPU), via the <code> argument.
+
+...and more.
+
+For more information, see the RNN API documentation.
+
+Outputs and states.
+
+By default, the output of a RNN layer contains a single vector per sample. This vector is the RNN cell output corresponding to the last timestep, containing information about the entire input sequence. The shape of this output is <code> where <code> corresponds to the <code> argument passed to the layer's constructor.
+
+A RNN layer can also return the entire sequence of outputs for each sample (one vector per timestep per sample), if you set <code>. The shape of this output is <code>.
+
+In addition, a RNN layer can return its final internal state(s). The returned states can be used to resume the RNN execution later, or to initialize another RNN. This setting is commonly used in the encoder-decoder sequence-to-sequence model, where the encoder final state is used as the initial state of the decoder.
+
+To configure a RNN layer to return its internal state, set the <code> parameter to <code> when creating the layer. Note that <code> has 2 state tensors, but <code> only has one.
+
+To configure the initial state of the layer, just call the layer with additional keyword argument <code>. Note that the shape of the state needs to match the unit size of the layer, like in the example below.
+
+RNN layers and RNN cells.
+
+In addition to the built-in RNN layers, the RNN API also provides cell-level APIs. Unlike RNN layers, which processes whole batches of input sequences, the RNN cell only processes a single timestep.
+
+The cell is the inside of the <code> loop of a RNN layer. Wrapping a cell inside a <code> layer gives you a layer capable of processing batches of sequences, e.g. <code>.
+
+Mathematically, <code> produces the same result as <code>. In fact, the implementation of this layer in TF v1.x was just creating the corresponding RNN cell and wrapping it in a RNN layer. However using the built-in <code> and <code> layers enable the use of CuDNN and you may see better performance.
+
+There are three built-in RNN cells, each of them corresponding to the matching RNN layer.
+
+<code> corresponds to the <code> layer.
+
+<code> corresponds to the <code> layer.
+
+<code> corresponds to the <code> layer.
+
+The cell abstraction, together with the generic <code> class, make it very easy to implement custom RNN architectures for your research.
+
+Cross-batch statefulness.
+
+When processing very long sequences (possibly infinite), you may want to use the pattern of cross-batch statefulness.
+
+Normally, the internal state of a RNN layer is reset every time it sees a new batch (i.e. every sample seen by the layer is assumed to be independent of the past). The layer will only maintain a state while processing a given sample.
+
+If you have very long sequences though, it is useful to break them into shorter sequences, and to feed these shorter sequences sequentially into a RNN layer without resetting the layer's state. That way, the layer can retain information about the entirety of the sequence, even though it's only seeing one sub-sequence at a time.
+
+You can do this by setting <code> in the constructor.
+
+If you have a sequence <code>, you would split it into e.g.
+
+Then you would process it via:
+
+When you want to clear the state, you can use <code>. Note: In this setup, sample <code> in a given batch is assumed to be the continuation of sample <code> in the previous batch. This means that all batches should contain the same number of samples (batch size). E.g. if a batch contains `[sequenceA_fromt0tot100, sequenceB_fromt0tot100]`, the next batch should contain <code>.
+
+Here is a complete example:
+
+RNN State Reuse.
+
+The recorded states of the RNN layer are not included in the <code>. If you would like to reuse the state from a RNN layer, you can retrieve the states value by <code> and use it as the initial state for a new layer via the Keras functional API like `newlayer(inputs, initialstate=layer.states)`, or model subclassing.
+
+Please also note that sequential model might not be used in this case since it only supports layers with single input and output, the extra input of initial state makes it impossible to use here.
+
+Bidirectional RNNs.
+
+For sequences other than time series (e.g. text), it is often the case that a RNN model can perform better if it not only processes sequence from start to end, but also backwards. For example, to predict the next word in a sentence, it is often useful to have the context around the word, not only just the words that come before it.
+
+Keras provides an easy API for you to build such bidirectional RNNs: the <code> wrapper.
+
+Under the hood, <code> will copy the RNN layer passed in, and flip the <code> field of the newly copied layer, so that it will process the inputs in reverse order.
+
+The output of the <code> RNN will be, by default, the concatenation of the forward layer output and the backward layer output. If you need a different merging behavior, e.g. concatenation, change the <code> parameter in the <code> wrapper constructor. For more details about <code>, please check the API docs.
+
+Performance optimization and CuDNN kernels.
+
+In TensorFlow 2.0, the built-in LSTM and GRU layers have been updated to leverage CuDNN kernels by default when a GPU is available. With this change, the prior <code> layers have been deprecated, and you can build your model without worrying about the hardware it will run on.
+
+Since the CuDNN kernel is built with certain assumptions, this means the layer will not be able to use the CuDNN kernel if you change the defaults of the built-in LSTM or GRU layers. E.g.:
+
+Changing the <code> function from <code> to something else.
+
+Changing the <code> function from <code> to something else.
+
+Using <code> > 0.
+
+Setting <code> to True, which forces LSTM/GRU to decompose the inner <code> into an unrolled <code> loop.
+
+Setting <code> to False.
+
+Using masking when the input data is not strictly right padded (if the mask corresponds to strictly right padded data, CuDNN can still be used. This is the most common case).
+
+For the detailed list of constraints, please see the documentation for the LSTM and GRU layers.
+
+Using CuDNN kernels when available.
+
+Let's build a simple LSTM model to demonstrate the performance difference.
+
+We'll use as input sequences the sequence of rows of MNIST digits (treating each row of pixels as a timestep), and we'll predict the digit's label.
+
+Let's load the MNIST dataset:
+
+Let's create a model instance and train it.
+
+We choose <code> as the loss function for the model. The output of the model has shape of <code>. The target for the model is an integer vector, each of the integer is in the range of 0 to 9.
+
+Now, let's compare to a model that does not use the CuDNN kernel:
+
+When running on a machine with a NVIDIA GPU and CuDNN installed, the model built with CuDNN is much faster to train compared to the model that uses the regular TensorFlow kernel.
+
+The same CuDNN-enabled model can also be used to run inference in a CPU-only environment. The <code> annotation below is just forcing the device placement. The model will run on CPU by default if no GPU is available.
+
+You simply don't have to worry about the hardware you're running on anymore. Isn't that pretty cool?
+
+RNNs with list/dict inputs, or nested inputs.
+
+Nested structures allow implementers to include more information within a single timestep. For example, a video frame could have audio and video input at the same time. The data shape in this case could be:
+
+<code>.
+
+In another example, handwriting data could have both coordinates x and y for the current position of the pen, as well as pressure information. So the data representation could be:
+
+<code>.
+
+The following code provides an example of how to build a custom RNN cell that accepts such structured inputs.
+
+Define a custom cell that supports nested input/output.
+
+See Making new Layers & Models via subclassing for details on writing your own layers.
+
+Build a RNN model with nested input/output.
+
+Let's build a Keras model that uses a <code> layer and the custom cell we just defined.
+
+Train the model with randomly generated data.
+
+Since there isn't a good candidate dataset for this model, we use random Numpy data for demonstration.
+
+With the Keras <code> layer, You are only expected to define the math logic for individual step within the sequence, and the <code> layer will handle the sequence iteration for you. It's an incredibly powerful way to quickly prototype new kinds of RNNs (e.g. a LSTM variant).
+
+For more details, please visit the API docs.

@@ -1,0 +1,75 @@
+Self-supervised contrastive learning with SimSiam.
+
+Self-supervised learning (SSL) is an interesting branch of study in the field of representation learning. SSL systems try to formulate a supervised signal from a corpus of unlabeled data points. An example is we train a deep neural network to predict the next word from a given set of words. In literature, these tasks are known as pretext tasks or auxiliary tasks. If we train such a network on a huge dataset (such as the Wikipedia text corpus) it learns very effective representations that transfer well to downstream tasks. Language models like BERT, GPT-3, ELMo all benefit from this.
+
+Much like the language models we can train computer vision models using similar approaches. To make things work in computer vision, we need to formulate the learning tasks such that the underlying model (a deep neural network) is able to make sense of the semantic information present in vision data. One such task is to a model to contrast between two different versions of the same image. The hope is that in this way the model will have learn representations where the similar images are grouped as together possible while the dissimilar images are further away.
+
+In this example, we will be implementing one such system called SimSiam proposed in Exploring Simple Siamese Representation Learning. It is implemented as the following:
+
+We create two different versions of the same dataset with a stochastic data augmentation pipeline. Note that the random initialization seed needs to be the same during create these versions.
+
+We take a ResNet without any classification head (backbone) and we add a shallow fully-connected network (projection head) on top of it. Collectively, this is known as the encoder.
+
+We pass the output of the encoder through a predictor which is again a shallow fully-connected network having an AutoEncoder like structure.
+
+We then train our encoder to maximize the cosine similarity between the two different versions of our dataset.
+
+Setup.
+
+Define hyperparameters.
+
+Load the CIFAR-10 dataset.
+
+Defining our data augmentation pipeline.
+
+As studied in SimCLR having the right data augmentation pipeline is critical for SSL systems to work effectively in computer vision. Two particular augmentation transforms that seem to matter the most are: 1.) Random resized crops and 2.) Color distortions. Most of the other SSL systems for computer vision (such as BYOL, MoCoV2, SwAV, etc.) include these in their training pipelines.
+
+It should be noted that an augmentation pipeline is generally dependent on various properties of the dataset we are dealing with. For example, if images in the dataset are heavily object-centric then taking random crops with a very high probability may hurt the training performance.
+
+Let's now apply our augmentation pipeline to our dataset and visualize a few outputs.
+
+Convert the data into TensorFlow <code> objects.
+
+Here we create two different versions of our dataset without any ground-truth labels.
+
+Notice that the images in <code> and <code> are essentially the same but are augmented differently.
+
+Defining the encoder and the predictor.
+
+We use an implementation of ResNet20 that is specifically configured for the CIFAR10 dataset. The code is taken from the keras-idiomatic-programmer repository. The hyperparameters of these architectures have been referred from Section 3 and Appendix A of the original paper.
+
+Defining the (pre-)training loop.
+
+One of the main reasons behind training networks with these kinds of approaches is to utilize the learned representations for downstream tasks like classification. This is why this particular training phase is also referred to as pre-training.
+
+We start by defining the loss function.
+
+We then define our training loop by overriding the <code> function of the <code> class.
+
+Pre-training our networks.
+
+In the interest of this example, we will train the model for only 5 epochs. In reality, this should at least be 100 epochs.
+
+If your solution gets very close to -1 (minimum value of our loss) very quickly with a different dataset and a different backbone architecture that is likely because of representation collapse. It is a phenomenon where the encoder yields similar output for all the images. In that case additional hyperparameter tuning is required especially in the following areas:
+
+Strength of the color distortions and their probabilities.
+
+Learning rate and its schedule.
+
+Architecture of both the backbone and their projection head.
+
+Evaluating our SSL method.
+
+The most popularly used method to evaluate a SSL method in computer vision (or any other pre-training method as such) is to learn a linear classifier on the frozen features of the trained backbone model (in this case it is ResNet20) and evaluate the classifier on unseen images. Other methods include fine-tuning on the source dataset or even a target dataset with 5% or 10% labels present. Practically, we can use the backbone model for any downstream task such as semantic segmentation, object detection, and so on where the backbone models are usually pre-trained with pure supervised learning.
+
+Notes.
+
+More data and longer pre-training schedule benefit SSL in general.
+
+SSL is particularly very helpful when you do not have access to very limited labeled training data but you can manage to build a large corpus of unlabeled data. Recently, using an SSL method called SwAV, a group of researchers at Facebook trained a RegNet on 2 Billion images. They were able to achieve downstream performance very close to those achieved by pure supervised pre-training. For some downstream tasks, their method even outperformed the supervised counterparts. You can check out their paper to know the details.
+
+If you are interested to understand why contrastive SSL helps networks learn meaningful representations, you can check out the following resources:
+
+Self-supervised learning: The dark matter of intelligence.
+
+Understanding self-supervised learning using controlled datasets with known structure.

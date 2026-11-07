@@ -1,0 +1,115 @@
+Real Time Inference on Raspberry Pi 4 and 5 (40 fps!) Author: Tristan Rice.
+
+PyTorch has out of the box support for Raspberry Pi 4 and 5. This tutorial will guide you on how to setup a Raspberry Pi for running PyTorch and run a MobileNet v2 classification model in real time (30-40 fps) on the CPU.
+
+This was all tested with Raspberry Pi 4 Model B 4GB but should work with the 2GB variant as well as on the 3B with reduced performance.
+
+Prerequisites.
+
+To follow this tutorial you'll need a Raspberry Pi 4 or 5, a camera for it and all the other standard accessories.
+
+Raspberry Pi 4 Model B 2GB+.
+
+Raspberry Pi Camera Module.
+
+Heat sinks and Fan (optional but recommended).
+
+5V 3A USB-C Power Supply.
+
+SD card (at least 8gb).
+
+SD card read/writer.
+
+Raspberry Pi Setup.
+
+PyTorch only provides pip packages for Arm 64bit (aarch64) so you'll need to install a 64 bit version of the OS on your Raspberry Pi.
+
+You'll need to install the official rpi-imager to install Rasbperry Pi OS.
+
+32-bit Raspberry Pi OS will not work.
+
+Installation will take at least a few minutes depending on your internet speed and sdcard speed. Once it's done it should look like:
+
+Time to put your sdcard in your Raspberry Pi, connect the camera and boot it up.
+
+Raspberry Pi 4 Config.
+
+If you're using a Raspberry Pi 4, you'll need some additional config changes. These changes are not required on Raspberry Pi 5.
+
+Once the OS boots and you complete the initial setup you'll need to edit the <code> file to enable the camera.
+
+And then reboot.
+
+Installing PyTorch and picamera2.
+
+PyTorch and all the other libraries we need have ARM 64-bit/aarch64 variants so you can just install them via pip and have it work like any other Linux system.
+
+We can now check that everything installed correctly:
+
+Video Capture.
+
+Test the camera is working first, by running <code> in a terminal.
+
+For video capture we're going to be using picamera2 to capture the video frames.
+
+The model we're using (MobileNetV2) takes in image sizes of <code> so we can request that directly from picamera2 at 36fps. We're targeting 30fps for the model but we request a slightly higher framerate than that so there's always enough frames.
+
+To capture the frames we can call <code> to return a <code> object that we can use with PyTorch.
+
+This data reading and processing takes about <code>.
+
+Image Preprocessing.
+
+We need to take the frames and transform them into the format the model expects. This is the same processing as you would do on any machine with the standard torchvision transforms.
+
+Model Choices.
+
+There's a number of models you can choose from to use with different performance characteristics. Not all models provide a <code> pretrained variant so for testing purposes you should chose one that does but if you train and quantize your own model you can use any of them.
+
+We're using <code> for this tutorial since it has good performance and accuracy.
+
+Raspberry Pi 4 Benchmark Results:
+
+MobileNetV2: Quantization and JIT.
+
+For optimal performance we want a model that's quantized and fused. Quantized means that it does the computation using int8 which is much more performant than the standard float32 math. Fused means that consecutive operations have been fused together into a more performant version where possible. Commonly things like activations (<code>) can be merged into the layer before (<code>) during inference.
+
+The aarch64 version of pytorch requires using the <code> engine.
+
+For this example we'll use a prequantized and fused version of MobileNetV2 that's provided out of the box by torchvision.
+
+We then want to jit the model to reduce Python overhead and fuse any ops. Jit gives us ~30fps instead of ~20fps without it.
+
+Putting It Together.
+
+We can now put all the pieces together and run it:
+
+Running it shows that we're hovering at ~30 fps on a Raspberry Pi 4 and ~41 fps on a Raspberry Pi 5.
+
+This is with all the default settings in Raspberry Pi OS. If you disabled the UI and all the other background services that are enabled by default it's more performant and stable.
+
+If we check <code> we see that we have almost 100% utilization.
+
+To verify that it's working end to end we can compute the probabilities of the classes and use the ImageNet class labels to print the detections.
+
+<code> running in real time:
+
+Detecting an orange:
+
+Detecting a mug:
+
+Troubleshooting: Performance.
+
+PyTorch by default will use all of the cores available. If you have anything running in the background on the Raspberry Pi it may cause contention with the model inference causing latency spikes. To alleviate this you can reduce the number of threads which will reduce the peak latency at a small performance penalty.
+
+For <code> using <code> instead of <code> increases best case latency to <code> from <code> but eliminates the latency spikes of <code>.
+
+Next Steps.
+
+You can create your own model or fine tune an existing one. If you fine tune on one of the models from torchvision.models.quantized most of the work to fuse and quantize has already been done for you so you can directly deploy with good performance on a Raspberry Pi.
+
+See more:
+
+Quantization for more information on how to quantize and fuse your model.
+
+Transfer Learning Tutorial for how to use transfer learning to fine tune a pre-existing model to your dataset.

@@ -1,0 +1,65 @@
+Reducing AoT cold start compilation time with regional compilation.
+
+In the regional compilation recipe, we showed how to reduce cold start compilation times while retaining (almost) full compilation benefits. This was demonstrated for just-in-time (JIT) compilation.
+
+This recipe shows how to apply similar principles when compiling a model ahead-of-time (AoT). If you are not familiar with AOTInductor and <code>, we recommend you to check out this tutorial.
+
+Prerequisites.
+
+Pytorch 2.6 or later.
+
+Familiarity with regional compilation.
+
+Familiarity with AOTInductor and <code>.
+
+Setup Before we begin, we need to install <code> if it is not already available.
+
+Steps.
+
+In this recipe, we will follow the same steps as the regional compilation recipe mentioned above:
+
+Import all necessary libraries.
+
+Define and initialize a neural network with repeated regions.
+
+Measure the compilation time of the full model and the regional compilation with AoT.
+
+First, let's import the necessary libraries for loading our data:
+
+Defining the Neural Network.
+
+We will use the same neural network structure as the regional compilation recipe.
+
+We will use a network, composed of repeated layers. This mimics a large language model, that typically is composed of many Transformer blocks. In this recipe, we will create a <code> using the <code> class as a proxy for a repeated region. We will then create a <code> which is composed of 64 instances of this <code> class.
+
+Compiling the model ahead-of-time.
+
+Since we're compiling the model ahead-of-time, we need to prepare representative input examples, that we expect the model to see during actual deployments.
+
+Let's create an instance of <code> and pass it some sample input data.
+
+Now, let's compile our model ahead-of-time. We will use <code> created above to pass to <code>. This will yield a <code> which we can compile.
+
+We can load from this <code> and use it to perform inference.
+
+Compiling regions of the model ahead-of-time.
+
+Compiling model regions ahead-of-time, on the other hand, requires a few key changes.
+
+Since the compute pattern is shared by all the blocks that are repeated in a model (<code> instances in this cases), we can just compile a single block and let the inductor reuse it.
+
+An exported program (<code>) contains the Tensor computation, a <code> containing tensor values of all lifted parameters and buffer alongside other metadata. We specify the <code> to be <code> to not serialize the model parameters in the generated artifact.
+
+Now, when loading the compiled binary, we can reuse the existing parameters of each block. This lets us take advantage of the compiled binary obtained above.
+
+Just like JIT regional compilation, compiling regions within a model ahead-of-time leads to significantly reduced cold start times. The actual number will vary from model to model.
+
+Even though full model compilation offers the fullest scope of optimizations, for practical purposes and depending on the type of model, we have seen regional compilation (both JiT and AoT) providing similar speed benefits, while drastically reducing the cold start times.
+
+Measuring compilation time Next, let's measure the compilation time of the full model and the regional compilation.
+
+There may also be layers in a model incompatible with compilation. So, full compilation will result in a fragmented computation graph resulting in potential latency degradation. In these case, regional compilation can be beneficial.
+
+Conclusion.
+
+This recipe shows how to control the cold start time when compiling your model ahead-of-time. This becomes effective when your model has repeated blocks, which is typically seen in large generative models. We used this recipe on various models to speed up real-time performance. Learn more here.

@@ -1,0 +1,95 @@
+Load video data.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial demonstrates how to load and preprocess AVI video data using the UCF101 human action dataset. Once you have preprocessed the data, it can be used for such tasks as video classification/recognition, captioning or clustering. The original dataset contains realistic action videos collected from YouTube with 101 categories, including playing cello, brushing teeth, and applying eye makeup. You will learn how to:
+
+Load the data from a zip file.
+
+Read sequences of frames out of the video files.
+
+Visualize the video data.
+
+Wrap the frame-generator <code>.
+
+This video loading and preprocessing tutorial is the first part in a series of TensorFlow video tutorials. Here are the other three tutorials:
+
+Build a 3D CNN model for video classification: Note that this tutorial uses a (2+1)D CNN that decomposes the spatial and temporal aspects of 3D data; if you are using volumetric data such as an MRI scan, consider using a 3D CNN instead of a (2+1)D CNN.
+
+MoViNet for streaming action recognition: Get familiar with the MoViNet models that are available on TF Hub.
+
+Transfer learning for video classification with MoViNet: This tutorial explains how to use a pre-trained video classification model trained on a different dataset with the UCF-101 dataset.
+
+Setup.
+
+Begin by installing and importing some necessary libraries, including: remotezip to inspect the contents of a ZIP file, tqdm to use a progress bar, OpenCV to process video files, and <code> for embedding data in a Jupyter notebook.
+
+Download a subset of the UCF101 dataset.
+
+The UCF101 dataset contains 101 categories of different actions in video, primarily used in action recognition. You will use a subset of these categories in this demo.
+
+The above URL contains a zip file with the UCF 101 dataset. Create a function that uses the <code> library to examine the contents of the zip file in that URL:
+
+Begin with a few videos and a limited number of classes for training. After running the above code block, notice that the class name is included in the filename of each video.
+
+Define the <code> function that retrieves the class name from a filename. Then, create a function called <code> which converts the list of all files (<code> above) into a dictionary listing the files for each class:
+
+Once you have the list of files per class, you can choose how many classes you would like to use and how many videos you would like per class in order to create your dataset.
+
+Create a new function called <code> that selects a subset of the classes present within the dataset and a particular number of files per class:
+
+Define helper functions that split the videos into training, validation, and test sets. The videos are downloaded from a URL with the zip file, and placed into their respective subdirectiories.
+
+The following function returns the remaining data that hasn't already been placed into a subset of data. It allows you to place that remaining data in the next specified subset of data.
+
+The following <code> function allows you to download a subset of the UCF101 dataset and split it into the training, validation, and test sets. You can specify the number of classes that you would like to use. The <code> argument allows you to pass in a dictionary in which the key values are the name of subset (example: "train") and the number of videos you would like to have per class.
+
+After downloading the data, you should now have a copy of a subset of the UCF101 dataset. Run the following code to print the total number of videos you have amongst all your subsets of data.
+
+You can also preview the directory of data files now.
+
+Create frames from each video file.
+
+The <code> function splits the videos into frames, reads a randomly chosen span of <code> out of a video file, and returns them as a NumPy <code>. To reduce memory and computation overhead, choose a small number of frames. In addition, pick the same number of frames from each video, which makes it easier to work on batches of data.
+
+Visualize video data.
+
+The <code> function that returns a set of frames as a NumPy array. Try using this function on a new video from Wikimedia by Patrick Gillett:
+
+In addition to examining this video, you can also display the UCF-101 data. To do this, run the following code:
+
+Next, define the <code> class in order to create an iterable object that can feed data into the TensorFlow data pipeline. The generator (<code>) function yields the frame array produced by <code> and a one-hot encoded vector of the label associated with the set of frames.
+
+Test out the <code> object before wrapping it as a TensorFlow Dataset object. Moreover, for the training dataset, ensure you enable training mode so that the data will be shuffled.
+
+Finally, create a TensorFlow data input pipeline. This pipeline that you create from the generator object allows you to feed in data to your deep learning model. In this video pipeline, each element is a single set of frames and its associated label.
+
+Check to see that the labels are shuffled.
+
+Configure the dataset for performance.
+
+Use buffered prefetching such that you can yield data from the disk without having I/O become blocking. Two important functions to use while loading data are:
+
+<code>: keeps the sets of frames in memory after they're loaded off the disk during the first epoch. This function ensures that the dataset does not become a bottleneck while training your model. If your dataset is too large to fit into memory, you can also use this method to create a performant on-disk cache.
+
+<code>: overlaps data preprocessing and model execution while training. Refer to Better performance with the <code> for details.
+
+To prepare the data to be fed into the model, use batching as shown below. Notice that when working with video data, such as AVI files, the data should be shaped as a five dimensional object. These dimensions are as follows: <code>. In comparison, an image would have four dimensions: <code>. The image below is an illustration of how the shape of video data is represented.
+
+Next steps.
+
+Now that you have created a TensorFlow <code> of video frames with their labels, you can use it with a deep learning model. The following classification model that uses a pre-trained EfficientNet trains to high accuracy in a few minutes:
+
+To learn more about working with video data in TensorFlow, check out the following tutorials:
+
+Build a 3D CNN model for video classification.
+
+MoViNet for streaming action recognition.
+
+Transfer learning for video classification with MoViNet.

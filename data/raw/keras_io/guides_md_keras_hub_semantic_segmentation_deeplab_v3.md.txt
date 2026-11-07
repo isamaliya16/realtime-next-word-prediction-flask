@@ -1,0 +1,127 @@
+Semantic Segmentation with KerasHub.
+
+Background.
+
+Semantic segmentation is a type of computer vision task that involves assigning a class label such as "person", "bike", or "background" to each individual pixel of an image, effectively dividing the image into regions that correspond to different object classes or categories.
+
+KerasHub offers the DeepLabv3, DeepLabv3+, SegFormer, etc., models for semantic segmentation.
+
+This guide demonstrates how to fine-tune and use the DeepLabv3+ model, developed by Google for image semantic segmentation with KerasHub. Its architecture combines Atrous convolutions, contextual information aggregation, and powerful backbones to achieve accurate and detailed semantic segmentation.
+
+DeepLabv3+ extends DeepLabv3 by adding a simple yet effective decoder module to refine the segmentation results, especially along object boundaries. Both models have achieved state-of-the-art results on a variety of image segmentation benchmarks.
+
+References.
+
+Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation Rethinking Atrous Convolution for Semantic Image Segmentation.
+
+Setup and Imports.
+
+Let's install the dependencies and import the necessary modules.
+
+To run this tutorial, you will need to install the following packages:
+
+<code>.
+
+<code>.
+
+After installing <code> and <code>, set the backend for <code>. This guide can be run with any backend (Tensorflow, JAX, PyTorch).
+
+Perform semantic segmentation with a pretrained DeepLabv3+ model.
+
+The highest level API in the KerasHub semantic segmentation API is the <code> API. This API includes fully pretrained semantic segmentation models, such as <code>.
+
+Let's get started by constructing a DeepLabv3 pretrained on the Pascal VOC dataset. Also, define the preprocessing function for the model to preprocess images and labels. Note: By default <code> method in KerasHub loads the pretrained task weights with all the classes, 21 classes in this case.
+
+Let us visualize the results of this pretrained model.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 5s/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 5s 5s/step.
+
+Train a custom semantic segmentation model.
+
+In this guide, we'll assemble a full training pipeline for a KerasHub DeepLabV3 semantic segmentation model. This includes data loading, augmentation, training, metric evaluation, and inference!
+
+Download the data.
+
+We download Pascal VOC 2012 dataset with additional annotations provided here Semantic contours from inverse detectors and split them into train dataset <code> and <code>.
+
+Load the dataset.
+
+For training and evaluation, let's use "sbdtrain" and "sbdeval." You can also choose any of these datasets for the <code> function: 'train', 'eval', 'trainval', 'sbdtrain', or 'sbdeval'. 'sbd_train' represents the training dataset for the SBD dataset, while 'train' represents the training dataset for the VOC2012 dataset.
+
+Preprocess the data.
+
+The preprocessinputs utility function preprocesses inputs, converting them into a dictionary containing images and segmentationmasks. Both images and segmentation masks are resized to 512x512. The resulting dataset is then batched into groups of four image and segmentation mask pairs.
+
+A batch of this preprocessed input training data can be visualized using the <code> function. This function takes a batch of images and segmentation masks and prediction masks as input and displays them in a grid.
+
+The preprocessing is applied to the evaluation dataset <code>.
+
+Data Augmentation.
+
+Keras provides a variety of image augmentation options. In this example, we will use the <code> augmentation to augment the training dataset. The <code> augmentation randomly flips the images in the training dataset horizontally or vertically. This can help to improve the model's robustness to changes in the orientation of the objects in the images.
+
+Model Configuration.
+
+Please feel free to modify the configurations for model training and note how the training results changes. This is an great exercise to get a better understanding of the training pipeline.
+
+The learning rate schedule is used by the optimizer to calculate the learning rate for each epoch. The optimizer then uses the learning rate to update the weights of the model. In this case, the learning rate schedule uses a cosine decay function. A cosine decay function starts high and then decreases over time, eventually reaching zero. The cardinality of the VOC dataset is 2124 with a batch size of 4. The dataset cardinality is important for learning rate decay because it determines how many steps the model will train for. The initial learning rate is proportional to 0.007 and the decay steps are 2124. This means that the learning rate will start at <code> and then decrease to zero over 2124 steps.
+
+Let's take the <code> pretrained weights as a image encoder for the model, this implementation can be used both as DeepLabV3 and DeepLabV3+ with additional decoder block. For DeepLabV3+, we instantiate a DeepLabV3Backbone model by providing <code> as <code> a pyramid level output to extract features from <code> which acts as a decoder block. To use this model as DeepLabV3 architecture, ignore the <code> which defaults to <code>.
+
+Then we create DeepLabV3ImageSegmenter instance. The <code> parameter specifies the number of classes that the model will be trained to segment. <code> argument to apply preprocessing to image input and masks.
+
+Compile the model.
+
+The model.compile() function sets up the training process for the model. It defines the.
+
+optimization algorithm - Stochastic Gradient Descent (SGD).
+
+the loss function - categorical cross-entropy.
+
+the evaluation metrics - Mean IoU and categorical accuracy.
+
+Semantic segmentation evaluation metrics:
+
+Mean Intersection over Union (MeanIoU): MeanIoU measures how well a semantic segmentation model accurately identifies and delineates different objects or regions in an image. It calculates the overlap between predicted and actual object boundaries, providing a score between 0 and 1, where 1 represents a perfect match.
+
+Categorical Accuracy: Categorical Accuracy measures the proportion of correctly classified pixels in an image. It gives a simple percentage indicating how accurately the model predicts the categories of pixels in the entire image.
+
+In essence, MeanIoU emphasizes the accuracy of identifying specific object boundaries, while Categorical Accuracy gives a broad overview of overall pixel-level correctness.
+
+Preprocessor: "deeplabv3imagesegmenter_preprocessor".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Config ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │ deeplabv3imageconverter ( DeepLabV3ImageConverter ) │ Image size: ( 512 , 512 ) │ └───────────────────────────────────────────────────────────────┴──────────────────────────────────────────┘.
+
+Model: "deeplabv3imagesegmenter".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩ │ inputs ( InputLayer ) │ ( None , None , None , 3 ) │ 0 │ ├───────────────────────────────────────────────┼────────────────────────────────────┼─────────────────────┤ │ deeplabv3backbone ( DeepLabV3Backbone ) │ ( None , None , None , 256 ) │ 39,190,656 │ ├───────────────────────────────────────────────┼────────────────────────────────────┼─────────────────────┤ │ segmentationoutput ( Conv2D ) │ ( None , None , None , 21 ) │ 5,376 │ └───────────────────────────────────────────────┴────────────────────────────────────┴─────────────────────┘.
+
+Total params: 39,196,032 (149.52 MB).
+
+Trainable params: 39,139,232 (149.30 MB).
+
+Non-trainable params: 56,800 (221.88 KB).
+
+The utility function <code> effectively transforms the dictionaries of training and validation datasets into tuples of images and one-hot encoded segmentation masks, which is used during training and evaluation of the DeepLabv3+ model.
+
+2124/2124 ━━━━━━━━━━━━━━━━━━━━ 281s 114ms/step - categoricalaccuracy: 0.7286 - loss: 1.0707 - meaniou: 0.0926 - valcategoricalaccuracy: 0.8199 - valloss: 0.5900 - valmeanio_u: 0.3265.
+
+Predictions with trained model.
+
+Now that the model training of DeepLabv3+ has completed, let's test it by making predications on a few sample images. Note: For demonstration purpose the model has been trained on only 1 epoch, for better accuracy and result train with more number of epochs.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 3s/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 3s 3s/step.
+
+Here are some additional tips for using the KerasHub DeepLabv3 model:
+
+The model can be trained on a variety of datasets, including the COCO dataset, the PASCAL VOC dataset, and the Cityscapes dataset.
+
+The model can be fine-tuned on a custom dataset to improve its performance on a specific task.
+
+The model can be used to perform real-time inference on images.
+
+Also, check out KerasHub's other segmentation models.

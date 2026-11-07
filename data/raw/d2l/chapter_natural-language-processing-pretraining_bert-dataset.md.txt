@@ -1,0 +1,53 @@
+The Dataset for Pretraining BERT.
+
+To pretrain the BERT model as implemented in section <num>, we need to generate the dataset in the ideal format to facilitate the two pretraining tasks: masked language modeling and next sentence prediction. On the one hand, the original BERT model is pretrained on the concatenation of two huge corpora BookCorpus and English Wikipedia (see section <num>), making it hard to run for most readers of this book. On the other hand, the off-the-shelf pretrained BERT model may not fit for applications from specific domains like medicine. Thus, it is getting popular to pretrain BERT on a customized dataset. To facilitate the demonstration of BERT pretraining, we use a smaller corpus WikiText-2 .
+
+Comparing with the PTB dataset used for pretraining word2vec in section <num>, WikiText-2 (i) retains the original punctuation, making it suitable for next sentence prediction; (ii) retains the original case and numbers; (iii) is over twice larger.
+
+In [the WikiText-2 dataset], each line represents a paragraph where space is inserted between any punctuation and its preceding token. Paragraphs with at least two sentences are retained. To split sentences, we only use the period as the delimiter for simplicity. We leave discussions of more complex sentence splitting techniques in the exercises at the end of this section.
+
+Defining Helper Functions for Pretraining Tasks.
+
+In the following, we begin by implementing helper functions for the two BERT pretraining tasks: next sentence prediction and masked language modeling. These helper functions will be invoked later when transforming the raw text corpus into the dataset of the ideal format to pretrain BERT.
+
+[Generating the Next Sentence Prediction Task].
+
+According to descriptions of section <num>, the <code> function generates a training example for the binary classification task.
+
+The following function generates training examples for next sentence prediction from the input <code> by invoking the <code> function. Here <code> is a list of sentences, where each sentence is a list of tokens. The argument <code> specifies the maximum length of a BERT input sequence during pretraining.
+
+[Generating the Masked Language Modeling Task].
+
+In order to generate training examples for the masked language modeling task from a BERT input sequence, we define the following <code> function. In its inputs, <code> is a list of tokens representing a BERT input sequence, <code> is a list of token indices of the BERT input sequence excluding those of special tokens (special tokens are not predicted in the masked language modeling task), and <code> indicates the number of predictions (recall 15% random tokens to predict). Following the definition of the masked language modeling task in section <num>, at each prediction position, the input may be replaced by a special “ ” token or a random token, or remain unchanged. In the end, the function returns the input tokens after possible replacement, the token indices where predictions take place and labels for these predictions.
+
+By invoking the aforementioned <code> function, the following function takes a BERT input sequence (<code>) as an input and returns indices of the input tokens (after possible token replacement as described in section <num>), the token indices where predictions take place, and label indices for these predictions.
+
+Transforming Text into the Pretraining Dataset.
+
+Now we are almost ready to customize a <code> class for pretraining BERT. Before that, we still need to define a helper function <code> to [append the special “ ” tokens to the inputs.] Its argument <code> contain the outputs from the helper functions <code> and <code> for the two pretraining tasks.
+
+Putting the helper functions for generating training examples of the two pretraining tasks, and the helper function for padding inputs together, we customize the following <code> class as [the WikiText-2 dataset for pretraining BERT]. By implementing the <code>function, we can arbitrarily access the pretraining (masked language modeling and next sentence prediction) examples generated from a pair of sentences from the WikiText-2 corpus.
+
+The original BERT model uses WordPiece embeddings whose vocabulary size is 30000 . The tokenization method of WordPiece is a slight modification of the original byte pair encoding algorithm in section <num>. For simplicity, we use the <code> function for tokenization. Infrequent tokens that appear less than five times are filtered out.
+
+By using the <code> function and the <code> class, we define the following <code> to [download and WikiText-2 dataset and generate pretraining examples] from it.
+
+Setting the batch size to 512 and the maximum length of a BERT input sequence to be 64, we [print out the shapes of a minibatch of BERT pretraining examples]. Note that in each BERT input sequence, <math> (<math>) positions are predicted for the masked language modeling task.
+
+In the end, let's take a look at the vocabulary size. Even after filtering out infrequent tokens, it is still over twice larger than that of the PTB dataset.
+
+Summary.
+
+Comparing with the PTB dataset, the WikiText-2 dateset retains the original punctuation, case and numbers, and is over twice larger.
+
+We can arbitrarily access the pretraining (masked language modeling and next sentence prediction) examples generated from a pair of sentences from the WikiText-2 corpus.
+
+Exercises.
+
+For simplicity, the period is used as the only delimiter for splitting sentences. Try other sentence splitting techniques, such as the spaCy and NLTK. Take NLTK as an example. You need to install NLTK first: <code>. In the code, first <code>. Then, download the Punkt sentence tokenizer: <code>. To split sentences such as <code>, invoking <code> will return a list of two sentence strings: <code>.
+
+What is the vocabulary size if we do not filter out any infrequent token?
+
+Discussions.
+
+Discussions.

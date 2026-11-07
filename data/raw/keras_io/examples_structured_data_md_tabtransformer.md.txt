@@ -1,0 +1,75 @@
+Structured data learning with TabTransformer.
+
+Introduction.
+
+This example demonstrates how to do structured data classification using TabTransformer, a deep tabular data modeling architecture for supervised and semi-supervised learning. The TabTransformer is built upon self-attention based Transformers. The Transformer layers transform the embeddings of categorical features into robust contextual embeddings to achieve higher predictive accuracy.
+
+Setup.
+
+Prepare the data.
+
+This example uses the United States Census Income Dataset provided by the UC Irvine Machine Learning Repository. The task is binary classification to predict whether a person is likely to be making over USD 50,000 a year.
+
+The dataset includes 48,842 instances with 14 input features: 5 numerical features and 9 categorical features.
+
+First, let's load the dataset from the UCI Machine Learning Repository into a Pandas DataFrame:
+
+Remove the first record (because it is not a valid data example) and a trailing 'dot' in the class labels.
+
+Now we store the training and test data in separate CSV files.
+
+Define dataset metadata.
+
+Here, we define the metadata of the dataset that will be useful for reading and parsing the data into input features, and encoding the input features with respect to their types.
+
+Configure the hyperparameters.
+
+The hyperparameters includes model architecture and training configurations.
+
+Implement data reading pipeline.
+
+We define an input function that reads and parses the file, then converts features and labels into a<code> for training or evaluation.
+
+Implement a training and evaluation procedure.
+
+Create model inputs.
+
+Now, define the inputs for the models as a dictionary, where the key is the feature name, and the value is a <code> tensor with the corresponding feature shape and data type.
+
+Encode features.
+
+The <code> method returns <code> and <code>. We encode the categorical features as embeddings, using a fixed <code> for all the features, regardless their vocabulary sizes. This is required for the Transformer model.
+
+Implement an MLP block.
+
+Experiment 1: a baseline model.
+
+In the first experiment, we create a simple multi-layer feed-forward network.
+
+Let's train and evaluate the baseline model:
+
+The baseline linear model achieves ~81% validation accuracy.
+
+Experiment 2: TabTransformer.
+
+The TabTransformer architecture works as follows:
+
+All the categorical features are encoded as embeddings, using the same <code>. This means that each value in each categorical feature will have its own embedding vector.
+
+A column embedding, one embedding vector for each categorical feature, is added (point-wise) to the categorical feature embedding.
+
+The embedded categorical features are fed into a stack of Transformer blocks. Each Transformer block consists of a multi-head self-attention layer followed by a feed-forward layer.
+
+The outputs of the final Transformer layer, which are the contextual embeddings of the categorical features, are concatenated with the input numerical features, and fed into a final MLP block.
+
+A <code> classifer is applied at the end of the model.
+
+The paper discusses both addition and concatenation of the column embedding in the Appendix: Experiment and Model Details section. The architecture of TabTransformer is shown below, as presented in the paper.
+
+Let's train and evaluate the TabTransformer model:
+
+The TabTransformer model achieves ~85% validation accuracy. Note that, with the default parameter configurations, both the baseline and the TabTransformer have similar number of trainable weights: 109,895 and 87,745 respectively, and both use the same training hyperparameters.
+
+Conclusion.
+
+TabTransformer significantly outperforms MLP and recent deep networks for tabular data while matching the performance of tree-based ensemble models. TabTransformer can be learned in end-to-end supervised training using labeled examples. For a scenario where there are a few labeled examples and a large number of unlabeled examples, a pre-training procedure can be employed to train the Transformer layers using unlabeled data. This is followed by fine-tuning of the pre-trained Transformer layers along with the top MLP layer using the labeled data.

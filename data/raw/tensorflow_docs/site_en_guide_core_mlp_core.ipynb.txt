@@ -1,0 +1,151 @@
+Multilayer perceptrons for digit recognition with Core APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This notebook uses the TensorFlow Core low-level APIs to build an end-to-end machine learning workflow for handwritten digit classification with multilayer perceptrons and the MNIST dataset. Visit the Core APIs overview to learn more about TensorFlow Core and its intended use cases.
+
+Multilayer perceptron (MLP) overview.
+
+The Multilayer Perceptron (MLP) is a type of feedforward neural network used to approach multiclass classification problems. Before building an MLP, it is crucial to understand the concepts of perceptrons, layers, and activation functions.
+
+Multilayer Perceptrons are made up of functional units called perceptrons. The equation of a perceptron is as follows:
+
+<math>.
+
+where.
+
+<math>: perceptron output.
+
+<math>: feature matrix.
+
+<math>: weight vector.
+
+<math>: bias.
+
+When these perceptrons are stacked, they form structures called dense layers which can then be connected to build a neural network. A dense layer's equation is similar to that of a perceptron's but uses a weight matrix and a bias vector instead:
+
+<math>.
+
+where.
+
+<math>: dense layer output.
+
+<math>: feature matrix.
+
+<math>: weight matrix.
+
+<math>: bias vector.
+
+In an MLP, multiple dense layers are connected in such a way that the outputs of one layer are fully connected to the inputs of the next layer. Adding non-linear activation functions to the outputs of dense layers can help the MLP classifier learn complex decision boundaries and generalize well to unseen data.
+
+Setup.
+
+Import TensorFlow, pandas, Matplotlib and seaborn to get started.
+
+Load the data.
+
+This tutorial uses the MNIST dataset, and demonstrates how to build an MLP model that can classify handwritten digits. The dataset is available from TensorFlow Datasets.
+
+Split the MNIST dataset into training, validation, and testing sets. The validation set can be used to gauge the model's generalizability during training so that the test set can serve as a final unbiased estimator for the model's performance.
+
+The MNIST dataset consists of handwritten digits and their corresponding true labels. Visualize a couple of examples below.
+
+Also review the distribution of digits in the training data to verify that each class is well represented in the dataset.
+
+Preprocess the data.
+
+First, reshape the feature matrices to be 2-dimensional by flattening the images. Next, rescale the data so that the pixel values of [0,255] fit into the range of [0,1]. This step ensures that the input pixels have similar distributions and helps with training convergence.
+
+Build the MLP.
+
+Start by visualizing the ReLU and Softmax activation functions. Both functions are available in <code> and <code> respectively. The ReLU is a non-linear activation function that outputs the input if it is positive and 0 otherwise:
+
+<math>.
+
+The softmax activation function is a normalized exponential function that converts <math> real numbers into a probability distribution with <math> outcomes/classes. This is useful for predicting class probabilities from a neural network's output:
+
+<math>.
+
+The dense layer.
+
+Create a class for the dense layer. By definition, the outputs of one layer are fully connected to the inputs of the next layer in an MLP. Therefore, the input dimension for a dense layer can be inferred based on the output dimension of its previous layer and does not need to be specified upfront during its initialization. The weights should also be initialized properly to prevent activation outputs from becoming too large or small. One of the most popular weight initialization methods is the Xavier scheme, where each element of the weight matrix is sampled in the following manner:
+
+<math>.
+
+The bias vector can be initialized to zeros.
+
+The Xavier initialization method can also be implemented with <code>.
+
+Next, build a class for the MLP model that executes layers sequentially. Remember that the model variables are only available after the first sequence of dense layer calls due to dimension inference.
+
+Initialize a MLP model with the following architecture:
+
+Forward Pass: ReLU(784 x 700) x ReLU(700 x 500) x Softmax(500 x 10).
+
+The softmax activation function does not need to be applied by the MLP. It is computed separately in the loss and prediction functions.
+
+Define the loss function.
+
+The cross-entropy loss function is a great choice for multiclass classification problems since it measures the negative-log-likelihood of the data according to the model's probability predictions. The higher the probability assigned to the true class, the lower the loss. The equation for the cross-entropy loss is as follows:
+
+<math>.
+
+where.
+
+<math>: a matrix of predicted class distributions.
+
+<math>: a one hot encoded matrix of true classes.
+
+The <code> function can be used to compute the cross-entropy loss. This function does not require the model's last layer to apply the softmax activation function nor does it require the class labels to be one hot encoded.
+
+Write a basic accuracy function that calculates the proportion of correct classifications during training. In order to generate class predictions from softmax outputs, return the index that corresponds to the largest class probability.
+
+Train the model.
+
+Using an optimizer can result in significantly faster convergence compared to standard gradient descent. The Adam optimizer is implemented below. Visit the Optimizers guide to learn more about designing custom optimizers with TensorFlow Core.
+
+Now, write a custom training loop that updates the MLP parameters with mini-batch gradient descent. Using mini-batches for training provides both memory efficiency and faster convergence.
+
+Train the MLP model for 10 epochs with batch size of 128. Hardware accelerators like GPUs or TPUs can also help speed up training time.
+
+Performance evaluation.
+
+Start by writing a plotting function to visualize the model's loss and accuracy during training.
+
+Save and load the model.
+
+Start by making an export module that takes in raw data and performs the following operations:
+
+Data preprocessing.
+
+Probability prediction.
+
+Class prediction.
+
+This export module can now be saved with the <code> function.
+
+Load the saved model with <code> and examine its performance on the unseen test data.
+
+The model does a great job of classifying handwritten digits in the training dataset and also generalizes well to unseen data. Now, examine the model's class-wise accuracy to ensure good performance for each digit.
+
+It looks like the model struggles with some digits a little more than others which is quite common in many multiclass classification problems. As a final exercise, plot a confusion matrix of the model's predictions and its corresponding true labels to gather more class-level insights. Sklearn and seaborn have functions for generating and visualizing confusion matrices.
+
+Class-level insights can help identify reasons for misclassifications and improve model performance in future training cycles.
+
+Conclusion.
+
+This notebook introduced a few techniques to handle a multiclass classification problem with an MLP. Here are a few more tips that may help:
+
+The TensorFlow Core APIs can be used to build machine learning workflows with high levels of configurability.
+
+Initialization schemes can help prevent model parameters from vanishing or exploding during training.
+
+Overfitting is another common problem for neural networks, though it wasn't a problem for this tutorial. Visit the Overfit and underfit tutorial for more help with this.
+
+For more examples of using the TensorFlow Core APIs, check out the guide. If you want to learn more about loading and preparing data, see the tutorials on image data loading or CSV data loading.

@@ -1,0 +1,89 @@
+Semantic Similarity with KerasHub.
+
+Introduction.
+
+Semantic similarity refers to the task of determining the degree of similarity between two sentences in terms of their meaning. We already saw in this example how to use SNLI (Stanford Natural Language Inference) corpus to predict sentence semantic similarity with the HuggingFace Transformers library. In this tutorial we will learn how to use KerasHub, an extension of the core Keras API, for the same task. Furthermore, we will discover how KerasHub effectively reduces boilerplate code and simplifies the process of building and utilizing models. For more information on KerasHub, please refer to KerasHub's official documentation.
+
+This guide is broken down into the following parts:
+
+Setup, task definition, and establishing a baseline.
+
+Establishing baseline with BERT.
+
+Saving and Reloading the model.
+
+Performing inference with the model. 5 Improving accuracy with RoBERTa.
+
+Setup.
+
+The following guide uses Keras Core to work in any of <code>, <code> or <code>. Support for Keras Core is baked into KerasHub, simply change the <code> environment variable below to change the backend you would like to use. We select the <code> backend below, which will give us a particularly fast train step below.
+
+To load the SNLI dataset, we use the tensorflow-datasets library, which contains over 550,000 samples in total. However, to ensure that this example runs quickly, we use only 20% of the training samples.
+
+Overview of SNLI Dataset.
+
+Every sample in the dataset contains three components: <code>, <code>, and <code>. epresents the original caption provided to the author of the pair, while the hypothesis refers to the hypothesis caption created by the author of the pair. The label is assigned by annotators to indicate the similarity between the two sentences.
+
+The dataset contains three possible similarity label values: Contradiction, Entailment, and Neutral. Contradiction represents completely dissimilar sentences, while Entailment denotes similar meaning sentences. Lastly, Neutral refers to sentences where no clear similarity or dissimilarity can be established between them.
+
+Preprocessing.
+
+In our dataset, we have identified that some samples have missing or incorrectly labeled data, which is denoted by a value of -1. To ensure the accuracy and reliability of our model, we simply filter out these samples from our dataset.
+
+Here's a utility function that splits the example into an <code> tuple that is suitable for <code>. By default, <code> will tokenize and pack together raw strings using a <code> token during training. Therefore, this label splitting is all the data preparation that we need to perform.
+
+Establishing baseline with BERT.
+
+We use the BERT model from KerasHub to establish a baseline for our semantic similarity task. The <code> class attaches a classification head to the BERT Backbone, mapping the backbone outputs to a logit output suitable for a classification task. This significantly reduces the need for custom code.
+
+KerasHub models have built-in tokenization capabilities that handle tokenization by default based on the selected model. However, users can also use custom preprocessing techniques as per their specific needs. If we pass a tuple as input, the model will tokenize all the strings and concatenate them with a <code> separator.
+
+We use this model with pretrained weights, and we can use the <code> method to use our own preprocessor. For the SNLI dataset, we set <code> to 3.
+
+Please note that the BERT Tiny model has only 4,386,307 trainable parameters.
+
+KerasHub task models come with compilation defaults. We can now train the model we just instantiated by calling the <code> method.
+
+Our BERT classifier achieved an accuracy of around 76% on the validation split. Now, let's evaluate its performance on the test split.
+
+Evaluate the performance of the trained model on test data.
+
+Our baseline BERT model achieved a similar accuracy of around 76% on the test split. Now, let's try to improve its performance by recompiling the model with a slightly higher learning rate.
+
+Just tweaking the learning rate alone was not enough to boost performance, which stayed right around 76%. Let's try again, but this time with <code>, and a learning rate schedule.
+
+Success! With the learning rate scheduler and the <code> optimizer, our validation accuracy improved to around 79%.
+
+Now, let's evaluate our final model on the test set and see how it performs.
+
+Our Tiny BERT model achieved an accuracy of approximately 79% on the test set with the use of a learning rate scheduler. This is a significant improvement over our previous results. Fine-tuning a pretrained BERT model can be a powerful tool in natural language processing tasks, and even a small model like Tiny BERT can achieve impressive results.
+
+Let's save our model for now and move on to learning how to perform inference with it.
+
+Save and Reload the model.
+
+Performing inference with the model.
+
+Let's see how to perform inference with KerasHub models.
+
+The default preprocessor in KerasHub models handles input tokenization automatically, so we don't need to perform tokenization explicitly.
+
+Improving accuracy with RoBERTa.
+
+Now that we have established a baseline, we can attempt to improve our results by experimenting with different models. Thanks to KerasHub, fine-tuning a RoBERTa checkpoint on the same dataset is easy with just a few lines of code.
+
+The RoBERTa base model has significantly more trainable parameters than the BERT Tiny model, with almost 30 times as many at 124,645,635 parameters. As a result, it took approximately 1.5 hours to train on a P100 GPU. However, the performance improvement was substantial, with accuracy increasing to 88% on both the validation and test splits. With RoBERTa, we were able to fit a maximum batch size of 16 on our P100 GPU.
+
+Despite using a different model, the steps to perform inference with RoBERTa are the same as with BERT!
+
+We hope this tutorial has been helpful in demonstrating the ease and effectiveness of using KerasHub and BERT for semantic similarity tasks.
+
+Throughout this tutorial, we demonstrated how to use a pretrained BERT model to establish a baseline and improve performance by training a larger RoBERTa model using just a few lines of code.
+
+The KerasHub toolbox provides a range of modular building blocks for preprocessing text, including pretrained state-of-the-art models and low-level Transformer Encoder layers. We believe that this makes experimenting with natural language solutions more accessible and efficient.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.
+
+Chapter 15: Language models and the Transformer.

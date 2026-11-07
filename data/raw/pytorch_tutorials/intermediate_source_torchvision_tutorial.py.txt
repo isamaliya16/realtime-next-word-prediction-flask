@@ -1,0 +1,93 @@
+TorchVision Object Detection Finetuning Tutorial.
+
+For this tutorial, we will be finetuning a pre-trained Mask R-CNN model on the Penn-Fudan Database for Pedestrian Detection and Segmentation. It contains 170 images with 345 instances of pedestrians, and we will use it to illustrate how to use the new features in torchvision in order to train an object detection and instance segmentation model on a custom dataset.
+
+Defining the Dataset.
+
+The reference scripts for training object detection, instance segmentation and person keypoint detection allows for easily supporting adding new custom datasets. The dataset should inherit from the standard torch.utils.data.Dataset class, and implement <code> and <code>.
+
+The only specificity that we require is that the dataset <code> should return a tuple:
+
+image: torchvision.tv_tensors.Image of shape <code>, a pure tensor, or a PIL Image of size <code>.
+
+target: a dict containing the following fields.
+
+<code>, torchvision.tv_tensors.BoundingBoxes of shape <code>: the coordinates of the <code> bounding boxes in <code> format, ranging from <code> to <code> and <code> to <code>.
+
+<code>, integer torch.Tensor of shape <code>: the label for each bounding box. <code> represents always the background class.
+
+<code>, int: an image identifier. It should be unique between all the images in the dataset, and is used during evaluation.
+
+<code>, float torch.Tensor of shape <code>: the area of the bounding box. This is used during evaluation with the COCO metric, to separate the metric scores between small, medium and large boxes.
+
+<code>, uint8 torch.Tensor of shape <code>: instances with <code> will be ignored during evaluation.
+
+(optionally) <code>, torchvision.tv_tensors.Mask of shape <code>: the segmentation masks for each one of the objects.
+
+If your dataset is compliant with above requirements then it will work for both training and evaluation codes from the reference script. Evaluation code will use scripts from <code> which can be installed with <code>.
+
+One note on the <code>. The model considers class <code> as background. If your dataset does not contain the background class, you should not have <code> in your <code>. For example, assuming you have just two classes, cat and dog, you can define <code> (not <code>) to represent cats and <code> to represent dogs. So, for instance, if one of the images has both classes, your <code> tensor should look like <code>.
+
+Additionally, if you want to use aspect ratio grouping during training (so that each batch only contains images with similar aspect ratios), then it is recommended to also implement a <code> method, which returns the height and the width of the image. If this method is not provided, we query all elements of the dataset via <code> , which loads the image in memory and is slower than if a custom method is provided.
+
+Writing a custom dataset for PennFudan.
+
+Let’s write a dataset for the PennFudan dataset. First, let's download the dataset and extract the zip file:
+
+We have the following folder structure:
+
+: Here is one example of a pair of images and segmentation masks.
+
+So each image has a corresponding segmentation mask, where each color correspond to a different instance. Let’s write a torch.utils.data.Dataset class for this dataset. In the code below, we are wrapping images, bounding boxes and masks into torchvision.tvtensors.TVTensor classes so that we will be able to apply torchvision built-in transformations (new Transforms API) for the given object detection and segmentation task. Namely, image tensors will be wrapped by torchvision.tvtensors.Image, bounding boxes into torchvision.tvtensors.BoundingBoxes and masks into torchvision.tvtensors.Mask. As torchvision.tv_tensors.TVTensor are torch.Tensor subclasses, wrapped objects are also tensors and inherit the plain torch.Tensor API. For more information about torchvision <code> see this documentation.
+
+That’s all for the dataset. Now let’s define a model that can perform predictions on this dataset.
+
+Defining your model.
+
+In this tutorial, we will be using Mask R-CNN, which is based on top of Faster R-CNN. Faster R-CNN is a model that predicts both bounding boxes and class scores for potential objects in the image.
+
+Mask R-CNN adds an extra branch into Faster R-CNN, which also predicts segmentation masks for each instance.
+
+There are two common situations where one might want to modify one of the available models in TorchVision Model Zoo. The first is when we want to start from a pre-trained model, and just finetune the last layer. The other is when we want to replace the backbone of the model with a different one (for faster predictions, for example).
+
+Let’s go see how we would do one or another in the following sections.
+
+1 - Finetuning from a pretrained model.
+
+Let’s suppose that you want to start from a model pre-trained on COCO and want to finetune it for your particular classes. Here is a possible way of doing it:
+
+2 - Modifying the model to add a different backbone.
+
+Object detection and instance segmentation model for PennFudan Dataset.
+
+In our case, we want to finetune from a pre-trained model, given that our dataset is very small, so we will be following approach number 1.
+
+Here we want to also compute the instance segmentation masks, so we will be using Mask R-CNN:
+
+That’s it, this will make <code> be ready to be trained and evaluated on your custom dataset.
+
+Putting everything together.
+
+In <code>, we have a number of helper functions to simplify training and evaluating detection models. Here, we will use <code> and <code>. Just download everything under <code> to your folder and use them here. On Linux if you have <code>, you can download them using below commands:
+
+Since v0.15.0 torchvision provides new Transforms API to easily write data augmentation pipelines for Object Detection and Segmentation tasks.
+
+Let’s write some helper functions for data augmentation / transformation:
+
+Testing <code> method (Optional).
+
+Before iterating over the dataset, it's good to see what the model expects during training and inference time on sample data.
+
+We want to be able to train our model on an accelerator such as CUDA, MPS, MTIA, or XPU. Let’s now write the main function which performs the training and the validation:
+
+So after one epoch of training, we obtain a COCO-style mAP > 50, and a mask mAP of 65.
+
+But what do the predictions look like? Let’s take one image in the dataset and verify.
+
+The results look good!
+
+Wrapping up.
+
+In this tutorial, you have learned how to create your own training pipeline for object detection models on a custom dataset. For that, you wrote a torch.utils.data.Dataset class that returns the images and the ground truth boxes and segmentation masks. You also leveraged a Mask R-CNN model pre-trained on COCO train2017 in order to perform transfer learning on this new dataset.
+
+For a more complete example, which includes multi-machine / multi-GPU training, check <code>, which is present in the torchvision repository.

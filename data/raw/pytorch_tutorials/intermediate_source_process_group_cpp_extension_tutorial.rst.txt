@@ -1,0 +1,41 @@
+Customize Process Group Backends Using Cpp Extensions.
+
+Prerequisites:
+
+PyTorch Distributed Overview.
+
+PyTorch Collective Communication Package.
+
+PyTorch Cpp Extension.
+
+Writing Distributed Applications with PyTorch.
+
+This tutorial demonstrates how to implement a custom <code> and plug that into PyTorch distributed package using cpp extensions. This is helpful when you need a specialized software stack for your hardware, or when you would like to experiment with new collective communication algorithms.
+
+Basics.
+
+PyTorch collective communications power several widely adopted distributed training features, including DistributedDataParallel and ZeroRedundancyOptimizer. In order to make the same collective communication API work with different communication backends, the distributed package abstracts collective communication operations into a Backend class. Different backends can then be implemented as subclasses of <code> using preferred third-party libraries. PyTorch distributed comes with three default backends, <code>, <code>, and <code>. However, beyond these three backends, there are also other communication libraries (e.g., UCC, OneCCL), different types of hardware (e.g., TPU, Trainum), and emerging communication algorithms (e.g., Herring, Reduction Server). Therefore, the distributed package exposes extension APIs to allow customizing collective communication backends.
+
+The 4 steps below show how to implement a dummy <code> backend and use that in Python application code. Please note that this tutorial focuses on demonstrating the extension APIs, instead of developing a functioning communication backend. Hence, the <code> backend just covers a subset of the APIs (<code> and <code>), and simply sets the values of tensors to 0.
+
+Step 1: Implement a Subclass of <code>.
+
+This first step is to implement a <code> subclass that overrides target collective communication APIs and runs the custom communication algorithm. The extension also needs to implement a <code> subclass, which serves as a future of communication results and allows asynchronous execution in application code. If the extension uses third-party libraries, it can include the headers and call into the library APIs from the <code> subclass. The two code snippets below present the implementation of <code> and <code>. See the dummy collectives repository for the full implementation.
+
+Step 2: Expose The Extension Python APIs.
+
+The backend constructors are called from Python side, so the extension also needs to expose the constructor APIs to Python. This can be done by adding the following methods. In this example, <code> and <code> are ignored by the <code> instantiation method, as those are not used in this dummy implementation. However, real-world extensions should consider using the <code> to perform rendezvous and supporting the <code> argument.
+
+Step 3: Build The Custom Extension.
+
+Now, the extension source code files are ready. We can then use cpp extensions to build it. To do that, create a <code> file that prepares the paths and commands. Then call <code> to install the extension.
+
+If the extension depends on third-party libraries, you can also specify <code> and <code> to the cpp extension APIs. See the torch ucc project as a real-world example.
+
+Step 4: Use The Extension in Application.
+
+After installation, you can conveniently use the <code> backend when calling initprocessgroup as if it is an builtin backend.
+
+We can specify dispatching based on backend by changing the <code> argument of <code>. We can dispatch collective with CPU tensor to <code> backend and dispatch collective with CUDA tensor to <code> backend by specifying <code> as the backend argument.
+
+To send all tensors to <code> backend, we can simply specify <code> as the backend argument.

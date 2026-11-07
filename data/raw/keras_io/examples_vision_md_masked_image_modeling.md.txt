@@ -1,0 +1,129 @@
+Masked image modeling with Autoencoders.
+
+Converted to Keras 3 by: Maitry Sinha.
+
+Introduction.
+
+In deep learning, models with growing capacity and capability can easily overfit on large datasets (ImageNet-1K). In the field of natural language processing, the appetite for data has been successfully addressed by self-supervised pretraining.
+
+In the academic paper Masked Autoencoders Are Scalable Vision Learners by He et. al. the authors propose a simple yet effective method to pretrain large vision models (here ViT Huge). Inspired from the pretraining algorithm of BERT (Devlin et al.), they mask patches of an image and, through an autoencoder predict the masked patches. In the spirit of "masked language modeling", this pretraining task could be referred to as "masked image modeling".
+
+In this example, we implement Masked Autoencoders Are Scalable Vision Learners with the CIFAR-10 dataset. After pretraining a scaled down version of ViT, we also implement the linear evaluation pipeline on CIFAR-10.
+
+This implementation covers (MAE refers to Masked Autoencoder):
+
+The masking algorithm.
+
+MAE encoder.
+
+MAE decoder.
+
+Evaluation with linear probing.
+
+As a reference, we reuse some of the code presented in this example.
+
+Hyperparameters for pretraining.
+
+Please feel free to change the hyperparameters and check your results. The best way to get an intuition about the architecture is to experiment with it. Our hyperparameters are heavily inspired by the design guidelines laid out by the authors in the original paper.
+
+Load the Cifar-10 dataset.
+
+PyDataset Implementation.
+
+Data augmentation.
+
+In previous self-supervised pretraining methodologies (SimCLR alike), we have noticed that the data augmentation pipeline plays an important role. On the other hand the authors of this paper point out that Masked Autoencoders do not rely on augmentations. They propose a simple augmentation pipeline of:
+
+Resizing.
+
+Random cropping (fixed-sized or random sized).
+
+Random horizontal flipping.
+
+A layer for extracting patches from images.
+
+This layer takes images as input and divides them into patches. The layer also includes two utility method:
+
+<code> -- Takes a batch of images and its corresponding patches to plot a random pair of image and patches.
+
+<code> -- Takes a single instance of patches and stitches them together into the original image.
+
+Patch encoding with masking.
+
+Quoting the paper Following ViT, we divide an image into regular non-overlapping patches. Then we sample a subset of patches and mask (i.e., remove) the remaining ones. Our sampling strategy is straightforward: we sample random patches without replacement, following a uniform distribution. We simply refer to this as “random sampling”.
+
+This layer includes masking and encoding the patches.
+
+The utility methods of the layer are:
+
+<code> -- Provides the mask and unmask indices.
+
+<code> -- Takes patches and unmask indices, results in a random masked image. This is an essential utility method for our training monitor callback (defined later).
+
+Prepare the Dataset.
+
+Let's visualize the image patches.
+
+Let's see the masking process in action on a sample image.
+
+MLP.
+
+This serves as the fully connected feed forward network of the transformer architecture.
+
+MAE encoder.
+
+The MAE encoder is ViT. The only point to note here is that the encoder outputs a layer normalized output.
+
+MAE decoder.
+
+The authors point out that they use an asymmetric autoencoder model. They use a lightweight decoder that takes "<10% computation per token vs. the encoder". We are not specific with the "<10% computation" in our implementation but have used a smaller decoder (both in terms of depth and projection dimensions).
+
+MAE trainer.
+
+This is the trainer module. We wrap the encoder and decoder inside of a <code> subclass. This allows us to customize what happens in the <code> loop.
+
+Model initialization.
+
+Training callbacks.
+
+Visualization callback.
+
+Learning rate scheduler.
+
+Model compilation and training.
+
+Evaluation with linear probing.
+
+Extract the encoder model along with other layers.
+
+Model: "linearprobemodel".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ patches1 ( Patches ) │ ( None , 64 , 108 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ patchencoder1 ( PatchEncoder ) │ ( None , 64 , 128 ) │ 22,252 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ maeencoder ( Functional ) │ ( None , 64 , 128 ) │ 1,981,696 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ batchnormalization │ ( None , 64 , 128 ) │ 512 │ │ ( BatchNormalization ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalaveragepooling1d │ ( None , 128 ) │ 0 │ │ ( GlobalAveragePooling1D ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense20 ( Dense ) │ ( None , 10 ) │ 1,290 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 2,005,750 (7.65 MB).
+
+Trainable params: 1,290 (5.04 KB).
+
+Non-trainable params: 2,004,460 (7.65 MB).
+
+We are using average pooling to extract learned representations from the MAE encoder. Another approach would be to use a learnable dummy token inside the encoder during pretraining (resembling the [CLS] token). Then we can extract representations from that token during the downstream tasks.
+
+Prepare datasets for linear probing.
+
+Perform linear probing.
+
+We believe that with a more sophisticated hyperparameter tuning process and a longer pretraining it is possible to improve this performance further. For comparison, we took the encoder architecture and trained it from scratch in a fully supervised manner. This gave us ~76% test top-1 accuracy. The authors of MAE demonstrates strong performance on the ImageNet-1k dataset as well as other downstream tasks like object detection and semantic segmentation.
+
+Final notes.
+
+We refer the interested readers to other examples on self-supervised learning present on keras.io:
+
+SimCLR.
+
+NNCLR.
+
+SimSiam.
+
+This idea of using BERT flavored pretraining in computer vision was also explored in Selfie, but it could not demonstrate strong results. Another concurrent work that explores the idea of masked image modeling is SimMIM. Finally, as a fun fact, we, the authors of this example also explored the idea of "reconstruction as a pretext task" in 2020 but we could not prevent the network from representation collapse, and hence we did not get strong downstream performance.
+
+We would like to thank Xinlei Chen (one of the authors of MAE) for helpful discussions. We are grateful to JarvisLabs and Google Developers Experts program for helping with GPU credits.

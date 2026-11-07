@@ -1,0 +1,125 @@
+Registering a Dispatched Operator in C++.
+
+The dispatcher is an internal component of PyTorch which is responsible for figuring out what code should actually get run when you call a function like <code>. This can be nontrivial, because PyTorch operations need to handle a lot of cross-cutting concerns that are "layered" on top of one of another. Here is a sampling of some of the things it handles:
+
+Switching between the CPU and CUDA implementations of an operator, depending on the devices of the input tensors.
+
+Switching between the autograd and backend implementations of an operator, depending on whether or not autograd handling is necessary.
+
+Applying autocasting when necessary for automatic mixed precision.
+
+Applying batching rules when an operator is run under a <code> call.
+
+Tracing execution of operations, if you are tracing a model for export.
+
+If in your custom operator code you find yourself manually writing if statements to handle these cases, the dispatcher APIs can help organize your code. (Conversely, if your custom operator is very simple and is only for CPU inference, you probably don't need to use the dispatcher, just use the basic API.).
+
+In this tutorial, we will describe how to structure a custom operator registration to use the dispatcher to organize various components. We'll assume that you are familiar with how to register an operator and how to write a custom autograd function.
+
+Defining schema and backend implementations.
+
+The general principle behind the dispatcher is that it divides the implementation of an operator into multiple kernels, each of which implements functionality for a specific dispatch key, e.g. CPU, CUDA. The dispatcher determines what the highest priority dispatch key is at the time you call an operator (this is done by looking at both the tensor arguments as well as some thread local state), and transfers control to the kernel for that dispatch key. The end effect is that when you call an operator, we first execute the Autograd kernel, and then we redispatch to the backend kernel depending on the device types of the passed in tensors.
+
+Let's take a look at the various parts involved in making this happen. First, we must define the schema for the operator in question. Unlike simple pybind11-style operator registration, we don't actually provide an implementation of our operator at this point; we just provide a schema string specifying the type signature of the operator that all of our other kernels will abide by:
+
+Next, we need to actually provide some implementations of this operator. For concreteness, here is a really simple implementation of addition on CPU:
+
+We'd like to register this function as an implementation of <code>. However, the simple way of registering it (<code>) would register the kernel to run in all cases, even if the tensor is not a CPU tensor! (Internally, we refer to these as "catch-all" kernels, since they catch all cases.) To ensure that <code> is only run for CPU tensors, we can use the <code> macro:
+
+The <code> lets us register implementations for operators on a specific dispatch key (in this case, CPU). Each call to <code> associates a CPU kernel with the corresponding operator (which we previously defined in the <code> block). If we also have a CUDA implementation <code>, we can register it in a separate <code> block:
+
+These registrations can be split across files or even across library boundaries; so for example, you could have these two <code> blocks compiled into a separate <code> and <code> dynamic libraries. Generally, speaking, the structure of your registrations will look like this:
+
+A single <code> that lists every custom operator in your namespace in a centralized place.
+
+A <code> per dispatch key that registers implementations for that key (e.g., CPU or CUDA). If you like, you can further subdivide <code> blocks into a block per operator. This is convenient if you have a separate file per operator implementation, but don't want to expose the operators in a header; you can just put the registration in the cpp file that defines your operator.
+
+For operators that do not need autograd.
+
+Note: This section only applies to versions of PyTorch <code>.
+
+In the next section, we will discuss how to add autograd support to an operator. But for the ops that do not need autograd support, the following kernel should be registered improve useability and make your op behave like PyTorch's built-in operators.
+
+The above lines registers an <code> kernel that appends a dummy <code> node on forward (preserving the <code>-ness of the inputs). On backward, the <code> node raises an error. This can be helpful for debugging in larger models where previously it can be hard to pin-point exactly where the <code>-ness is lost during the forward pass.
+
+In-place or view ops.
+
+To ensure correctness and best possible performance, if your op mutates an input in-place or returns a tensor that aliases with one of the inputs, two additional steps should be taken:
+
+Register an <code> kernel in addition to the <code> kernel above. This kernel handles the necessary bookkeeping to ensure the correctness of in-place or view operations. It is important to note that this ADInplaceOrView kernel should only be used with <code>.
+
+The <code> or <code> boxed kernels registered above rely on operator schema information in their logi. If your op mutates an input in-place or returns a tensor that aliases with one of the inputs it is important to ensure that your schema properly reflects this. See here for more information on how to annotate the schema.
+
+Adding autograd support.
+
+At this point, we have an operator with both CPU and CUDA implementations. How can we add autograd support to it? As you might guess, we will register an autograd kernel (similar to what's described in the custom autograd function tutorial)! However, there is a twist: unlike the CPU and CUDA kernels, the autograd kernel needs to redispatch: it needs to call back into the dispatcher to get to the inference kernels, e.g. CPU or CUDA implementations.
+
+Thus, before we write the autograd kernel, let's write a dispatching function which calls into the dispatcher to find the right kernel for your operator. This function constitutes the public C++ API for your operators--in fact, all of the tensor functions in PyTorch's C++ API all call the dispatcher in the same way under the hood. Here's what the dispatching function looks like:
+
+Let's break it down:
+
+In the first line, we look up a typed operator handle from the dispatcher corresponding to the operator that we are going to dispatch to. <code> takes two arguments: the (namespace qualified) name of the operator, and the overload name of the operator (typically just the empty string). <code> casts the dynamically typed handle into a statically typed handle (doing a runtime test to make sure you've given the correct C++ type), so that we can do a normal C++ call on it. We pass it <code> since the type of the dispatching function is the same as the type of the underlying kernels registered to the dispatcher.
+
+For performance, this computation is done in a static variable, so that we only need to do the (slow) lookup once. If you typoed the name of the operator you want to call, this lookup will error the first time you call this function.
+
+In the second line, we simply <code> the operator handle with all of the arguments passed into the dispatching function. This will actually invoke the dispatcher and in the end control will be transferred to whatever kernel is appropriate for this call.
+
+With the dispatch function in hand, we can now write the autograd kernel:
+
+The autograd function is written as normal using <code>, except that instead of directly writing the implementation in <code>, we:
+
+Turn off autograd handling with the <code> RAII guard, and then.
+
+Call the dispatch function <code> to call back into the dispatcher.
+
+Without (1), your calls will infinite loop (and stack overflow), because <code> will send you back to this function (as the highest priority dispatch key would still be autograd.) With (1), autograd is excluded from the set of dispatch keys under consideration, and we will go to the next handlers, which will either be CPU and CUDA.
+
+We can now register this function in the same way we registered the CPU/CUDA functions:
+
+Going beyond autograd.
+
+In some sense, the dispatcher isn't doing all that much: all it does is implement a glorified if-statement, along the lines of this:
+
+So why use the dispatcher? There are a few reasons:
+
+It is decentralized. You can assemble all of the pieces of an operator (CPU, CUDA, Autograd) without having to write a single, centralized if statement that refers to all of them. Importantly, third parties can register extra implementations for other aspects without having to patch the original definition of an operator. We'll talk more about extending the dispatcher in extending dispatcher for a new backend.
+
+It supports more dispatch keys than CPU, CUDA and Autograd. You can see a full list of dispatch keys that are currently implemented in PyTorch in <code>. These dispatch keys implement a variety of optional functionality for operators, and if you decide you want your custom operator to support this functionality, all you have to register a kernel for the appropriate key.
+
+The dispatcher implements support for boxed fallback functions, which are functions that can be implemented once and apply to all operators in the system. Boxed fallbacks can be used to provide default behavior for a dispatch key; if you use the dispatcher to implement your operator, you also opt into the fallbacks for all of these operations.
+
+Here are some particular dispatch keys which you may need to define an operator for.
+
+Autocast.
+
+The Autocast dispatch key implements support for automatic mixed precision (AMP). An autocast wrapper kernel typically casts incoming <code> or <code> CUDA tensors to some preferred precision before running the op. For example, matmuls and convolutions on floating-point CUDA tensors usually run faster and use less memory in <code> without impairing convergence. Autocast wrappers only have an effect in autocast-enabled contexts.
+
+Here's an autocast wrapper for a hypothetical custom matmul, along with its registration:
+
+<code> casts <code> to <code> if <code> is CUDA and <code>, otherwise, it leaves <code> unchanged (c.f. the eligibility policy for natively autocasted ops). This ensures if the network calls <code> on any mixture of <code> and <code> CUDA tensors, <code> runs in <code>. Meanwhile, calls to <code> with non-CUDA, integer-type, or <code> inputs are unaffected. Using <code> to follow the native eligibility policy in your own autocast wrapper is recommended, but not required. For example, if you wanted to force <code> execution for all input types, you could <code> instead of using <code>.
+
+Notice that, like our autograd kernels, we exclude the <code> key from dispatch before redispatching.
+
+By default, if no autocast wrapper is provided, we fallthrough directly to the regular operator implementation (no autocasting occurs). (We didn't use <code> for this example, since pointwise addition doesn't need autocasting and should just fall through.).
+
+When should an autocast wrapper be registered? Unfortunately, there aren't cut-and-dried rules for an op's preferred precision. You can get a sense for some native ops' preferred precisions by looking at the cast lists. General guidance:
+
+Ops that do reductions should probably execute in <code>.
+
+Any op that does a convolution or gemm under the hood should probably execute in <code>, and.
+
+Other ops with multiple floating-point tensor inputs should standardize them to a common precision (unless the implementation supports inputs with different precisions).
+
+If your custom op falls into the third category, the <code> template helps figure out the widest floating-point type present among input tensors, which is the safest choice for the execution type:
+
+If your custom op is autograd-enabled, you only need to write and register an autocast wrapper for the same name onto which the autograd wrapper is registered. For example, if you wanted an autocast wrapper for the <code> function shown in the autograd section, all you'd need is.
+
+There are no separate gymnastics to make the backward method autocast compatible. However, the backward method defined in your custom autograd function will run in the same dtype as autocast sets for the forward method, so you should choose a <code> suitable for both your forward and backward methods.
+
+Batched.
+
+Batched tensors allow you to write your code in a per-example manner, and then have them be automatically batched when run under a <code> invocation. The API for writing batching rules is currently under development, but once it is stabilized, you can add support for <code> for your operators by registering a kernel at the Batched dispatch key.
+
+Tracer.
+
+The Tracer dispatch key implements support for recording invocations of operators into a trace when you run <code>. We intend to provide a boxed fallback that will implement tracing for arbitrary operations, see issue #41478 to track progress.

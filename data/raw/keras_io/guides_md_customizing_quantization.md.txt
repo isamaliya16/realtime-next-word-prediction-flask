@@ -1,0 +1,37 @@
+Customizing Quantization with QuantizationConfig.
+
+Introduction.
+
+This guide explores the flexible <code> API in Keras, introduced to give you granular control over how your models are quantized. While <code> provides a great default, you often need more control. For example, to perform weight-only quantization (common in LLMs) or to use custom quantization schemes (like percentile-based clipping).
+
+We will cover:
+
+Customizing INT8 Quantization: Modifying the default parameters (e.g., custom value range).
+
+Weight-Only Quantization (INT4): Quantizing weights to 4-bit while keeping activations in float, using <code>.
+
+Custom Quantizers: Implementing a completely custom quantizer (e.g., <code>) and using it with <code>.
+
+Setup.
+
+1. Customizing INT8 Quantization.
+
+By default, <code> uses <code> for both weights and activations which uses the default value range of [-127, 127]. You might want to specify different parameters, such as a restricted value range (if you expect your activations to be within a certain range). You can do this by creating an <code>.
+
+2. Weight-Only Quantization (INT4).
+
+By default, <code> quantizes activations to INT8 while keeping weights in INT4. For large language models and memory-constrained environments, weight-only quantization is a popular technique. It reduces the model size significantly (keeping weights in 4-bit) while maintaining higher precision for activations.
+
+To achieve this, we set <code> in the <code>.
+
+3. Custom Quantizers: Implementing a Percentile Quantizer.
+
+Sometimes, standard absolute-max quantization isn't enough. You might want to be robust to outliers by using percentile-based quantization. Keras allows you to define your own quantizer by subclassing <code>.
+
+Below is an implementation of a <code> that sets the scale based on a specified percentile of the absolute values.
+
+Now we can use this <code> in our configuration.
+
+Conclusion.
+
+With <code>, you are no longer limited to stock quantization options. Whether you need weight-only quantization or custom quantizers for specialized hardware or research, Keras provides the modularity to build exactly what you need.

@@ -1,0 +1,131 @@
+Efficient Object Detection with YOLOV8 and KerasCV.
+
+Introduction.
+
+KerasCV is an extension of Keras for computer vision tasks. In this example, we'll see how to train a YOLOV8 object detection model using KerasCV.
+
+KerasCV includes pre-trained models for popular computer vision datasets, such as ImageNet, COCO, and Pascal VOC, which can be used for transfer learning. KerasCV also provides a range of visualization tools for inspecting the intermediate representations learned by the model and for visualizing the results of object detection and segmentation tasks.
+
+If you're interested in learning about object detection using KerasCV, I highly suggest taking a look at the guide created by lukewood. This resource, available at Object Detection With KerasCV, provides a comprehensive overview of the fundamental concepts and techniques required for building object detection models with KerasCV.
+
+Setup.
+
+Load Data.
+
+For this guide, we will be utilizing the Self-Driving Car Dataset obtained from roboflow. In order to make the dataset more manageable, I have extracted a subset of the larger dataset, which originally consisted of 15,000 data samples. From this subset, I have chosen 7,316 samples for model training.
+
+To simplify the task at hand and focus our efforts, we will be working with a reduced number of object classes. Specifically, we will be considering five primary classes for detection and classification: car, pedestrian, traffic light, biker, and truck. These classes represent some of the most common and significant objects encountered in the context of self-driving cars.
+
+By narrowing down the dataset to these specific classes, we can concentrate on building a robust object detection model that can accurately identify and classify these important objects.
+
+The TensorFlow Datasets library provides a convenient way to download and use various datasets, including the object detection dataset. This can be a great option for those who want to quickly start working with the data without having to manually download and preprocess it.
+
+You can view various object detection datasets here TensorFlow Datasets.
+
+However, in this code example, we will demonstrate how to load the dataset from scratch using TensorFlow's <code> pipeline. This approach provides more flexibility and allows you to customize the preprocessing steps as needed.
+
+Loading custom datasets that are not available in the TensorFlow Datasets library is one of the main advantages of using the <code> pipeline. This approach allows you to create a custom data preprocessing pipeline tailored to the specific needs and requirements of your dataset.
+
+Hyperparameters.
+
+A dictionary is created to map each class name to a unique numerical identifier. This mapping is used to encode and decode the class labels during training and inference in object detection tasks.
+
+The function below reads the XML file and finds the image name and path, and then iterates over each object in the XML file to extract the bounding box coordinates and class labels for each object.
+
+The function returns three values: the image path, a list of bounding boxes (each represented as a list of four floats: xmin, ymin, xmax, ymax), and a list of class IDs (represented as integers) corresponding to each bounding box. The class IDs are obtained by mapping the class labels to integer values using a dictionary called <code>.
+
+Here we are using <code> to create ragged tensors from the <code> and <code> lists. A ragged tensor is a type of tensor that can handle varying lengths of data along one or more dimensions. This is useful when dealing with data that has variable-length sequences, such as text or time series data.
+
+In this case, the <code> and <code> lists have different lengths for each image, depending on the number of objects in the image and the corresponding bounding boxes and classes. To handle this variability, ragged tensors are used instead of regular tensors.
+
+Later, these ragged tensors are used to create a <code> using the <code> method. This method creates a dataset from the input tensors by slicing them along the first dimension. By using ragged tensors, the dataset can handle varying lengths of data for each image and provide a flexible input pipeline for further processing.
+
+Splitting data in training and validation data.
+
+Let's see about data loading and bounding box formatting to get things going. Bounding boxes in KerasCV have a predetermined format. To do this, you must bundle your bounding boxes into a dictionary that complies with the requirements listed below:
+
+The dictionary has two keys, <code> and <code>, each of which maps to a TensorFlow RaggedTensor or Tensor object. The <code> Tensor has a shape of `[batch, numboxes, 4]`, where batch is the number of images in the batch and numboxes is the maximum number of bounding boxes in any image. The 4 represents the four values needed to define a bounding box: xmin, ymin, xmax, ymax.
+
+The <code> Tensor has a shape of <code>, where each element represents the class label for the corresponding bounding box in the <code> Tensor. The num_boxes dimension may be ragged, which means that the number of boxes may vary across images in the batch.
+
+Final dict should be:
+
+Here we create a layer that resizes images to 640x640 pixels, while maintaining the original aspect ratio. The bounding boxes associated with the image are specified in the <code> format. If necessary, the resized image will be padded with zeros to maintain the original aspect ratio.
+
+Bounding Box Formats supported by KerasCV:
+
+CENTER_XYWH.
+
+XYWH.
+
+XYXY.
+
+REL_XYXY.
+
+REL_XYWH.
+
+YXYX.
+
+REL_YXYX.
+
+You can read more about KerasCV bounding box formats in docs.
+
+Furthermore, it is possible to perform format conversion between any two pairs:
+
+Data Augmentation.
+
+One of the most challenging tasks when constructing object detection pipelines is data augmentation. It involves applying various transformations to the input images to increase the diversity of the training data and improve the model's ability to generalize. However, when working with object detection tasks, it becomes even more complex as these transformations need to be aware of the underlying bounding boxes and update them accordingly.
+
+KerasCV provides native support for bounding box augmentation. KerasCV offers an extensive collection of data augmentation layers specifically designed to handle bounding boxes. These layers intelligently adjust the bounding box coordinates as the image is transformed, ensuring that the bounding boxes remain accurate and aligned with the augmented images.
+
+By leveraging KerasCV's capabilities, developers can conveniently integrate bounding box-friendly data augmentation into their object detection pipelines. By performing on-the-fly augmentation within a tf.data pipeline, the process becomes seamless and efficient, enabling better training and more accurate object detection results.
+
+Creating Training Dataset.
+
+Creating Validation Dataset.
+
+Visualization.
+
+We need to extract the inputs from the preprocessing dictionary and get them ready to be fed into the model.
+
+Creating Model.
+
+YOLOv8 is a cutting-edge YOLO model that is used for a variety of computer vision tasks, such as object detection, image classification, and instance segmentation. Ultralytics, the creators of YOLOv5, also developed YOLOv8, which incorporates many improvements and changes in architecture and developer experience compared to its predecessor. YOLOv8 is the latest state-of-the-art model that is highly regarded in the industry.
+
+Below table compares the performance metrics of five different YOLOv8 models with different sizes (measured in pixels): YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l, and YOLOv8x. The metrics include mean average precision (mAP) values at different intersection-over-union (IoU) thresholds for validation data, inference speed on CPU with ONNX format and A100 TensorRT, number of parameters, and number of floating-point operations (FLOPs) (both in millions and billions, respectively). As the size of the model increases, the mAP, parameters, and FLOPs generally increase while the speed decreases. YOLOv8x has the highest mAP, parameters, and FLOPs but also the slowest inference speed, while YOLOv8n has the smallest size, fastest inference speed, and lowest mAP, parameters, and FLOPs.
+
+size (pixels) | mAP val 50-95 | Speed CPU ONNX (ms) | Speed A100 TensorRT (ms) | params (M) | FLOPs (B).
+
+You can read more about YOLOV8 and its architecture in this RoboFlow Blog.
+
+First we will create a instance of backbone which will be used by our yolov8 detector class.
+
+YOLOV8 Backbones available in KerasCV:
+
+Without Weights:
+
+With Pre-trained coco weight:
+
+Next, let's build a YOLOV8 model using the <code>, which accepts a feature extractor as the <code> argument, a <code> argument that specifies the number of object classes to detect based on the size of the <code> list, a <code> argument that informs the model of the format of the bbox in the dataset, and a finally, the feature pyramid network (FPN) depth is specified by the <code> argument.
+
+It is simple to build a YOLOV8 using any of the aforementioned backbones thanks to KerasCV.
+
+Compile the Model.
+
+Loss used for YOLOV8.
+
+Classification Loss: This loss function calculates the discrepancy between anticipated class probabilities and actual class probabilities. In this instance, <code>, a prominent solution for binary classification issues, is Utilized. We Utilized binary crossentropy since each thing that is identified is either classed as belonging to or not belonging to a certain object class (such as a person, a car, etc.).
+
+Box Loss: <code> is the loss function used to measure the difference between the predicted bounding boxes and the ground truth. In this case, the Complete IoU (CIoU) metric is used, which not only measures the overlap between predicted and ground truth bounding boxes but also considers the difference in aspect ratio, center distance, and box size. Together, these loss functions help optimize the model for object detection by minimizing the difference between the predicted and ground truth class probabilities and bounding boxes.
+
+COCO Metric Callback.
+
+We will be using <code> from KerasCV to evaluate the model and calculate the Map(Mean Average Precision) score, Recall and Precision. We also save our model when the mAP score improves.
+
+Train the Model.
+
+Visualize Predictions.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 12: Object detection.

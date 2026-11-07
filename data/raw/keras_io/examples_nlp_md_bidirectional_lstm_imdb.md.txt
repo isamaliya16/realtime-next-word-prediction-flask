@@ -1,0 +1,25 @@
+Bidirectional LSTM on IMDB.
+
+Setup.
+
+Build the model.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( None , None ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ embedding ( Embedding ) │ ( None , None , 128 ) │ 2,560,000 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ bidirectional ( Bidirectional ) │ ( None , None , 128 ) │ 98,816 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ bidirectional1 ( Bidirectional ) │ ( None , 128 ) │ 98,816 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 1 ) │ 129 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 2,757,761 (10.52 MB).
+
+Trainable params: 2,757,761 (10.52 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Load the IMDB movie review sentiment data.
+
+Train and evaluate the model.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

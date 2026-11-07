@@ -1,0 +1,59 @@
+Visualizing Gradients.
+
+This tutorial explains how to extract and visualize gradients at any layer in a neural network. By inspecting how information flows from the end of the network to the parameters we want to optimize, we can debug issues such as vanishing or exploding gradients that occur during training.
+
+Before starting, make sure you understand tensors and how to manipulate them. A basic knowledge of how autograd works would also be useful.
+
+Setup.
+
+First, make sure PyTorch is installed and then import the necessary libraries.
+
+Next, we’ll be creating a network intended for the MNIST dataset, similar to the architecture described by the batch normalization paper.
+
+To illustrate the importance of gradient visualization, we will instantiate one version of the network with batch normalization (BatchNorm), and one without it. Batch normalization is an extremely effective technique to resolve vanishing/exploding gradients, and we will be verifying that experimentally.
+
+The model we use has a configurable number of repeating fully-connected layers which alternate between <code>, <code>, and <code>. If batch normalization is enabled, then <code> will use BatchNorm1d, otherwise it will use the Identity transformation.
+
+Next we set up some dummy data, instantiate two versions of the model, and initialize the optimizers.
+
+We can verify that batch normalization is only being applied to one of the models by probing one of the internal layers:
+
+Registering hooks.
+
+Because we wrapped up the logic and state of our model in a <code>, we need another method to access the intermediate gradients if we want to avoid modifying the module code directly. This is done by registering a hook.
+
+The following code defines our hooks and gathers descriptive names for the network’s layers.
+
+Training and visualization.
+
+Let’s now train the models for a few epochs:
+
+After running the forward and backward pass, the gradients for all the intermediate tensors should be present in <code> and <code>. We compute the mean absolute value of each gradient matrix so that we can compare the two models.
+
+With the average gradients computed, we can now plot them and see how the values change as a function of the network depth. Notice that when we don’t apply batch normalization, the gradient values in the intermediate layers fall to zero very quickly. The batch normalization model, however, maintains non-zero gradients in its intermediate layers.
+
+Conclusion.
+
+In this tutorial, we demonstrated how to visualize the gradient flow through a neural network wrapped in a <code> class. We qualitatively showed how batch normalization helps to alleviate the vanishing gradient issue which occurs with deep neural networks.
+
+If you would like to learn more about how PyTorch’s autograd system works, please visit the references below. If you have any feedback for this tutorial (improvements, typo fixes, etc.) then please use the PyTorch Forums and/or the issue tracker to reach out.
+
+(Optional) Additional exercises.
+
+Try increasing the number of layers (<code>) in our model and see what effect this has on the gradient flow graph.
+
+How would you adapt the code to visualize average activations instead of average gradients? (Hint: in the hook_forward() function we have access to the raw tensor output).
+
+What are some other methods to deal with vanishing and exploding gradients?
+
+References.
+
+A Gentle Introduction to torch.autograd.
+
+Automatic Differentiation with torch.autograd.
+
+Autograd mechanics.
+
+Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift.
+
+On the difficulty of training Recurrent Neural Networks.

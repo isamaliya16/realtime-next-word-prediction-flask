@@ -1,0 +1,117 @@
+Analyze <code> performance with the TF Profiler.
+
+Overview.
+
+This guide assumes familiarity with the TensorFlow Profiler and <code>. It aims to provide step by step instructions with examples to help users diagnose and fix input pipeline performance issues.
+
+To begin, collect a profile of your TensorFlow job. Instructions on how to do so are available for CPUs/GPUs and Cloud TPUs.
+
+The analysis workflow detailed below focuses on the trace viewer tool in the Profiler. This tool displays a timeline that shows the duration of ops executed by your TensorFlow program and allows you to identify which ops take the longest to execute. For more information on the trace viewer, check out this section of the TF Profiler guide. In general, <code> events will appear on the host CPU timeline.
+
+Analysis Workflow.
+
+Please follow the workflow below. If you have feedback to help us improve it, please create a github issue with the label “comp:data”.
+
+1. Is your <code> pipeline producing data fast enough?
+
+Begin by ascertaining whether the input pipeline is the bottleneck for your TensorFlow program.
+
+To do so, look for <code> ops in the trace viewer. In general, you expect to see these at the start of a step. These slices represent the time it takes for your input pipeline to yield a batch of elements when it is requested. If you’re using keras or iterating over your dataset in a <code>, these should be found in <code> threads.
+
+Note that if you’re using a distribution strategy, you may see <code> events instead of <code>(as of TF 2.3).
+
+If the calls return quickly (<= 50 us), this means that your data is available when it is requested. The input pipeline is not your bottleneck; see the Profiler guide for more generic performance analysis tips.
+
+If the calls return slowly, <code> is unable to keep up with the consumer’s requests. Continue to the next section.
+
+2. Are you prefetching data?
+
+The best practice for input pipeline performance is to insert a <code> transformation at the end of your <code> pipeline. This transformation overlaps the input pipeline’s preprocessing computation with the next step of model computation and is required for optimal input pipeline performance when training your model. If you’re prefetching data, you should see a <code> slice on the same thread as the <code> op.
+
+If you don’t have a <code> at the end of your pipeline, you should add one. For more information about <code> performance recommendations, see the tf.data performance guide.
+
+If you’re already prefetching data, and the input pipeline is still your bottleneck, continue to the next section to further analyze performance.
+
+3. Are you reaching high CPU utilization?
+
+<code> achieves high throughput by trying to make the best possible use of available resources. In general, even when running your model on an accelerator like a GPU or TPU, the <code> pipelines are run on the CPU. You can check your utilization with tools like sar and htop, or in the cloud monitoring console if you’re running on GCP.
+
+If your utilization is low, this suggests that your input pipeline may not be taking full advantage of the host CPU. You should consult the tf.data performance guide for best practices. If you have applied the best practices and utilization and throughput remain low, continue to Bottleneck analysis below.
+
+If your utilization is approaching the resource limit, in order to improve performance further, you need to either improve the efficiency of your input pipeline (for example, avoiding unnecessary computation) or offload computation.
+
+You can improve the efficiency of your input pipeline by avoiding unnecessary computation in <code>. One way of doing this is inserting a <code> transformation after computation-intensive work if your data fits into memory; this reduces computation at the cost of increased memory usage. Additionally, disabling intra-op parallelism in <code> has the potential to increase efficiency by > 10%, and can be done by setting the following option on your input pipeline:
+
+4. Bottleneck Analysis.
+
+The following section walks through how to read <code> events in the trace viewer to understand where the bottleneck is and possible mitigation strategies.
+
+Understanding <code> events in the Profiler.
+
+Each <code> event in the Profiler has the name <code>, where <code> is the name of the dataset source or transformation. Each event also has the long name <code>, which you can see by clicking on the <code> event. In the long name, <code> matches <code> from the (short) name, and the other datasets in the long name represent downstream transformations.
+
+.map(lambda x: x).repeat(2).batch(5)").
+
+For example, the above screenshot was generated from the following code:
+
+Here, the <code> event has the long name <code>. Note that the datasets name may differ slightly from the python API (for example, FiniteRepeat instead of Repeat), but should be intuitive enough to parse.
+
+Synchronous and asynchronous transformations.
+
+For synchronous <code> transformations (such as <code> and <code>), you will see events from upstream transformations on the same thread. In the above example, since all the transformations used are synchronous, all the events appear on the same thread.
+
+For asynchronous transformations (such as <code>, <code>, <code> and <code>) events from upstream transformations will be on a different thread. In such cases, the “long name” can help you identify which transformation in a pipeline an event corresponds to.
+
+.map(lambda x: x).repeat(2).batch(5).prefetch(1)").
+
+For example, the above screenshot was generated from the following code:
+
+Here, the <code> events are on the <code> threads. Since <code> is asynchronous, its input events (<code>) will be on a different thread, and can be located by searching for the long name <code>. In this case, they are on the <code> thread. From its long name, you can deduce that <code> is upstream of <code>. Furthermore, the <code> of the <code> event will match the ID of the <code> event.
+
+Identifying the bottleneck.
+
+In general, to identify the bottleneck in your input pipeline, walk the input pipeline from the outermost transformation all the way to the source. Starting from the final transformation in your pipeline, recurse into upstream transformations until you find a slow transformation or reach a source dataset, such as <code>. In the example above, you would start from <code>, then walk upstream to <code>, <code>, <code>, and finally <code>.
+
+In general, a slow transformation corresponds to one whose events are long, but whose input events are short. Some examples follow below.
+
+Note that the final (outermost) transformation in most host input pipelines is the <code> event. The Model transformation is introduced automatically by the <code> runtime and is used for instrumenting and autotuning the input pipeline performance.
+
+If your job is using a distribution strategy, the trace viewer will contain additional events that correspond to the device input pipeline. The outermost transformation of the device pipeline (nested under <code> or <code>) will be an <code> event with an upstream <code> event. You can find the corresponding host pipeline by searching for <code> events.
+
+Example 1.
+
+The above screenshot is generated from the following input pipeline:
+
+In the screenshot, observe that (1) <code> events are long, but (2) its input events (<code>) return quickly. This suggests that the sequential Map transformation is the bottleneck.
+
+Note that in the screenshot, the <code> event corresponds to the time it takes to execute the map function.
+
+Example 2.
+
+The above screenshot is generated from the following input pipeline:
+
+This example is similar to the above, but uses ParallelMap instead of Map. We notice here that (1) <code> events are long, but (2) its input events <code> (which are on a different thread, since ParallelMap is asynchronous) are short. This suggests that the ParallelMap transformation is the bottleneck.
+
+Addressing the bottleneck.
+
+Source datasets.
+
+If you’ve identified a dataset source as the bottleneck, such as reading from TFRecord files, you can improve performance by parallelizing data extraction. To do so, ensure that your data is sharded across multiple files and use <code> with the <code> parameter set to <code>. If determinism is not important to your program, you can further improve performance by setting the <code> flag on <code> as of TF 2.2. For example, if you’re reading from TFRecords, you can do the following:
+
+Note that sharded files should be reasonably large to amortize the overhead of opening a file. For more details on parallel data extraction, see this section of the <code> performance guide.
+
+Transformation datasets.
+
+If you’ve identified an intermediate <code> transformation as the bottleneck, you can address it by parallelizing the transformation or caching the computation if your data fits into memory and it is appropriate. Some transformations such as <code> have parallel counterparts; the <code> performance guide demonstrates how to parallelize these. Other transformations, such as <code>, <code>, and <code> are inherently sequential; you can parallelize them by introducing “outer parallelism”. For example, supposing your input pipeline initially looks like the following, with <code> as the bottleneck:
+
+You can introduce “outer parallelism” by running multiple copies of the input pipeline over sharded inputs and combining the results:
+
+Additional resources.
+
+tf.data performance guide on how to write performance <code> input pipelines.
+
+Inside TensorFlow video: <code> best practices.
+
+Profiler guide.
+
+Profiler tutorial with colab.

@@ -1,0 +1,71 @@
+Queries, Keys, and Values.
+
+So far all the networks we have reviewed crucially relied on the input being of a well-defined size. For instance, the images in ImageNet are of size <math> pixels and CNNs are specifically tuned to this size. Even in natural language processing the input size for RNNs is well defined and fixed. Variable size is addressed by sequentially processing one token at a time, or by specially designed convolution kernels . This approach can lead to significant problems when the input is truly of varying size with varying information content, such as in section <num> in the transformation of text . In particular, for long sequences it becomes quite difficult to keep track of everything that has already been generated or even viewed by the network. Even explicit tracking heuristics such as proposed by only offer limited benefit.
+
+Compare this to databases. In their simplest form they are collections of keys (<math>) and values (<math>). For instance, our database <math> might consist of tuples \{("Zhang", "Aston"), ("Lipton", "Zachary"), ("Li", "Mu"), ("Smola", "Alex"), ("Hu", "Rachel"), ("Werness", "Brent")\} with the last name being the key and the first name being the value. We can operate on <math>, for instance with the exact query (<math>) for "Li" which would return the value "Mu". If ("Li", "Mu") was not a record in <math>, there would be no valid answer. If we also allowed for approximate matches, we would retrieve ("Lipton", "Zachary") instead. This quite simple and trivial example nonetheless teaches us a number of useful things:
+
+We can design queries <math> that operate on (<math>,<math>) pairs in such a manner as to be valid regardless of the database size.
+
+The same query can receive different answers, according to the contents of the database.
+
+The "code" being executed for operating on a large state space (the database) can be quite simple (e.g., exact match, approximate match, top-<math>).
+
+There is no need to compress or simplify the database to make the operations effective.
+
+Clearly we would not have introduced a simple database here if it wasn't for the purpose of explaining deep learning. Indeed, this leads to one of the most exciting concepts introduced in deep learning in the past decade: the attention mechanism . We will cover the specifics of its application to machine translation later. For now, simply consider the following: denote by <math> a database of <math> tuples of keys and values. Moreover, denote by <math> a query. Then we can define the attention over <math> as.
+
+<math>.
+
+where <math> (<math>) are scalar attention weights. The operation itself is typically referred to as attention pooling. The name attention derives from the fact that the operation pays particular attention to the terms for which the weight <math> is significant (i.e., large). As such, the attention over <math> generates a linear combination of values contained in the database. In fact, this contains the above example as a special case where all but one weight is zero. We have a number of special cases:
+
+The weights <math> are nonnegative. In this case the output of the attention mechanism is contained in the convex cone spanned by the values <math>.
+
+The weights <math> form a convex combination, i.e., <math> and <math> for all <math>. This is the most common setting in deep learning.
+
+Exactly one of the weights <math> is <math>, while all others are <math>. This is akin to a traditional database query.
+
+All weights are equal, i.e., <math> for all <math>. This amounts to averaging across the entire database, also called average pooling in deep learning.
+
+A common strategy for ensuring that the weights sum up to <math> is to normalize them via.
+
+<math>.
+
+In particular, to ensure that the weights are also nonnegative, one can resort to exponentiation. This means that we can now pick any function <math> and then apply the softmax operation used for multinomial models to it via.
+
+<math>.
+
+This operation is readily available in all deep learning frameworks. It is differentiable and its gradient never vanishes, all of which are desirable properties in a model. Note though, the attention mechanism introduced above is not the only option. For instance, we can design a non-differentiable attention model that can be trained using reinforcement learning methods . As one would expect, training such a model is quite complex. Consequently the bulk of modern attention research follows the framework outlined in section <num>. We thus focus our exposition on this family of differentiable mechanisms.
+
+What is quite remarkable is that the actual "code" for executing on the set of keys and values, namely the query, can be quite concise, even though the space to operate on is significant. This is a desirable property for a network layer as it does not require too many parameters to learn. Just as convenient is the fact that attention can operate on arbitrarily large databases without the need to change the way the attention pooling operation is performed.
+
+Visualization.
+
+One of the benefits of the attention mechanism is that it can be quite intuitive, particularly when the weights are nonnegative and sum to <math>. In this case we might interpret large weights as a way for the model to select components of relevance. While this is a good intuition, it is important to remember that it is just that, an intuition. Regardless, we may want to visualize its effect on the given set of keys when applying a variety of different queries. This function will come in handy later.
+
+We thus define the <code> function. Note that it does not take a matrix (of attention weights) as its input but rather a tensor with four axes, allowing for an array of different queries and weights. Consequently the input <code> has the shape (number of rows for display, number of columns for display, number of queries, number of keys). This will come in handy later on when we want to visualize the workings that are to design Transformers.
+
+As a quick sanity check let's visualize the identity matrix, representing a case where the attention weight is <math> only when the query and the key are the same.
+
+Summary.
+
+The attention mechanism allows us to aggregate data from many (key, value) pairs. So far our discussion was quite abstract, simply describing a way to pool data. We have not explained yet where those mysterious queries, keys, and values might arise from. Some intuition might help here: for instance, in a regression setting, the query might correspond to the location where the regression should be carried out. The keys are the locations where past data was observed and the values are the (regression) values themselves. This is the so-called Nadaraya--Watson estimator that we will be studying in the next section.
+
+By design, the attention mechanism provides a differentiable means of control by which a neural network can select elements from a set and to construct an associated weighted sum over representations.
+
+Exercises.
+
+Suppose that you wanted to reimplement approximate (key, query) matches as used in classical databases, which attention function would you pick?
+
+Suppose that the attention function is given by <math> and that <math> for <math>. Denote by <math> the probability distribution over keys when using the softmax normalization in <num>. Prove that <math>.
+
+Design a differentiable search engine using the attention mechanism.
+
+Review the design of the Squeeze and Excitation Networks and interpret them through the lens of the attention mechanism.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

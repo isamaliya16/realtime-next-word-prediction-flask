@@ -1,0 +1,445 @@
+Time series forecasting.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial is an introduction to time series forecasting using TensorFlow. It builds a few different styles of models including Convolutional and Recurrent Neural Networks (CNNs and RNNs).
+
+This is covered in two main parts, with subsections:
+
+Forecast for a single time step:
+
+A single feature.
+
+All features.
+
+Forecast multiple steps:
+
+Single-shot: Make the predictions all at once.
+
+Autoregressive: Make one prediction at a time and feed the output back to the model.
+
+Setup.
+
+The weather dataset.
+
+This tutorial uses a weather time series dataset recorded by the Max Planck Institute for Biogeochemistry .
+
+This dataset contains 14 different features such as air temperature, atmospheric pressure, and humidity. These were collected every 10 minutes, beginning in 2003. For efficiency, you will use only the data collected between 2009 and 2016. This section of the dataset was prepared by François Chollet for his book Deep Learning with Python .
+
+This tutorial will just deal with hourly predictions, so start by sub-sampling the data from 10-minute intervals to one-hour intervals:
+
+Let's take a glance at the data. Here are the first few rows:
+
+Here is the evolution of a few features over time:
+
+Inspect and cleanup.
+
+Next, look at the statistics of the dataset:
+
+Wind velocity.
+
+One thing that should stand out is the <code> value of the wind velocity (<code>) and the maximum value (<code>) columns. This <code> is likely erroneous.
+
+There's a separate wind direction column, so the velocity should be greater than zero (<code>). Replace it with zeros:
+
+Feature engineering.
+
+Before diving in to build a model, it's important to understand your data and be sure that you're passing the model appropriately formatted data.
+
+Wind.
+
+The last column of the data, <code>—gives the wind direction in units of degrees. Angles do not make good model inputs: 360° and 0° should be close to each other and wrap around smoothly. Direction shouldn't matter if the wind is not blowing.
+
+Right now the distribution of wind data looks like this:
+
+But this will be easier for the model to interpret if you convert the wind direction and velocity columns to a wind vector:
+
+The distribution of wind vectors is much simpler for the model to correctly interpret:
+
+Time.
+
+Similarly, the <code> column is very useful, but not in this string form. Start by converting it to seconds:
+
+Similar to the wind direction, the time in seconds is not a useful model input. Being weather data, it has clear daily and yearly periodicity. There are many ways you could deal with periodicity.
+
+You can get usable signals by using sine and cosine transforms to clear "Time of day" and "Time of year" signals:
+
+This gives the model access to the most important frequency features. In this case you knew ahead of time which frequencies were important.
+
+If you don't have that information, you can determine which frequencies are important by extracting features with Fast Fourier Transform . To check the assumptions, here is the <code> of the temperature over time. Note the obvious peaks at frequencies near <code> and <code>:
+
+Split the data.
+
+You'll use a <code> split for the training, validation, and test sets. Note the data is not being randomly shuffled before splitting. This is for two reasons:
+
+It ensures that chopping the data into windows of consecutive samples is still possible.
+
+It ensures that the validation/test results are more realistic, being evaluated on the data collected after the model was trained.
+
+Normalize the data.
+
+It is important to scale features before training a neural network. Normalization is a common way of doing this scaling: subtract the mean and divide by the standard deviation of each feature.
+
+The mean and standard deviation should only be computed using the training data so that the models have no access to the values in the validation and test sets.
+
+It's also arguable that the model shouldn't have access to future values in the training set when training, and that this normalization should be done using moving averages. That's not the focus of this tutorial, and the validation and test sets ensure that you get (somewhat) honest metrics. So, in the interest of simplicity this tutorial uses a simple average.
+
+Now, peek at the distribution of the features. Some features do have long tails, but there are no obvious errors like the <code> wind velocity value.
+
+Data windowing.
+
+The models in this tutorial will make a set of predictions based on a window of consecutive samples from the data.
+
+The main features of the input windows are:
+
+The width (number of time steps) of the input and label windows.
+
+The time offset between them.
+
+Which features are used as inputs, labels, or both.
+
+This tutorial builds a variety of models (including Linear, DNN, CNN and RNN models), and uses them for both:
+
+Single-output, and multi-output predictions.
+
+Single-time-step and multi-time-step predictions.
+
+This section focuses on implementing the data windowing so that it can be reused for all of those models.
+
+Depending on the task and type of model you may want to generate a variety of data windows. Here are some examples:
+
+For example, to make a single prediction 24 hours into the future, given 24 hours of history, you might define a window like this:
+
+A model that makes a prediction one hour into the future, given six hours of history, would need a window like this:
+
+The rest of this section defines a <code> class. This class can:
+
+Handle the indexes and offsets as shown in the diagrams above.
+
+Split windows of features into <code> pairs.
+
+Plot the content of the resulting windows.
+
+Efficiently generate batches of these windows from the training, evaluation, and test data, using <code>s.
+
+1. Indexes and offsets.
+
+Start by creating the <code> class. The <code> method includes all the necessary logic for the input and label indices.
+
+It also takes the training, evaluation, and test DataFrames as input. These will be converted to <code>s of windows later.
+
+Here is code to create the 2 windows shown in the diagrams at the start of this section:
+
+2. Split.
+
+Given a list of consecutive inputs, the <code> method will convert them to a window of inputs and a window of labels.
+
+The example <code> you define earlier will be split like this:
+
+This diagram doesn't show the <code> axis of the data, but this <code> function also handles the <code> so it can be used for both the single output and multi-output examples.
+
+Try it out:
+
+Typically, data in TensorFlow is packed into arrays where the outermost index is across examples (the "batch" dimension). The middle indices are the "time" or "space" (width, height) dimension(s). The innermost indices are the features.
+
+The code above took a batch of three 7-time step windows with 19 features at each time step. It splits them into a batch of 6-time step 19-feature inputs, and a 1-time step 1-feature label. The label only has one feature because the <code> was initialized with <code>. Initially, this tutorial will build models that predict single output labels.
+
+3. Plot.
+
+Here is a plot method that allows a simple visualization of the split window:
+
+This plot aligns inputs, labels, and (later) predictions based on the time that the item refers to:
+
+You can plot the other columns, but the example window <code> configuration only has labels for the <code> column.
+
+4. Create <code>s.
+
+Finally, this <code> method will take a time series DataFrame and convert it to a <code> of <code> pairs using the <code> function:
+
+The <code> object holds training, validation, and test data.
+
+Add properties for accessing them as <code>s using the <code> method you defined earlier. Also, add a standard example batch for easy access and plotting:
+
+Now, the <code> object gives you access to the <code> objects, so you can easily iterate over the data.
+
+The <code> property tells you the structure, data types, and shapes of the dataset elements.
+
+Iterating over a <code> yields concrete batches:
+
+Single step models.
+
+The simplest model you can build on this sort of data is one that predicts a single feature's value—1 time step (one hour) into the future based only on the current conditions.
+
+So, start by building models to predict the <code> value one hour into the future.
+
+Configure a <code> object to produce these single-step <code> pairs:
+
+The <code> object creates <code>s from the training, validation, and test sets, allowing you to easily iterate over batches of data.
+
+Baseline.
+
+Before building a trainable model it would be good to have a performance baseline as a point for comparison with the later more complicated models.
+
+This first task is to predict temperature one hour into the future, given the current value of all features. The current values include the current temperature.
+
+So, start with a model that just returns the current temperature as the prediction, predicting "No change". This is a reasonable baseline since temperature changes slowly. Of course, this baseline will work less well if you make a prediction further in the future.
+
+Instantiate and evaluate this model:
+
+That printed some performance metrics, but those don't give you a feeling for how well the model is doing.
+
+The <code> has a plot method, but the plots won't be very interesting with only a single sample.
+
+So, create a wider <code> that generates windows 24 hours of consecutive inputs and labels at a time. The new <code> variable doesn't change the way the model operates. The model still makes predictions one hour into the future based on a single input time step. Here, the <code> axis acts like the <code> axis: each prediction is made independently with no interaction between time steps:
+
+This expanded window can be passed directly to the same <code> model without any code changes. This is possible because the inputs and labels have the same number of time steps, and the baseline just forwards the input to the output:
+
+By plotting the baseline model's predictions, notice that it is simply the labels shifted right by one hour:
+
+In the above plots of three examples the single step model is run over the course of 24 hours. This deserves some explanation:
+
+The blue <code> line shows the input temperature at each time step. The model receives all features, this plot only shows the temperature.
+
+The green <code> dots show the target prediction value. These dots are shown at the prediction time, not the input time. That is why the range of labels is shifted 1 step relative to the inputs.
+
+The orange <code> crosses are the model's prediction's for each output time step. If the model were predicting perfectly the predictions would land directly on the <code>.
+
+Linear model.
+
+The simplest trainable model you can apply to this task is to insert linear transformation between the input and output. In this case the output from a time step only depends on that step:
+
+A <code> layer with no <code> set is a linear model. The layer only transforms the last axis of the data from <code> to <code>; it is applied independently to every item across the <code> and <code> axes.
+
+This tutorial trains many models, so package the training procedure into a function:
+
+Train the model and evaluate its performance:
+
+Like the <code> model, the linear model can be called on batches of wide windows. Used this way the model makes a set of independent predictions on consecutive time steps. The <code> axis acts like another <code> axis. There are no interactions between the predictions at each time step.
+
+Here is the plot of its example predictions on the <code>, note how in many cases the prediction is clearly better than just returning the input temperature, but in a few cases it's worse:
+
+One advantage to linear models is that they're relatively simple to interpret. You can pull out the layer's weights and visualize the weight assigned to each input:
+
+Sometimes the model doesn't even place the most weight on the input <code>. This is one of the risks of random initialization.
+
+Dense.
+
+Before applying models that actually operate on multiple time-steps, it's worth checking the performance of deeper, more powerful, single input step models.
+
+Here's a model similar to the <code> model, except it stacks several a few <code> layers between the input and the output:
+
+Multi-step dense.
+
+A single-time-step model has no context for the current values of its inputs. It can't see how the input features are changing over time. To address this issue the model needs access to multiple time steps when making predictions:
+
+The <code>, <code> and <code> models handled each time step independently. Here the model will take multiple time steps as input to produce a single output.
+
+Create a <code> that will produce batches of three-hour inputs and one-hour labels:
+
+Note that the <code>'s <code> parameter is relative to the end of the two windows.
+
+You could train a <code> model on a multiple-input-step window by adding a <code> as the first layer of the model:
+
+The main down-side of this approach is that the resulting model can only be executed on input windows of exactly this shape.
+
+The convolutional models in the next section fix this problem.
+
+Convolution neural network.
+
+A convolution layer (<code>) also takes multiple time steps as input to each prediction.
+
+Below is the same model as <code>, re-written with a convolution.
+
+Note the changes:
+
+The <code> and the first <code> are replaced by a <code>.
+
+The <code> is no longer necessary since the convolution keeps the time axis in its output.
+
+Run it on an example batch to check that the model produces outputs with the expected shape:
+
+Train and evaluate it on the <code> and it should give performance similar to the <code> model.
+
+The difference between this <code> and the <code> model is that the <code> can be run on inputs of any length. The convolutional layer is applied to a sliding window of inputs:
+
+If you run it on wider input, it produces wider output:
+
+Note that the output is shorter than the input. To make training or plotting work, you need the labels, and prediction to have the same length. So build a <code> to produce wide windows with a few extra input time steps so the label and prediction lengths match:
+
+Now, you can plot the model's predictions on a wider window. Note the 3 input time steps before the first prediction. Every prediction here is based on the 3 preceding time steps:
+
+Recurrent neural network.
+
+A Recurrent Neural Network (RNN) is a type of neural network well-suited to time series data. RNNs process a time series step-by-step, maintaining an internal state from time-step to time-step.
+
+You can learn more in the Text generation with an RNN tutorial and the Recurrent Neural Networks (RNN) with Keras guide.
+
+In this tutorial, you will use an RNN layer called Long Short-Term Memory (<code>).
+
+An important constructor argument for all Keras RNN layers, such as <code>, is the <code> argument. This setting can configure the layer in one of two ways:
+
+If <code>, the default, the layer only returns the output of the final time step, giving the model time to warm up its internal state before making a single prediction:
+
+If <code>, the layer returns an output for each input. This is useful for:
+
+Stacking RNN layers.
+
+Training a model on multiple time steps simultaneously.
+
+With <code>, the model can be trained on 24 hours of data at a time.
+
+Note: This will give a pessimistic view of the model's performance. On the first time step, the model has no access to previous steps and, therefore, can't do any better than the simple <code> and <code> models shown earlier.
+
+Performance.
+
+With this dataset typically each of the models does slightly better than the one before it:
+
+Multi-output models.
+
+The models so far all predicted a single output feature, <code>, for a single time step.
+
+All of these models can be converted to predict multiple features just by changing the number of units in the output layer and adjusting the training windows to include all features in the <code> (<code>):
+
+Note above that the <code> axis of the labels now has the same depth as the inputs, instead of <code>.
+
+Baseline.
+
+The same baseline model (<code>) can be used here, but this time repeating all features instead of selecting a specific <code>:
+
+Dense.
+
+RNN.
+
+Advanced: Residual connections.
+
+The <code> model from earlier took advantage of the fact that the sequence doesn't change drastically from time step to time step. Every model trained in this tutorial so far was randomly initialized, and then had to learn that the output is a a small change from the previous time step.
+
+While you can get around this issue with careful initialization, it's simpler to build this into the model structure.
+
+It's common in time series analysis to build models that instead of predicting the next value, predict how the value will change in the next time step. Similarly, residual networks —or ResNets—in deep learning refer to architectures where each layer adds to the model's accumulating result.
+
+That is how you take advantage of the knowledge that the change should be small.
+
+Essentially, this initializes the model to match the <code>. For this task it helps models converge faster, with slightly better performance.
+
+This approach can be used in conjunction with any model discussed in this tutorial.
+
+Here, it is being applied to the LSTM model, note the use of the <code> to ensure that the initial predicted changes are small, and don't overpower the residual connection. There are no symmetry-breaking concerns for the gradients here, since the <code> are only used on the last layer.
+
+Performance.
+
+Here is the overall performance for these multi-output models.
+
+The above performances are averaged across all model outputs.
+
+Multi-step models.
+
+Both the single-output and multiple-output models in the previous sections made single time step predictions, one hour into the future.
+
+This section looks at how to expand these models to make multiple time step predictions.
+
+In a multi-step prediction, the model needs to learn to predict a range of future values. Thus, unlike a single step model, where only a single future point is predicted, a multi-step model predicts a sequence of the future values.
+
+There are two rough approaches to this:
+
+Single shot predictions where the entire time series is predicted at once.
+
+Autoregressive predictions where the model only makes single step predictions and its output is fed back as its input.
+
+In this section all the models will predict all the features across all output time steps.
+
+For the multi-step model, the training data again consists of hourly samples. However, here, the models will learn to predict 24 hours into the future, given 24 hours of the past.
+
+Here is a <code> object that generates these slices from the dataset:
+
+Baselines.
+
+A simple baseline for this task is to repeat the last input time step for the required number of output time steps:
+
+Since this task is to predict 24 hours into the future, given 24 hours of the past, another simple approach is to repeat the previous day, assuming tomorrow will be similar:
+
+Single-shot models.
+
+One high-level approach to this problem is to use a "single-shot" model, where the model makes the entire sequence prediction in a single step.
+
+This can be implemented efficiently as a <code> with <code> output units. The model just needs to reshape that output to the required <code>.
+
+Linear.
+
+A simple linear model based on the last input time step does better than either baseline, but is underpowered. The model needs to predict <code> time steps, from a single input time step with a linear projection. It can only capture a low-dimensional slice of the behavior, likely based mainly on the time of day and time of year.
+
+Dense.
+
+Adding a <code> between the input and output gives the linear model more power, but is still only based on a single input time step.
+
+CNN.
+
+A convolutional model makes predictions based on a fixed-width history, which may lead to better performance than the dense model since it can see how things are changing over time:
+
+RNN.
+
+A recurrent model can learn to use a long history of inputs, if it's relevant to the predictions the model is making. Here the model will accumulate internal state for 24 hours, before making a single prediction for the next 24 hours.
+
+In this single-shot format, the LSTM only needs to produce an output at the last time step, so set <code> in <code>.
+
+Advanced: Autoregressive model.
+
+The above models all predict the entire output sequence in a single step.
+
+In some cases it may be helpful for the model to decompose this prediction into individual time steps. Then, each model's output can be fed back into itself at each step and predictions can be made conditioned on the previous one, like in the classic Generating Sequences With Recurrent Neural Networks .
+
+One clear advantage to this style of model is that it can be set up to produce output with a varying length.
+
+You could take any of the single-step multi-output models trained in the first half of this tutorial and run in an autoregressive feedback loop, but here you'll focus on building a model that's been explicitly trained to do that.
+
+RNN.
+
+This tutorial only builds an autoregressive RNN model, but this pattern could be applied to any model that was designed to output a single time step.
+
+The model will have the same basic form as the single-step LSTM models from earlier: a <code> layer followed by a <code> layer that converts the <code> layer's outputs to model predictions.
+
+A <code> is a <code> wrapped in the higher level <code> that manages the state and sequence results for you (Check out the Recurrent Neural Networks (RNN) with Keras guide for details).
+
+In this case, the model has to manually manage the inputs for each step, so it uses <code> directly for the lower level, single time step interface.
+
+The first method this model needs is a <code> method to initialize its internal state based on the inputs. Once trained, this state will capture the relevant parts of the input history. This is equivalent to the single-step <code> model from earlier:
+
+This method returns a single time-step prediction and the internal state of the <code>:
+
+With the <code>'s state, and an initial prediction you can now continue iterating the model feeding the predictions at each step back as the input.
+
+The simplest approach for collecting the output predictions is to use a Python list and a <code> after the loop.
+
+Note: Stacking a Python list like this only works with eager-execution, using <code> for training, or with a fixed length output. For a dynamic output length, you would need to use a <code> instead of a Python list, and <code> instead of the Python <code>.
+
+Test run this model on the example inputs:
+
+Now, train the model:
+
+Performance.
+
+There are clearly diminishing returns as a function of model complexity on this problem:
+
+The metrics for the multi-output models in the first half of this tutorial show the performance averaged across all output features. These performances are similar but also averaged across output time steps.
+
+The gains achieved going from a dense model to convolutional and recurrent models are only a few percent (if any), and the autoregressive model performed clearly worse. So these more complex approaches may not be worth while on this problem, but there was no way to know without trying, and these models could be helpful for your problem.
+
+Next steps.
+
+This tutorial was a quick introduction to time series forecasting using TensorFlow.
+
+To learn more, refer to:
+
+Chapter 15 of Hands-on Machine Learning with Scikit-Learn, Keras, and TensorFlow , 2nd Edition.
+
+Chapter 6 of Deep Learning with Python .
+
+Lesson 8 of Udacity's intro to TensorFlow for deep learning , including the exercise notebooks .
+
+Also, remember that you can implement any classical time series model in TensorFlow—this tutorial just focuses on TensorFlow's built-in functionality.

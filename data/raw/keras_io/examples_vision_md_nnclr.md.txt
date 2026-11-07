@@ -1,0 +1,79 @@
+Self-supervised contrastive learning with NNCLR.
+
+Introduction.
+
+Self-supervised learning.
+
+Self-supervised representation learning aims to obtain robust representations of samples from raw data without expensive labels or annotations. Early methods in this field focused on defining pretraining tasks which involved a surrogate task on a domain with ample weak supervision labels. Encoders trained to solve such tasks are expected to learn general features that might be useful for other downstream tasks requiring expensive annotations like image classification.
+
+Contrastive Learning.
+
+A broad category of self-supervised learning techniques are those that use contrastive losses, which have been used in a wide range of computer vision applications like image similarity, dimensionality reduction (DrLIM) and face verification/identification. These methods learn a latent space that clusters positive samples together while pushing apart negative samples.
+
+NNCLR.
+
+In this example, we implement NNCLR as proposed in the paper With a Little Help from My Friends: Nearest-Neighbor Contrastive Learning of Visual Representations, by Google Research and DeepMind.
+
+NNCLR learns self-supervised representations that go beyond single-instance positives, which allows for learning better features that are invariant to different viewpoints, deformations, and even intra-class variations. Clustering based methods offer a great approach to go beyond single instance positives, but assuming the entire cluster to be positives could hurt performance due to early over-generalization. Instead, NNCLR uses nearest neighbors in the learned representation space as positives. In addition, NNCLR increases the performance of existing contrastive learning methods like SimCLR(Keras Example) and reduces the reliance of self-supervised methods on data augmentation strategies.
+
+Here is a great visualization by the paper authors showing how NNCLR builds on ideas from SimCLR:
+
+We can see that SimCLR uses two views of the same image as the positive pair. These two views, which are produced using random data augmentations, are fed through an encoder to obtain the positive embedding pair, we end up using two augmentations. NNCLR instead keeps a support set of embeddings representing the full data distribution, and forms the positive pairs using nearest-neighbours. A support set is used as memory during training, similar to a queue (i.e. first-in-first-out) as in MoCo.
+
+This example requires <code>, which can be installed with this command:
+
+Setup.
+
+Hyperparameters.
+
+A greater <code> most likely means better performance as shown in the original paper, but introduces significant computational overhead. The authors show that the best results of NNCLR are achieved with a queue size of 98,304 (the largest <code> they experimented on). We here use 10,000 to show a working example.
+
+Load the Dataset.
+
+We load the STL-10 dataset from TensorFlow Datasets, an image recognition dataset for developing unsupervised feature learning, deep learning, self-taught learning algorithms. It is inspired by the CIFAR-10 dataset, with some modifications.
+
+Augmentations.
+
+Other self-supervised techniques like SimCLR, BYOL, SwAV etc. rely heavily on a well-designed data augmentation pipeline to get the best performance. However, NNCLR is less dependent on complex augmentations as nearest-neighbors already provide richness in sample variations. A few common techniques often included augmentation pipelines are:
+
+Random resized crops.
+
+Multiple color distortions.
+
+Gaussian blur.
+
+Since NNCLR is less dependent on complex augmentations, we will only use random crops and random brightness for augmenting the input images.
+
+Prepare augmentation module.
+
+Encoder architecture.
+
+Using a ResNet-50 as the encoder architecture is standard in the literature. In the original paper, the authors use ResNet-50 as the encoder architecture and spatially average the outputs of ResNet-50. However, keep in mind that more powerful models will not only increase training time but will also require more memory and will limit the maximal batch size you can use. For the purpose of this example, we just use four convolutional layers.
+
+The NNCLR model for contrastive pre-training.
+
+We train an encoder on unlabeled images with a contrastive loss. A nonlinear projection head is attached to the top of the encoder, as it improves the quality of representations of the encoder.
+
+Pre-train NNCLR.
+
+We train the network using a <code> of 0.1 as suggested in the paper and a <code> of 10,000 as explained earlier. We use Adam as our contrastive and probe optimizer. For this example we train the model for only 30 epochs but it should be trained for more epochs for better performance.
+
+The following two metrics can be used for monitoring the pretraining performance which we also log (taken from this Keras example):
+
+Contrastive accuracy: self-supervised metric, the ratio of cases in which the representation of an image is more similar to its differently augmented version's one, than to the representation of any other image in the current batch. Self-supervised metrics can be used for hyperparameter tuning even in the case when there are no labeled examples.
+
+Linear probing accuracy: linear probing is a popular metric to evaluate self-supervised classifiers. It is computed as the accuracy of a logistic regression classifier trained on top of the encoder's features. In our case, this is done by training a single dense layer on top of the frozen encoder. Note that contrary to traditional approach where the classifier is trained after the pretraining phase, in this example we train it during pretraining. This might slightly decrease its accuracy, but that way we can monitor its value during training, which helps with experimentation and debugging.
+
+Self supervised learning is particularly helpful when you do only have access to very limited labeled training data but you can manage to build a large corpus of unlabeled data as shown by previous methods like SEER, SimCLR, SwAV and more.
+
+You should also take a look at the blog posts for these papers which neatly show that it is possible to achieve good results with few class labels by first pretraining on a large unlabeled dataset and then fine-tuning on a smaller labeled dataset:
+
+Advancing Self-Supervised and Semi-Supervised Learning with SimCLR.
+
+High-performance self-supervised image classification with contrastive clustering.
+
+Self-supervised learning: The dark matter of intelligence.
+
+You are also advised to check out the original paper.
+
+Many thanks to Debidatta Dwibedi (Google Research), primary author of the NNCLR paper for his super-insightful reviews for this example. This example also takes inspiration from the SimCLR Keras Example.

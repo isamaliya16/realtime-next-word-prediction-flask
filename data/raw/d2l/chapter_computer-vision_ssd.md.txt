@@ -1,0 +1,125 @@
+Single Shot Multibox Detection.
+
+In section <num>--section <num>, we introduced bounding boxes, anchor boxes, multiscale object detection, and the dataset for object detection. Now we are ready to use such background knowledge to design an object detection model: single shot multibox detection (SSD) . This model is simple, fast, and widely used. Although this is just one of vast amounts of object detection models, some of the design principles and implementation details in this section are also applicable to other models.
+
+Model.
+
+section <num> provides an overview of the design of single-shot multibox detection. This model mainly consists of a base network followed by several multiscale feature map blocks. The base network is for extracting features from the input image, so it can use a deep CNN. For example, the original single-shot multibox detection paper adopts a VGG network truncated before the classification layer , while ResNet has also been commonly used. Through our design we can make the base network output larger feature maps so as to generate more anchor boxes for detecting smaller objects. Subsequently, each multiscale feature map block reduces (e.g., by half) the height and width of the feature maps from the previous block, and enables each unit of the feature maps to increase its receptive field on the input image.
+
+Recall the design of multiscale object detection through layerwise representations of images by deep neural networks in section <num>. Since multiscale feature maps closer to the top of section <num> are smaller but have larger receptive fields, they are suitable for detecting fewer but larger objects.
+
+In a nutshell, via its base network and several multiscale feature map blocks, single-shot multibox detection generates a varying number of anchor boxes with different sizes, and detects varying-size objects by predicting classes and offsets of these anchor boxes (thus the bounding boxes); thus, this is a multiscale object detection model.
+
+In the following, we will describe the implementation details of different blocks in section <num>. To begin with, we discuss how to implement the class and bounding box prediction.
+
+[Class Prediction Layer].
+
+Let the number of object classes be <math>. Then anchor boxes have <math> classes, where class 0 is background. At some scale, suppose that the height and width of feature maps are <math> and <math>, respectively. When <math> anchor boxes are generated with each spatial position of these feature maps as their center, a total of <math> anchor boxes need to be classified. This often makes classification with fully connected layers infeasible due to likely heavy parametrization costs. Recall how we used channels of convolutional layers to predict classes in section <num>. Single-shot multibox detection uses the same technique to reduce model complexity.
+
+Specifically, the class prediction layer uses a convolutional layer without altering width or height of feature maps. In this way, there can be a one-to-one correspondence between outputs and inputs at the same spatial dimensions (width and height) of feature maps. More concretely, channels of the output feature maps at any spatial position (<math>, <math>) represent class predictions for all the anchor boxes centered on (<math>, <math>) of the input feature maps. To produce valid predictions, there must be <math> output channels, where for the same spatial position the output channel with index <math> represents the prediction of the class <math> (<math>) for the anchor box <math> (<math>).
+
+Below we define such a class prediction layer, specifying <math> and <math> via arguments <code> and <code>, respectively. This layer uses a <math> convolutional layer with a padding of 1. The width and height of the input and output of this convolutional layer remain unchanged.
+
+(Bounding Box Prediction Layer).
+
+The design of the bounding box prediction layer is similar to that of the class prediction layer. The only difference lies in the number of outputs for each anchor box: here we need to predict four offsets rather than <math> classes.
+
+[Concatenating Predictions for Multiple Scales].
+
+As we mentioned, single-shot multibox detection uses multiscale feature maps to generate anchor boxes and predict their classes and offsets. At different scales, the shapes of feature maps or the numbers of anchor boxes centered on the same unit may vary. Therefore, shapes of the prediction outputs at different scales may vary.
+
+In the following example, we construct feature maps at two different scales, <code> and <code>, for the same minibatch, where the height and width of <code> are half of those of <code>. Let's take class prediction as an example. Suppose that 5 and 3 anchor boxes are generated for every unit in <code> and <code>, respectively. Suppose further that the number of object classes is 10. For feature maps <code> and <code> the numbers of channels in the class prediction outputs are <math> and <math>, respectively, where either output shape is (batch size, number of channels, height, width).
+
+As we can see, except for the batch size dimension, the other three dimensions all have different sizes. To concatenate these two prediction outputs for more efficient computation, we will transform these tensors into a more consistent format.
+
+Note that the channel dimension holds the predictions for anchor boxes with the same center. We first move this dimension to the innermost. Since the batch size remains the same for different scales, we can transform the prediction output into a two-dimensional tensor with shape (batch size, height <math> width <math> number of channels). Then we can concatenate such outputs at different scales along dimension 1.
+
+In this way, even though <code> and <code> have different sizes in channels, heights, and widths, we can still concatenate these two prediction outputs at two different scales for the same minibatch.
+
+[Downsampling Block].
+
+In order to detect objects at multiple scales, we define the following downsampling block <code> that halves the height and width of input feature maps. In fact, this block applies the design of VGG blocks in section <num>. More concretely, each downsampling block consists of two <math> convolutional layers with padding of 1 followed by a <math> max-pooling layer with stride of 2. As we know, <math> convolutional layers with padding of 1 do not change the shape of feature maps. However, the subsequent <math> max-pooling reduces the height and width of input feature maps by half. For both input and output feature maps of this downsampling block, because <math>, each unit in the output has a <math> receptive field on the input. Therefore, the downsampling block enlarges the receptive field of each unit in its output feature maps.
+
+In the following example, our constructed downsampling block changes the number of input channels and halves the height and width of the input feature maps.
+
+[Base Network Block].
+
+The base network block is used to extract features from input images. For simplicity, we construct a small base network consisting of three downsampling blocks that double the number of channels at each block. Given a <math> input image, this base network block outputs <math> feature maps (<math>).
+
+The Complete Model.
+
+[The complete single shot multibox detection model consists of five blocks.] The feature maps produced by each block are used for both (i) generating anchor boxes and (ii) predicting classes and offsets of these anchor boxes. Among these five blocks, the first one is the base network block, the second to the fourth are downsampling blocks, and the last block uses global max-pooling to reduce both the height and width to 1. Technically, the second to the fifth blocks are all those multiscale feature map blocks in section <num>.
+
+Now we [define the forward propagation] for each block. Different from in image classification tasks, outputs here include (i) CNN feature maps <code>, (ii) anchor boxes generated using <code> at the current scale, and (iii) classes and offsets predicted (based on <code>) for these anchor boxes.
+
+Recall that in section <num> a multiscale feature map block that is closer to the top is for detecting larger objects; thus, it needs to generate larger anchor boxes. In the above forward propagation, at each multiscale feature map block we pass in a list of two scale values via the <code> argument of the invoked <code> function (described in section <num>). In the following, the interval between 0.2 and 1.05 is split evenly into five sections to determine the smaller scale values at the five blocks: 0.2, 0.37, 0.54, 0.71, and 0.88. Then their larger scale values are given by <math>, <math>, and so on.
+
+[~~Hyperparameters for each block~~].
+
+Now we can [define the complete model] <code> as follows.
+
+We [create a model instance and use it to perform forward propagation] on a minibatch of <math> images <code>.
+
+As shown earlier in this section, the first block outputs <math> feature maps. Recall that the second to fourth downsampling blocks halve the height and width and the fifth block uses global pooling. Since 4 anchor boxes are generated for each unit along spatial dimensions of feature maps, at all the five scales a total of <math> anchor boxes are generated for each image.
+
+Training.
+
+Now we will explain how to train the single shot multibox detection model for object detection.
+
+Reading the Dataset and Initializing the Model.
+
+To begin with, let's [read the banana detection dataset] described in section <num>.
+
+There is only one class in the banana detection dataset. After defining the model, we need to (initialize its parameters and define the optimization algorithm).
+
+[Defining Loss and Evaluation Functions].
+
+Object detection has two types of losses. The first loss concerns classes of anchor boxes: its computation can simply reuse the cross-entropy loss function that we used for image classification. The second loss concerns offsets of positive (non-background) anchor boxes: this is a regression problem. For this regression problem, however, here we do not use the squared loss described in section <num>. Instead, we use the <math> norm loss, the absolute value of the difference between the prediction and the ground-truth. The mask variable <code> filters out negative anchor boxes and illegal (padded) anchor boxes in the loss calculation. In the end, we sum up the anchor box class loss and the anchor box offset loss to obtain the loss function for the model.
+
+We can use accuracy to evaluate the classification results. Due to the used <math> norm loss for the offsets, we use the mean absolute error to evaluate the predicted bounding boxes. These prediction results are obtained from the generated anchor boxes and the predicted offsets for them.
+
+[Training the Model].
+
+When training the model, we need to generate multiscale anchor boxes (<code>) and predict their classes (<code>) and offsets (<code>) in the forward propagation. Then we label the classes (<code>) and offsets (<code>) of such generated anchor boxes based on the label information <code>. Finally, we calculate the loss function using the predicted and labeled values of the classes and offsets. For concise implementations, evaluation of the test dataset is omitted here.
+
+[Prediction].
+
+During prediction, the goal is to detect all the objects of interest on the image. Below we read and resize a test image, converting it to a four-dimensional tensor that is required by convolutional layers.
+
+Using the <code> function below, the predicted bounding boxes are obtained from the anchor boxes and their predicted offsets. Then non-maximum suppression is used to remove similar predicted bounding boxes.
+
+Finally, we [display all the predicted bounding boxes with confidence 0.9 or above] as output.
+
+Summary.
+
+Single shot multibox detection is a multiscale object detection model. Via its base network and several multiscale feature map blocks, single-shot multibox detection generates a varying number of anchor boxes with different sizes, and detects varying-size objects by predicting classes and offsets of these anchor boxes (thus the bounding boxes).
+
+When training the single-shot multibox detection model, the loss function is calculated based on the predicted and labeled values of the anchor box classes and offsets.
+
+Exercises.
+
+Can you improve the single-shot multibox detection by improving the loss function? For example, replace <math> norm loss with smooth <math> norm loss for the predicted offsets. This loss function uses a square function around zero for smoothness, which is controlled by the hyperparameter <math>:
+
+<math>.
+
+When <math> is very large, this loss is similar to the <math> norm loss. When its value is smaller, the loss function is smoother.
+
+Besides, in the experiment we used cross-entropy loss for class prediction: denoting by <math> the predicted probability for the ground-truth class <math>, the cross-entropy loss is <math>. We can also use the focal loss : given hyperparameters <math> and <math>, this loss is defined as:
+
+<math>.
+
+As we can see, increasing <math> can effectively reduce the relative loss for well-classified examples (e.g., <math>) so the training can focus more on those difficult examples that are misclassified.
+
+Due to space limitations, we have omitted some implementation details of the single shot multibox detection model in this section. Can you further improve the model in the following aspects:
+
+When an object is much smaller compared with the image, the model could resize the input image bigger.
+
+There are typically a vast number of negative anchor boxes. To make the class distribution more balanced, we could downsample negative anchor boxes.
+
+In the loss function, assign different weight hyperparameters to the class loss and the offset loss.
+
+Use other methods to evaluate the object detection model, such as those in the single shot multibox detection paper .
+
+Discussions.
+
+Discussions.

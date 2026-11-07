@@ -1,0 +1,289 @@
+torch.export Tutorial Author: William Wen, Zhengxu Chen, Angela Yi, Pian Pawakapan.
+
+torch.export is the PyTorch 2.X way to export PyTorch models into standardized model representations, intended to be run on different (i.e. Python-less) environments. The official documentation can be found here.
+
+In this tutorial, you will learn how to use torch.export to extract <code>'s (i.e. single-graph representations) from PyTorch programs. We also detail some considerations/modifications that you may need to make in order to make your model compatible with <code>.
+
+Contents.
+
+Basic Usage.
+
+<code> extracts single-graph representations from PyTorch programs by tracing the target function, given example inputs. <code> is the main entry point for <code>.
+
+In this tutorial, <code> and <code> are practically synonymous, though <code> generally refers to the PyTorch 2.X export process, and <code> generally refers to the actual function call.
+
+The signature of <code> is:
+
+<code> traces the tensor computation graph from calling <code> and wraps it in an <code>, which can be serialized or executed later with different inputs. To execute the <code> we can call <code> on it to return a <code> which is callable, just like the original program. We will detail the <code> argument later in the tutorial.
+
+Let's review some attributes of <code> that are of interest.
+
+The <code> attribute is an FX graph traced from the function we exported, that is, the computation graph of all PyTorch operations. The FX graph is in "ATen IR" meaning that it contains only "ATen-level" operations.
+
+The <code> attribute gives a more detailed description of the input and output nodes in the exported graph, describing which ones are parameters, buffers, user inputs, or user outputs.
+
+The <code> attributes will be covered later.
+
+See the <code> documentation for more details.
+
+Graph Breaks.
+
+Although <code> shares components with <code>, the key limitation of <code>, especially when compared to <code>, is that it does not support graph breaks. This is because handling graph breaks involves interpreting the unsupported operation with default Python evaluation, which is incompatible with the export use case. Therefore, in order to make your model code compatible with <code>, you will need to modify your code to remove graph breaks.
+
+A graph break is necessary in cases such as:
+
+data-dependent control flow.
+
+accessing tensor data with <code>.
+
+calling unsupported functions (such as many built-in functions).
+
+Non-Strict Export.
+
+To trace the program, <code> uses TorchDynamo by default, a byte code analysis engine, to symbolically analyze the Python code and build a graph based on the results. This analysis allows <code> to provide stronger guarantees about safety, but not all Python code is supported, causing these graph breaks.
+
+To address this issue, in PyTorch 2.3, we introduced a new mode of exporting called non-strict mode, where we trace through the program using the Python interpreter executing it exactly as it would in eager mode, allowing us to skip over unsupported Python features. This is done through adding a <code> flag.
+
+Looking at some of the previous examples which resulted in graph breaks:
+
+Calling unsupported functions (such as many built-in functions) traces through, but in this case, <code> gets specialized as a constant integer in the graph. This is because <code> is not a tensor operation, so the operation is not recorded in the graph.
+
+However, there are still some features that require rewrites to the original module:
+
+Control Flow Ops.
+
+<code> actually does support data-dependent control flow. But these need to be expressed using control flow ops. For example, we can fix the control flow example above using the <code> op, like so:
+
+There are limitations to <code> that one should be aware of:
+
+The predicate (i.e. <code>) must result in a boolean or a single-element tensor.
+
+The operands (i.e. <code>) must be tensors.
+
+The branch function (i.e. <code> and <code>) signature must match with the operands and they must both return a single tensor with the same metadata (for example, <code>, <code>, etc.).
+
+Branch functions cannot mutate input or global variables.
+
+Branch functions cannot access closure variables, except for <code> if the function is defined in the scope of a method.
+
+For more details about <code>, check out the cond documentation.
+
+We can also use <code>, which applies a function across the first dimension of the first tensor argument.
+
+Other control flow ops include <code>, <code>, and <code>. For more documentation on each operator, please refer to this page.
+
+Constraints/Dynamic Shapes.
+
+This section covers dynamic behavior and representation of exported programs. Dynamic behavior is subjective to the particular model being exported, so for the most part of this tutorial, we'll focus on this particular toy model (with the resulting tensor shapes annotated):
+
+By default, <code> produces a static program. One consequence of this is that at runtime, the program won't work on inputs with different shapes, even if they're valid in eager mode.
+
+Basic concepts: symbols and guards.
+
+To enable dynamism, <code> provides a <code> argument. The easiest way to work with dynamic shapes is using <code> and looking at the program that's returned. Dynamic behavior is specified at a input dimension-level; for each input we can specify a tuple of values:
+
+Before we look at the program that's produced, let's understand what specifying <code> entails, and how that interacts with export. For every input dimension where a <code> object is specified, a symbol is allocated, taking on a range of <code> (why not <code> or <code>? we'll explain later in the 0/1 specialization section).
+
+Export then runs model tracing, looking at each operation that's performed by the model. Each individual operation can emit what's called "guards"; basically boolean condition that are required to be true for the program to be valid. When guards involve symbols allocated for input dimensions, the program contains restrictions on what input shapes are valid; i.e. the program's dynamic behavior. The symbolic shapes subsystem is the part responsible for taking in all the emitted guards and producing a final program representation that adheres to all of these guards. Before we see this "final representation" in an <code>, let's look at the guards emitted by the toy model we're tracing.
+
+Here, each forward input tensor is annotated with the symbol allocated at the start of tracing:
+
+Let's understand each of the operations and the emitted guards:
+
+<code>: This is an element-wise add with broadcasting, since <code> is a 1-d tensor and <code> a 2-d tensor. <code> is broadcasted along the last dimension of <code>, emitting the guard <code>.
+
+<code>: Calling <code> performs a matrix multiplication with model parameters. In export, parameters, buffers, and constants are considered program state, which is considered static, and so this is a matmul between a dynamic input (<code>), and a statically-shaped tensor. This emits the guard <code>.
+
+<code>: This call actually doesn't emit any guards! (at least none relevant to input shapes).
+
+<code>: <code> has shape <code> after flattening, and this element-wise add emits <code>.
+
+Writing all of these guards down and summarizing is almost like a mathematical proof, which is what the symbolic shapes subsystem tries to do! In summary, we can conclude that the program must have the following input shapes to be valid:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+And when we do finally print out the exported program to see our result, those shapes are what we see annotated on the corresponding inputs:
+
+Another feature to notice is the range_constraints field above, which contains a valid range for each symbol. This isn't so interesting currently, since this export call doesn't emit any guards related to symbol bounds and each base symbol has a generic bound, but this will come up later.
+
+So far, because we've been exporting this toy model, this experience has not been representative of how hard it typically is to debug dynamic shapes guards & issues. In most cases it isn't obvious what guards are being emitted, and which operations and parts of user code are responsible. For this toy model we pinpoint the exact lines, and the guards are rather intuitive.
+
+In more complicated cases, a helpful first step is always to enable verbose logging. This can be done either with the environment variable <code>, or interactively with <code>:
+
+This spits out quite a handful, even with this simple toy model. The log lines here have been cut short at front and end to ignore unnecessary info, but looking through the logs we can see the lines relevant to what we described above; e.g. the allocation of symbols:
+
+The lines with <code> show when a new symbol has been allocated, and the logs also identify the tensor variable names and dimensions they've been allocated for. In other lines we can also see the guards emitted:
+
+Next to the <code> messages, we also see the responsible user lines of code - luckily here the model is simple enough. In many real-world cases it's not so straightforward: high-level torch operations can have complicated fake-kernel implementations or operator decompositions that complicate where and what guards are emitted. In such cases the best way to dig deeper and investigate is to follow the logs' suggestion, and re-run with environment variable <code>, to further attribute the guard of interest.
+
+<code> is just one of the available options for interacting with <code>; as of writing this 2 other options are available: <code>, and <code>. <code> simply marks a dimension static, while <code> is similar to <code> in all ways except one: it raises an error when specializing to a constant; this is designed to maintain dynamism. See for example what happens when a static guard is emitted on a dynamically-marked dimension:
+
+Static guards also aren't always inherent to the model; they can also come from user specifications. In fact, a common pitfall leading to shape specializations is when the user specifies conflicting markers for equivalent dimensions; one dynamic and another static. The same error type is raised when this is the case for <code> and <code>:
+
+Here you might ask why export "specializes", i.e. why we resolve this static/dynamic conflict by going with the static route. The answer is because of the symbolic shapes system described above, of symbols and guards. When <code> is marked static, we don't allocate a symbol, and compile treating this shape as a concrete integer 4. A symbol is allocated for <code>, and so we finally emit the guard <code>, leading to specialization.
+
+One feature of export is that during tracing, statements like asserts, <code>, and <code> conditions will also emit guards. See what happens when we augment the existing model with such statements:
+
+Each of these statements emits an additional guard, and the exported program shows the changes; <code> is eliminated in favor of <code>, and <code> now contains lower and upper bounds, reflected in <code>.
+
+For the if/else condition, you might ask why the True branch was taken, and why it wasn't the <code> guard that got emitted from tracing. The answer is that export is guided by the sample inputs provided by tracing, and specializes on the branches taken. If different sample input shapes were provided that fail the <code> condition, export would trace and emit guards corresponding to the <code> branch. Additionally, you might ask why we traced only the <code> branch, and if it's possible to maintain control-flow in your program and keep both branches alive. For that, refer to rewriting your model code following the <code> section above.
+
+0/1 specialization.
+
+Since we're talking about guards and specializations, it's a good time to talk about the 0/1 specialization issue we brought up earlier. The bottom line is that export will specialize on sample input dimensions with value 0 or 1, because these shapes have trace-time properties that don't generalize to other shapes. For example, size 1 tensors can broadcast while other sizes fail; and size 0 ... . This just means that you should specify 0/1 sample inputs when you'd like your program to hardcode them, and non-0/1 sample inputs when dynamic behavior is desirable. See what happens at runtime when we export this linear layer:
+
+Named Dims.
+
+So far we've only been talking about 3 ways to specify dynamic shapes: <code>, <code>, and <code>. The attraction of these is the low-friction user experience; all the guards emitted during model tracing are adhered to, and dynamic behavior like min/max ranges, relations, and static/dynamic dimensions are automatically figured out underneath export. The dynamic shapes subsystem essentially acts as a "discovery" process, summarizing these guards and presenting what export believes is the overall dynamic behavior of the program. The drawback of this design appears once the user has stronger expectations or beliefs about the dynamic behavior of these models - maybe there is a strong desire on dynamism and specializations on particular dimensions are to be avoided at all costs, or maybe we just want to catch changes in dynamic behavior with changes to the original model code, or possibly underlying decompositions or meta-kernels. These changes won't be detected and the <code> call will most likely succeed, unless tests are in place that check the resulting <code> representation.
+
+For such cases, our stance is to recommend the "traditional" way of specifying dynamic shapes, which longer-term users of export might be familiar with: named <code>:
+
+This style of dynamic shapes allows the user to specify what symbols are allocated for input dimensions, min/max bounds on those symbols, and places restrictions on the dynamic behavior of the <code> produced; <code> errors will be raised if model tracing emits guards that conflict with the relations or static/dynamic specifications given. For example, in the above specification, the following is asserted:
+
+<code> is to have range <code>, and related to <code> by <code>.
+
+<code> is static.
+
+<code> has range <code>, and is unrelated to any other dimension.
+
+In this design, we allow relations between dimensions to be specified with univariate linear expressions: <code> can be specified for any dimension. This allows users to specify more complex constraints like integer divisibility for dynamic dimensions:
+
+Constraint violations, suggested fixes.
+
+One common issue with this specification style (before <code> was introduced), is that the specification would often be mismatched with what was produced by model tracing. That would lead to <code> errors and export suggested fixes - see for example with this model & specification, where the model inherently requires equality between dimensions 0 of <code> and <code>, and requires dimension 1 to be static.
+
+The expectation with suggested fixes is that the user can interactively copy-paste the changes into their dynamic shapes specification, and successfully export afterwards.
+
+Lastly, there's couple nice-to-knows about the options for specification:
+
+<code> is a good option for static behavior:
+
+<code> (default) exports with the entire model being static.
+
+specifying <code> at an input-level exports with all tensor dimensions static, and is also required for non-tensor inputs.
+
+specifying <code> at a dimension-level specializes that dimension, though this is deprecated in favor of <code>.
+
+specifying per-dimension integer values also produces static behavior, and will additionally check that the provided sample input matches the specification.
+
+These options are combined in the inputs & dynamic shapes spec below:
+
+Data-dependent errors.
+
+While trying to export models, you have may have encountered errors like "Could not guard on data-dependent expression", or Could not extract specialized integer from data-dependent expression". These errors exist because <code> compiles programs using FakeTensors, which symbolically represent their real tensor counterparts. While these have equivalent symbolic properties (e.g. sizes, strides, dtypes), they diverge in that FakeTensors do not contain any data values. While this avoids unnecessary memory usage and expensive computation, it does mean that export may be unable to out-of-the-box compile parts of user code where compilation relies on data values. In short, if the compiler requires a concrete, data-dependent value in order to proceed, it will error out, complaining that the value is not available.
+
+Data-dependent values appear in many places, and common sources are calls like <code>, <code>, or <code> that extract scalar values from tensors. How are these values represented in the exported program? In the Constraints/Dynamic Shapes section, we talked about allocating symbols to represent dynamic input dimensions. The same happens here: we allocate symbols for every data-dependent value that appears in the program. The important distinction is that these are "unbacked" symbols, in contrast to the "backed" symbols allocated for input dimensions. The "backed/unbacked" nomenclature refers to the presence/absence of a "hint" for the symbol: a concrete value backing the symbol, that can inform the compiler on how to proceed.
+
+In the input shape symbol case (backed symbols), these hints are simply the sample input shapes provided, which explains why control-flow branching is determined by the sample input properties. For data-dependent values, the symbols are taken from FakeTensor "data" during tracing, and so the compiler doesn't know the actual values (hints) that these symbols would take on.
+
+Let's see how these show up in exported programs:
+
+The result is that 3 unbacked symbols (notice they're prefixed with "u", instead of the usual "s" for input shape/backed symbols) are allocated and returned: 1 for the <code> call, and 1 for each of the elements of <code> with the <code> call. Note from the range constraints field that these take on ranges of <code>, not the default <code> range allocated to input shape symbols, since we have no information on what these values are - they don't represent sizes, so don't necessarily have positive values.
+
+Guards, torch._check().
+
+But the case above is easy to export, because the concrete values of these symbols aren't used in any compiler decision-making; all that's relevant is that the return values are unbacked symbols. The data-dependent errors highlighted in this section are cases like the following, where data-dependent guards are encountered:
+
+Here we actually need the "hint", or the concrete value of <code> for the compiler to decide whether to trace <code> or <code> as the output. Because we trace with FakeTensors, we don't know what <code> actually evaluates to, and export errors out with "Could not guard on data-dependent expression <code>".
+
+So how do we export this toy model? Unlike <code>, export requires full graph compilation, and we can't just graph break on this. Here are some basic options:
+
+Manual specialization: we could intervene by selecting the branch to trace, either by removing the control-flow code to contain only the specialized branch, or using <code> to guard what's traced at compile-time.
+
+<code>: we could rewrite the control-flow code to use <code> so we don't specialize on a branch.
+
+While these options are valid, they have their pitfalls. Option 1 sometimes requires drastic, invasive rewrites of the model code to specialize, and <code> is not a comprehensive system for handling data-dependent errors. As we will see, there are data-dependent errors that do not involve control-flow.
+
+The generally recommended approach is to start with <code> calls. While these give the impression of purely being assert statements, they are in fact a system of informing the compiler on properties of symbols. While a <code> call does act as an assertion at runtime, when traced at compile-time, the checked expression is sent to the symbolic shapes subsystem for reasoning, and any symbol properties that follow from the expression being true, are stored as symbol properties (provided it's smart enough to infer those properties). So even if unbacked symbols don't have hints, if we're able to communicate properties that are generally true for these symbols via <code> calls, we can potentially bypass data-dependent guards without rewriting the offending model code.
+
+For example in the model above, inserting <code> would tell the compiler that <code> can always be returned, and <code> tells it to return <code>. See what happens when we re-export this model.
+
+Export succeeds, and note from the range constraints field that <code> takes on a range of <code>.
+
+So what information do <code> calls actually communicate? This varies as the symbolic shapes subsystem gets smarter, but at a fundamental level, these are generally true:
+
+Equality with non-data-dependent expressions: <code> calls that communicate equalities like <code> or <code>.
+
+Range refinement: calls that provide lower or upper bounds for symbols, like the above.
+
+Some basic reasoning around more complicated expressions: inserting <code> will typically tell the compiler that <code> is false. Checks on complex expressions like <code> will typically get you past identical guards.
+
+As mentioned previously, <code> calls have applicability outside of data-dependent control flow. For example, here's a model where <code> insertion prevails while manual specialization & <code> do not:
+
+Here is a scenario where <code> insertion is required simply to prevent an operation from failing. The export call will fail with "Could not guard on data-dependent expression <code>", implying that the compiler doesn't know if this is a valid indexing operation - if the value of <code> is out-of-bounds for <code> or not. Here, manual specialization is too prohibitive, and <code> has no place. Instead, informing the compiler of <code>'s range is sufficient:
+
+Specialized values.
+
+Another category of data-dependent error happens when the program attempts to extract a concrete data-dependent integer/float value while tracing. This looks something like "Could not extract specialized integer from data-dependent expression", and is analogous to the previous class of errors - if these occur when attempting to evaluate concrete integer/float values, data-dependent guard errors arise with evaluating concrete boolean values.
+
+This error typically occurs when there is an explicit or implicit <code> cast on a data-dependent expression. For example, this list comprehension has a <code> call that implicitly does an <code> cast on the size of the list:
+
+For these errors, some basic options you have are:
+
+Avoid unnecessary <code> cast calls, in this case the <code> in the return statement.
+
+Use <code> calls; unfortunately all you may be able to do in this case is specialize (with <code>).
+
+Rewrite the offending code at a higher level. For example, the list comprehension is semantically a <code> op, which doesn't involve an <code> cast. The following rewrite avoids data-dependent errors:
+
+Data-dependent errors can be much more involved, and there are many more options in your toolkit to deal with them: <code>, <code>, or real-tensor tracing, as starters. For more in-depth guides, please refer to the Export Programming Model, or Dealing with GuardOnDataDependentSymNode errors.
+
+Custom Ops.
+
+<code> can export PyTorch programs with custom operators. Please refer to this page on how to author a custom operator in either C++ or Python.
+
+The following is an example of registering a custom operator in python to be used by <code>. The important thing to note is that the custom op must have a FakeTensor kernel.
+
+Here is an example of exporting a program with the custom op.
+
+Note that in the <code>, the custom operator is included in the graph.
+
+IR/Decompositions.
+
+The graph produced by <code> returns a graph containing only ATen operators, which are the basic unit of computation in PyTorch. As there are over 3000 ATen operators, export provides a way to narrow down the operator set used in the graph based on certain characteristics, creating different IRs.
+
+By default, export produces the most generic IR which contains all ATen operators, including both functional and non-functional operators. A functional operator is one that does not contain any mutations or aliasing of the inputs. You can find a list of all ATen operators here and you can inspect if an operator is functional by checking <code>, for example:
+
+This generic IR can be used to train in eager PyTorch Autograd.
+
+We can then lower this exported program to an operator set which only contains functional ATen operators through the API <code>, which decomposes the ATen operators into the ones specified in the decomposition table, and functionalizes the graph. By specifying an empty set, we're only performing functionalization, and does not do any additional decompositions. This results in an IR which contains ~2000 operators (instead of the 3000 operators above), and is ideal for inference cases.
+
+As we can see, the previously mutable operator, <code> has now been replaced with <code>, a l operator.
+
+We can also further lower this exported program to an operator set which only contains the Core ATen Operator Set, which is a collection of only ~180 operators. This IR is optimal for backends who do not want to reimplement all ATen operators.
+
+We now see that <code> has been decomposed into <code>. This is because <code> is a more "core" operator, as operations like <code> and <code> can be implemented using the same op.
+
+We can also specify our own decomposition behaviors:
+
+Notice that instead of <code> being decomposed into <code>, it is now decomposed into <code> and <code>, which matches our custom decomposition rule.
+
+ExportDB.
+
+<code> will only ever export a single computation graph from a PyTorch program. Because of this requirement, there will be Python or PyTorch features that are not compatible with <code>, which will require users to rewrite parts of their model code. We have seen examples of this earlier in the tutorial -- for example, rewriting if-statements using <code>.
+
+ExportDB is the standard reference that documents supported and unsupported Python/PyTorch features for <code>. It is essentially a list a program samples, each of which represents the usage of one particular Python/PyTorch feature and its interaction with <code>. Examples are also tagged by category so that they can be more easily searched.
+
+For example, let's use ExportDB to get a better understanding of how the predicate works in the <code> operator. We can look at the example called <code>, which has a <code> tag. The example code looks like:
+
+More generally, ExportDB can be used as a reference when one of the following occurs:
+
+Before attempting <code>, you know ahead of time that your model uses some tricky Python/PyTorch features and you want to know if <code> covers that feature.
+
+When attempting <code>, there is a failure and it's unclear how to work around it.
+
+ExportDB is not exhaustive, but is intended to cover all use cases found in typical PyTorch code. Feel free to reach out if there is an important Python/PyTorch feature that should be added to ExportDB or supported by <code>.
+
+Running the Exported Program.
+
+As <code> is only a graph capturing mechanism, calling the artifact produced by <code> eagerly will be equivalent to running the eager module. To optimize the execution of the Exported Program, we can pass this exported artifact to backends such as Inductor through <code>, AOTInductor, or TensorRT.
+
+Conclusion.
+
+We introduced <code>, the new PyTorch 2.X way to export single computation graphs from PyTorch programs. In particular, we demonstrate several code modifications and considerations (control flow ops, constraints, etc.) that need to be made in order to export a graph.

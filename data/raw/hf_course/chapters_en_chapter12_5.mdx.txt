@@ -1,0 +1,79 @@
+Practical Exercise: Fine-tune a model with GRPO.
+
+Now that you've seen the theory, let's put it into practice! In this exercise, you'll fine-tune a model with GRPO.
+
+This exercise was written by LLM fine-tuning expert @mlabonne.
+
+Install dependencies.
+
+First, let's install the dependencies for this exercise.
+
+Now we'll import the necessary libraries.
+
+Import and log in to Weights & Biases.
+
+Weights & Biases is a tool for logging and monitoring your experiments. We'll use it to log our fine-tuning process.
+
+You can do this exercise without logging in to Weights & Biases, but it's recommended to do so to track your experiments and interpret the results.
+
+Load the dataset.
+
+Now, let's load the dataset. In this case, we'll use the <code> dataset, which contains a list of short stories.
+
+Load model.
+
+Now, let's load the model.
+
+For this exercise, we'll use the <code> model.
+
+This is a small 135M parameter model that runs on limited hardware. This makes the model ideal for learning, but it's not the most powerful model out there. If you have access to more powerful hardware, you can try to fine-tune a larger model like <code>.
+
+Load LoRA.
+
+Now, let's load the LoRA configuration. We'll take advantage of LoRA to reduce the number of trainable parameters, and in turn the memory footprint we need to fine-tune the model.
+
+If you're not familiar with LoRA, you can read more about it in Chapter 11.
+
+Define the reward function.
+
+As mentioned in the previous section, GRPO can use any reward function to improve the model. In this case, we'll use a simple reward function that encourages the model to generate text that is 50 tokens long.
+
+Define the training arguments.
+
+Now, let's define the training arguments. We'll use the <code> class to define the training arguments in a typical <code> style.
+
+If this is the first time you're defining training arguments, you can check the TrainingArguments class for more information, or Chapter 2 for a detailed introduction.
+
+Now, we can initialize the trainer with model, dataset, and training arguments and start training.
+
+Training takes around 1 hour on a single A10G GPU which is available on Google Colab or via Hugging Face Spaces.
+
+Push the model to the Hub during training.
+
+If we set the <code> argument to <code> and the <code> argument to a valid model name, the model will be pushed to the Hugging Face Hub whilst we're training. This is useful if you want to start vibe testing the model straight away!
+
+Interpret training results.
+
+<code> logs the reward from your reward function, the loss, and a range of other metrics.
+
+We will focus on the reward from the reward function and the loss.
+
+As you can see, the reward from the reward function moves closer to 0 as the model learns. This is a good sign that the model is learning to generate text of the correct length.
+
+You might notice that the loss starts at zero and then increases during training, which may seem counterintuitive. This behavior is expected in GRPO and is directly related to the mathematical formulation of the algorithm. The loss in GRPO is proportional to the KL divergence (the cap relative to original policy) . As training progresses, the model learns to generate text that better matches the reward function, causing it to diverge more from its initial policy. This increasing divergence is reflected in the rising loss value, which actually indicates that the model is successfully adapting to optimize for the reward function.
+
+Save and publish the model.
+
+Let's share the model with the community!
+
+Generate text.
+
+🎉 You've successfully fine-tuned a model with GRPO! Now, let's generate some text with the model.
+
+First, we'll define a really long document!
+
+Now, we can generate text with the model.
+
+Conclusion.
+
+In this chapter, we've seen how to fine-tune a model with GRPO. We've also seen how to interpret the training results and generate text with the model.

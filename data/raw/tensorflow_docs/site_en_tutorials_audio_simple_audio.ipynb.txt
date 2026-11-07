@@ -1,0 +1,119 @@
+Simple audio recognition: Recognizing keywords.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial demonstrates how to preprocess audio files in the WAV format and build and train a basic automatic speech recognition (ASR) model for recognizing ten different words. You will use a portion of the Speech Commands dataset (Warden, 2018), which contains short (one-second or less) audio clips of commands, such as "down", "go", "left", "no", "right", "stop", "up" and "yes".
+
+Real-world speech and audio recognition systems are complex. But, like image classification with the MNIST dataset, this tutorial should give you a basic understanding of the techniques involved.
+
+Setup.
+
+Import necessary modules and dependencies. You'll be using <code> (introduced in TensorFlow 2.10), which helps generate audio classification datasets from directories of <code> files. You'll also need seaborn for visualization in this tutorial.
+
+Import the mini Speech Commands dataset.
+
+To save time with data loading, you will be working with a smaller version of the Speech Commands dataset. The original dataset consists of over 105,000 audio files in the WAV (Waveform) audio file format of people saying 35 different words. This data was collected by Google and released under a CC BY license.
+
+Download and extract the <code> file containing the smaller Speech Commands datasets with <code>:
+
+The dataset's audio clips are stored in eight folders corresponding to each speech command: <code>, <code>, <code>, <code>, <code>, <code>, <code>, and <code>:
+
+Divided into directories this way, you can easily load the data using <code>.
+
+The audio clips are 1 second or less at 16kHz. The <code> pads the short ones to exactly 1 second (and would trim longer ones) so that they can be easily batched.
+
+The dataset now contains batches of audio clips and integer labels. The audio clips have a shape of <code>.
+
+This dataset only contains single channel audio, so use the <code> function to drop the extra axis:
+
+The <code> function only returns up to two splits. It's a good idea to keep a test set separate from your validation set. Ideally you'd keep it in a separate directory, but in this case you can use <code> to split the validation set into two halves. Note that iterating over any shard will load all the data, and only keep its fraction.
+
+Let's plot a few audio waveforms:
+
+Convert waveforms to spectrograms.
+
+The waveforms in the dataset are represented in the time domain. Next, you'll transform the waveforms from the time-domain signals into the time-frequency-domain signals by computing the short-time Fourier transform (STFT) to convert the waveforms to as spectrograms, which show frequency changes over time and can be represented as 2D images. You will feed the spectrogram images into your neural network to train the model.
+
+A Fourier transform (<code>) converts a signal to its component frequencies, but loses all time information. In comparison, STFT (<code>) splits the signal into windows of time and runs a Fourier transform on each window, preserving some time information, and returning a 2D tensor that you can run standard convolutions on.
+
+Create a utility function for converting waveforms to spectrograms:
+
+The waveforms need to be of the same length, so that when you convert them to spectrograms, the results have similar dimensions. This can be done by simply zero-padding the audio clips that are shorter than one second (using <code>).
+
+When calling <code>, choose the <code> and <code> parameters such that the generated spectrogram "image" is almost square. For more information on the STFT parameters choice, refer to this Coursera video on audio signal processing and STFT.
+
+The STFT produces an array of complex numbers representing magnitude and phase. However, in this tutorial you'll only use the magnitude, which you can derive by applying <code> on the output of <code>.
+
+Next, start exploring the data. Print the shapes of one example's tensorized waveform and the corresponding spectrogram, and play the original audio:
+
+Now, define a function for displaying a spectrogram:
+
+Plot the example's waveform over time and the corresponding spectrogram (frequencies over time):
+
+Now, create spectrogram datasets from the audio datasets:
+
+Examine the spectrograms for different examples of the dataset:
+
+Build and train the model.
+
+Add <code> and <code> operations to reduce read latency while training the model:
+
+For the model, you'll use a simple convolutional neural network (CNN), since you have transformed the audio files into spectrogram images.
+
+Your <code> model will use the following Keras preprocessing layers:
+
+<code>: to downsample the input to enable the model to train faster.
+
+<code>: to normalize each pixel in the image based on its mean and standard deviation.
+
+For the <code> layer, its <code> method would first need to be called on the training data in order to compute aggregate statistics (that is, the mean and the standard deviation).
+
+Configure the Keras model with the Adam optimizer and the cross-entropy loss:
+
+Train the model over 10 epochs for demonstration purposes:
+
+Let's plot the training and validation loss curves to check how your model has improved during training:
+
+Evaluate the model performance.
+
+Run the model on the test set and check the model's performance:
+
+Display a confusion matrix.
+
+Use a confusion matrix to check how well the model did classifying each of the commands in the test set:
+
+Run inference on an audio file.
+
+Finally, verify the model's prediction output using an input audio file of someone saying "no". How well does your model perform?
+
+As the output suggests, your model should have recognized the audio command as "no".
+
+Export the model with preprocessing.
+
+The model's not very easy to use if you have to apply those preprocessing steps before passing data to the model for inference. So build an end-to-end version:
+
+Test run the "export" model:
+
+Save and reload the model, the reloaded model gives identical output:
+
+Next steps.
+
+This tutorial demonstrated how to carry out simple audio classification/automatic speech recognition using a convolutional neural network with TensorFlow and Python. To learn more, consider the following resources:
+
+The Sound classification with YAMNet tutorial shows how to use transfer learning for audio classification.
+
+The notebooks from Kaggle's TensorFlow speech recognition challenge.
+
+The TensorFlow.js - Audio recognition using transfer learning codelab teaches how to build your own interactive web app for audio classification.
+
+A tutorial on deep learning for music information retrieval (Choi et al., 2017) on arXiv.
+
+TensorFlow also has additional support for audio data preparation and augmentation to help with your own audio-based projects.
+
+Consider using the librosa library for music and audio analysis.

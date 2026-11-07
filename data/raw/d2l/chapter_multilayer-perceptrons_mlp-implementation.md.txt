@@ -1,0 +1,89 @@
+Implementation of Multilayer Perceptrons.
+
+Multilayer perceptrons (MLPs) are not much more complex to implement than simple linear models. The key conceptual difference is that we now concatenate multiple layers.
+
+Implementation from Scratch.
+
+Let's begin again by implementing such a network from scratch.
+
+Initializing Model Parameters.
+
+Recall that Fashion-MNIST contains 10 classes, and that each image consists of a <math> grid of grayscale pixel values. As before we will disregard the spatial structure among the pixels for now, so we can think of this as a classification dataset with 784 input features and 10 classes. To begin, we will [implement an MLP with one hidden layer and 256 hidden units.] Both the number of layers and their width are adjustable (they are considered hyperparameters). Typically, we choose the layer widths to be divisible by larger powers of 2. This is computationally efficient due to the way memory is allocated and addressed in hardware.
+
+Again, we will represent our parameters with several tensors. Note that for every layer, we must keep track of one weight matrix and one bias vector. As always, we allocate memory for the gradients of the loss with respect to these parameters.
+
+In the code below, we first define and initialize the parameters and then enable gradient tracking.
+
+In the code below we use <code> to automatically register a class attribute as a parameter to be tracked by <code> (section <num>).
+
+In the code below we use <code> to define the model parameter.
+
+In the code below we use <code> to define the model parameter.
+
+Model.
+
+To make sure we know how everything works, we will [implement the ReLU activation] ourselves rather than invoking the built-in <code> function directly.
+
+Since we are disregarding spatial structure, we <code> each two-dimensional image into a flat vector of length <code>. Finally, we (implement our model) with just a few lines of code. Since we use the framework built-in autograd this is all that it takes.
+
+Training.
+
+Fortunately, [the training loop for MLPs is exactly the same as for softmax regression.] We define the model, data, and trainer, then finally invoke the <code> method on model and data.
+
+Concise Implementation.
+
+As you might expect, by relying on the high-level APIs, we can implement MLPs even more concisely.
+
+Model.
+
+Compared with our concise implementation of softmax regression implementation (section <num>), the only difference is that we add two fully connected layers where we previously added only one. The first is [the hidden layer], the second is the output layer.
+
+Previously, we defined <code> methods for models to transform input using the model parameters. These operations are essentially a pipeline: you take an input and apply a transformation (e.g., matrix multiplication with weights followed by bias addition), then repetitively use the output of the current transformation as input to the next transformation. However, you may have noticed that no <code> method is defined here. In fact, <code> inherits the <code> method from the <code> class (section <num>) to simply invoke <code> (<code> is input), which is now defined as a sequence of transformations via the <code> class. The <code> class abstracts the forward process enabling us to focus on the transformations. We will further discuss how the <code> class works in section <num>.
+
+Training.
+
+[The training loop] is exactly the same as when we implemented softmax regression. This modularity enables us to separate matters concerning the model architecture from orthogonal considerations.
+
+Summary.
+
+Now that we have more practice in designing deep networks, the step from a single to multiple layers of deep networks does not pose such a significant challenge any longer. In particular, we can reuse the training algorithm and data loader. Note, though, that implementing MLPs from scratch is nonetheless messy: naming and keeping track of the model parameters makes it difficult to extend models. For instance, imagine wanting to insert another layer between layers 42 and 43. This might now be layer 42b, unless we are willing to perform sequential renaming. Moreover, if we implement the network from scratch, it is much more difficult for the framework to perform meaningful performance optimizations.
+
+Nonetheless, you have now reached the state of the art of the late 1980s when fully connected deep networks were the method of choice for neural network modeling. Our next conceptual step will be to consider images. Before we do so, we need to review a number of statistical basics and details on how to compute models efficiently.
+
+Exercises.
+
+Change the number of hidden units <code> and plot how its number affects the accuracy of the model. What is the best value of this hyperparameter?
+
+Try adding a hidden layer to see how it affects the results.
+
+Why is it a bad idea to insert a hidden layer with a single neuron? What could go wrong?
+
+How does changing the learning rate alter your results? With all other parameters fixed, which learning rate gives you the best results? How does this relate to the number of epochs?
+
+Let's optimize over all hyperparameters jointly, i.e., learning rate, number of epochs, number of hidden layers, and number of hidden units per layer.
+
+What is the best result you can get by optimizing over all of them?
+
+Why it is much more challenging to deal with multiple hyperparameters?
+
+Describe an efficient strategy for optimizing over multiple parameters jointly.
+
+Compare the speed of the framework and the from-scratch implementation for a challenging problem. How does it change with the complexity of the network?
+
+Measure the speed of tensor--matrix multiplications for well-aligned and misaligned matrices. For instance, test for matrices with dimension 1024, 1025, 1026, 1028, and 1032.
+
+How does this change between GPUs and CPUs?
+
+Determine the memory bus width of your CPU and GPU.
+
+Try out different activation functions. Which one works best?
+
+Is there a difference between weight initializations of the network? Does it matter?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

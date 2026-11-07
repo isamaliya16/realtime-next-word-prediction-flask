@@ -1,0 +1,39 @@
+Collaborative Filtering for Movie Recommendations.
+
+Introduction.
+
+This example demonstrates Collaborative filtering using the Movielens dataset to recommend movies to users. The MovieLens ratings dataset lists the ratings given by a set of users to a set of movies. Our goal is to be able to predict ratings for movies a user has not yet watched. The movies with the highest predicted ratings can then be recommended to the user.
+
+The steps in the model are as follows:
+
+Map user ID to a "user vector" via an embedding matrix.
+
+Map movie ID to a "movie vector" via an embedding matrix.
+
+Compute the dot product between the user vector and movie vector, to obtain the a match score between the user and the movie (predicted rating).
+
+Train the embeddings via gradient descent using all known user-movie pairs.
+
+References:
+
+Collaborative Filtering.
+
+Neural Collaborative Filtering.
+
+First, load the data and apply preprocessing.
+
+First, need to perform some preprocessing to encode users and movies as integer indices.
+
+Prepare training and validation data.
+
+Create the model.
+
+We embed both users and movies in to 50-dimensional vectors.
+
+The model computes a match score between user and movie embeddings via a dot product, and adds a per-movie and per-user bias. The match score is scaled to the <code> interval via a sigmoid (since our ratings are normalized to this range).
+
+Train the model based on the data split.
+
+Plot training and validation loss.
+
+Show top 10 movie recommendations to a user.

@@ -1,0 +1,101 @@
+Context-Aware Music Retrieval with Yambda and JAX Data Parallelism.
+
+Introduction.
+
+Standard retrieval models learn a static embedding for each user. However, user behavior in the real world is highly context-dependent. A user might want completely different music tracks when they are actively browsing and searching (an organic context) versus when they are leaning back and listening to an algorithmic radio station (a recommendation-driven context).
+
+If we treat all interactions equally, the model will blur these distinct preferences into a single average representation. Instead, we can build a Context-Aware Retrieval Model that dynamically shifts the user's representation based on the context of the interaction.
+
+In this tutorial, we will tackle this unique problem using the Yambda-5B dataset from Hugging Face. Yambda is an industrial-scale music recommendation dataset containing billions of interactions. Crucially, it provides a distinctive <code> flag for every event.
+
+We will:
+
+Use Hugging Face <code> to stream and filter a subset of the Yambda-50M dataset.
+
+Compress the massive sparse ID space to prevent TPU Out-Of-Memory (OOM) errors.
+
+Build a Two-Tower Retrieval model where the Query Tower dynamically fuses the User ID embedding and the <code> context embedding.
+
+Train the model using In-Batch Negative Sampling while avoiding the "Curse of Scale" during validation.
+
+Scale our training on a TPU using the JAX backend and <code>.
+
+Let's begin by installing the necessary libraries and configuring the JAX backend.
+
+TPU Distribution Strategy.
+
+To train efficiently on a TPU (such as a v5e-1 node in Google Colab), we will use synchronous data parallelism. With <code>, each TPU core holds a complete replica of the model weights and processes a different mini-batch of the data.
+
+Gradients are calculated locally on each device and then synchronized across all devices before updating the global model weights. This allows us to scale our batch size linearly with the number of available TPU cores.
+
+Loading and Filtering the Yambda Dataset.
+
+The Yambda dataset contains multiple event types: <code>, <code>, <code>, <code>, and <code>. To train a retrieval model, we only want to learn from positive interactions.
+
+According to the Yambda documentation, an implicit <code> is considered a positive signal if the user played more than 50% of the track (<code>). An explicit <code> (or reverting a dislike via <code>) is also a strong positive signal.
+
+To ensure this example runs quickly on a Colab instance while still providing enough data to learn meaningful embeddings, we will load a 5% slice of the 50M interactions split.
+
+Vocabulary Compression: Avoiding the XLA HBM OOM Error.
+
+In the Yambda dataset, <code>s go all the way up to ~9.39 million. If we initialize an embedding table with 9.4 million rows on a TPU, JAX's XLA compiler pads these tensors for matrix multiplication. The table, the optimizer states, and the XLA padding combined will demand over 15 GB of High-Bandwidth Memory (HBM), instantly causing a <code> crash on a standard TPU core.
+
+💡 PRO TIP: Contiguous Mapping In industrial recommender systems, we never use raw, sparse IDs directly in an embedding table. Our 5% subset only contains a fraction of the total catalogue. We extract the unique items and map them to a dense, contiguous range (e.g., <code> to <code>). This shrinks the embedding table by 98%, requiring only megabytes of RAM instead of gigabytes!
+
+Preparing a High-Performance tf.data Pipeline.
+
+When working with industrial-scale datasets in Hugging Face, loading millions of rows into RAM and passing them to <code> is highly inefficient.
+
+Instead, we use Hugging Face's <code>. This method creates a highly efficient bridge between the underlying Apache Arrow files and TensorFlow's execution graph, dynamically batching data directly from disk.
+
+💡 PRO TIP: XLA Compilation and Static Shapes When training on TPUs (which rely on XLA compilation via JAX), tensor shapes must remain strictly static. If the final batch of your dataset is smaller than the rest, XLA will trigger a costly recompilation step. We enforce static shapes by explicitly setting <code>.
+
+Building the Context-Aware Model Architecture.
+
+We construct a Two-Tower Retrieval model, but we augment the Query Tower to handle contextual flags.
+
+User Embedding: Captures the global, long-term preference of the user.
+
+Context Embedding: Maps the <code> boolean (0 or 1) to a dense vector.
+
+Query Fusion: Concatenates the user and context vectors and passes them through a Dense layer to project them back into the shared semantic space.
+
+Candidate Tower: Standard item embedding.
+
+The Curse of Scale: Why We Decoupled Retrieval.
+
+In earlier examples on tiny datasets (like MovieLens 100K), you might see the <code> layer called directly inside the model's <code> method during <code>.
+
+However, if you attempt to run a full-corpus Top-10 retrieval against hundreds of thousands (or millions) of items during the validation loop, your TPU will attempt to calculate and sort trillions of affinity scores per epoch, causing the training to freeze entirely.
+
+💡 PRO TIP: Production Architecture In production, we never compute full-corpus retrieval during the train/val loops. We strictly evaluate the In-Batch Contrastive Loss. The massive retrieval layer is decoupled and reserved strictly for the final inference step (or exported to a vector database like ScANN). Notice how our <code> method below only returns embeddings!
+
+Training the Model.
+
+We instantiate the model, compile it, and fit it using our prepared JAX DataParallel datasets.
+
+💡 PRO TIP: Why Adagrad? We use the <code> optimizer instead of Adam here. In recommender systems, categorical embeddings are highly sparse—popular items get updated millions of times, while niche items get updated rarely. Adagrad excels in this scenario because it dynamically scales the learning rate per parameter based on historical gradients, preventing popular items from overwhelming the learning process.
+
+Contextual Inference.
+
+Now that the model is trained, we want to perform actual retrieval. Because we decoupled the retrieval index from the training forward pass, we execute this in two clean steps. This mirrors exactly how two-tower models are served in production architectures (e.g., Vertex AI Matching Engine):
+
+Query encoding: Compute the <code>.
+
+Approximate Nearest Neighbor (ANN): Pass the <code> directly to the index (<code>) to fetch candidates.
+
+Let's simulate querying the model for a single user in two different settings:
+
+<code>: The user is actively searching or exploring their own library.
+
+<code>: The user is passively listening to an algorithmic radio.
+
+Reversing the Lookup Mapping.
+
+Because the model was trained on our internal contiguous IDs, the <code> outputs internal indices. To get the actual Yambda track IDs back (so we can look them up in a database), we reverse the mapping using our vocabulary array.
+
+Notice how the predicted item arrays differ based on the context flag!
+
+By injecting contextual data directly into the query tower, your retrieval pipeline is no longer static. You can easily extend this pattern to include other context parameters, such as the time of day, device type, or even pre-computed multimodal representations (like the audio embeddings provided natively in the Yambda dataset!).
+
+(Note: Even for a single user, computing the Top-10 against millions of tracks using BruteForce takes a moment. To achieve millisecond latency in production, you would export <code> and index them using <code>, as demonstrated in the KerasRS ScANN tutorial!).

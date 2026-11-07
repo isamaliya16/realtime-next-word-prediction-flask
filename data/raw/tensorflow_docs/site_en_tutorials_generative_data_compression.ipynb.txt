@@ -1,0 +1,131 @@
+Learned data compression.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+This notebook shows how to do lossy data compression using neural networks and TensorFlow Compression.
+
+Lossy compression involves making a trade-off between rate, the expected number of bits needed to encode a sample, and distortion, the expected error in the reconstruction of the sample.
+
+The examples below use an autoencoder-like model to compress images from the MNIST dataset. The method is based on the paper End-to-end Optimized Image Compression.
+
+More background on learned data compression can be found in this paper targeted at people familiar with classical data compression, or this survey targeted at a machine learning audience.
+
+Setup.
+
+Install Tensorflow Compression via <code>.
+
+Import library dependencies.
+
+Define the trainer model.
+
+Because the model resembles an autoencoder, and we need to perform a different set of functions during training and inference, the setup is a little different from, say, a classifier.
+
+The training model consists of three parts:
+
+the analysis (or encoder) transform, converting from the image into a latent space.
+
+the synthesis (or decoder) transform, converting from the latent space back into image space, and.
+
+a prior and entropy model, modeling the marginal probabilities of the latents.
+
+First, define the transforms:
+
+The trainer holds an instance of both transforms, as well as the parameters of the prior.
+
+Its <code> method is set up to compute:
+
+rate, an estimate of the number of bits needed to represent the batch of digits, and.
+
+distortion, the mean absolute difference between the pixels of the original digits and their reconstructions.
+
+Compute rate and distortion.
+
+Let's walk through this step by step, using one image from the training set. Load the MNIST dataset for training and validation:
+
+And extract one image <math>:
+
+To get the latent representation <math>, we need to cast it to <code>, add a batch dimension, and pass it through the analysis transform.
+
+The latents will be quantized at test time. To model this in a differentiable way during training, we add uniform noise in the interval <math> and call the result <math>. This is the same terminology as used in the paper End-to-end Optimized Image Compression.
+
+The "prior" is a probability density that we train to model the marginal distribution of the noisy latents. For example, it could be a set of independent logistic distributions with different scales for each latent dimension. <code> accounts for the fact that the latents have additive noise. As the scale approaches zero, a logistic distribution approaches a dirac delta (spike), but the added noise causes the "noisy" distribution to approach the uniform distribution instead.
+
+During training, <code> adds uniform noise, and uses the noise and the prior to compute a (differentiable) upper bound on the rate (the average number of bits necessary to encode the latent representation). That bound can be minimized as a loss.
+
+Lastly, the noisy latents are passed back through the synthesis transform to produce an image reconstruction <math>. Distortion is the error between original image and reconstruction. Obviously, with the transforms untrained, the reconstruction is not very useful.
+
+For every batch of digits, calling the <code> produces the rate and distortion as an average over that batch:
+
+In the next section, we set up the model to do gradient descent on these two losses.
+
+Train the model.
+
+We compile the trainer in a way that it optimizes the rate–distortion Lagrangian, that is, a sum of rate and distortion, where one of the terms is weighted by Lagrange parameter <math>.
+
+This loss function affects the different parts of the model differently:
+
+The analysis transform is trained to produce a latent representation that achieves the desired trade-off between rate and distortion.
+
+The synthesis transform is trained to minimize distortion, given the latent representation.
+
+The parameters of the prior are trained to minimize the rate given the latent representation. This is identical to fitting the prior to the marginal distribution of latents in a maximum likelihood sense.
+
+Next, train the model. The human annotations are not necessary here, since we just want to compress the images, so we drop them using a <code> and instead add "dummy" targets for rate and distortion.
+
+Compress some MNIST images.
+
+For compression and decompression at test time, we split the trained model in two parts:
+
+The encoder side consists of the analysis transform and the entropy model.
+
+The decoder side consists of the synthesis transform and the same entropy model.
+
+At test time, the latents will not have additive noise, but they will be quantized and then losslessly compressed, so we give them new names. We call them and the image reconstruction <math> and <math>, respectively (following End-to-end Optimized Image Compression).
+
+When instantiated with <code>, the entropy model converts the learned prior into tables for a range coding algorithm. When calling <code>, this algorithm is invoked to convert the latent space vector into bit sequences. The length of each binary string approximates the information content of the latent (the negative log likelihood of the latent under the prior).
+
+The entropy model for compression and decompression must be the same instance, because the range coding tables need to be exactly identical on both sides. Otherwise, decoding errors can occur.
+
+Grab 16 images from the validation dataset. You can select a different subset by changing the argument to <code>.
+
+Compress them to strings, and keep track of each of their information content in bits.
+
+Decompress the images back from the strings.
+
+Display each of the 16 original digits together with its compressed binary representation, and the reconstructed digit.
+
+Note that the length of the encoded string differs from the information content of each digit.
+
+This is because the range coding process works with discrete probabilities, and has a small amount of overhead. So, especially for short strings, the correspondence is only approximate. However, range coding is asymptotically optimal: in the limit, the expected bit count will approach the cross entropy (the expected information content), for which the rate term in the training model is an upper bound.
+
+The rate–distortion trade-off.
+
+Above, the model was trained for a specific trade-off (given by <code>) between the average number of bits used to represent each digit and the incurred error in the reconstruction.
+
+What happens when we repeat the experiment with different values?
+
+Let's start by reducing <math> to 500.
+
+The bit rate of our code goes down, as does the fidelity of the digits. However, most of the digits remain recognizable.
+
+Let's reduce <math> further.
+
+The strings begin to get much shorter now, on the order of one byte per digit. However, this comes at a cost. More digits are becoming unrecognizable.
+
+This demonstrates that this model is agnostic to human perceptions of error, it just measures the absolute deviation in terms of pixel values. To achieve a better perceived image quality, we would need to replace the pixel loss with a perceptual loss.
+
+Use the decoder as a generative model.
+
+If we feed the decoder random bits, this will effectively sample from the distribution that the model learned to represent digits.
+
+First, re-instantiate the compressor/decompressor without a sanity check that would detect if the input string isn't completely decoded.
+
+Now, feed long enough random strings into the decompressor so that it can decode/sample digits from them.

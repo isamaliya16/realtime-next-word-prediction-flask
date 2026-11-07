@@ -1,0 +1,159 @@
+Migrate the SavedModel workflow.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Once you have migrated your model from TensorFlow 1's graphs and sessions to TensorFlow 2 APIs, such as <code>, <code>, and <code>, you can migrate the model saving and loading code. This notebook provides examples of how you can save and load in the SavedModel format in TensorFlow 1 and TensorFlow 2. Here is a quick overview of the related API changes for migration from TensorFlow 1 to TensorFlow 2:
+
+For a more in-depth explanation of the mapping, refer to the Changes from TensorFlow 1 to TensorFlow 2 section below.
+
+Setup.
+
+The examples below show how to export and load the same dummy TensorFlow model (defined as <code> below) to a SavedModel format using the TensorFlow 1 and TensorFlow 2 APIs. Start by setting up the imports and utility functions:
+
+TensorFlow 1: Save and export a SavedModel.
+
+In TensorFlow 1, you use the <code>, <code>, and <code> APIs to build, save, and export the TensorFlow graph and session:
+
+1. Save the graph as a SavedModel with SavedModelBuilder.
+
+2. Build a SavedModel for serving.
+
+3. Export the Estimator inference graph as a SavedModel.
+
+In the definition of the Estimator <code> (defined below), you can define signatures in your model by returning <code> in the <code>. There are different types of outputs:
+
+<code>.
+
+<code>.
+
+<code>.
+
+These will produce classification, regression, and prediction signature types, respectively.
+
+When the estimator is exported with <code>, these signatures will be saved with the model.
+
+TensorFlow 2: Save and export a SavedModel.
+
+Save and export a SavedModel defined with tf.Module.
+
+To export your model in TensorFlow 2, you must define a <code> or a <code> to hold all of your model's variables and functions. Then, you can call <code> to create a SavedModel. Refer to the Saving a custom model section in the Using the SavedModel format guide to learn more.
+
+Save and export a SavedModel defined with Keras.
+
+Deprecated: For Keras objects, it's recommended to use the new high-level <code> format and <code>, as demonstrated in the guide here. The low-level SavedModel format continues to be supported for existing code.
+
+The Keras APIs for saving and exporting—<code> or <code>—can export a SavedModel from a <code>. Check out the Save and load Keras models for more details.
+
+Loading a SavedModel.
+
+A SavedModel saved with any of the above APIs can be loaded using either TensorFlow 1 or TensorFlow 2 APIs.
+
+A TensorFlow 1 SavedModel can generally be used for inference when loaded into TensorFlow 2, but training (generating gradients) is only possible if the SavedModel contains resource variables. You can check the dtype of the variables—if the variable dtype contains "_ref", then it is a reference variable.
+
+A TensorFlow 2 SavedModel can be loaded and executed from TensorFlow 1 as long as the SavedModel is saved with signatures.
+
+The sections below contain code samples showing how to load the SavedModels saved in the previous sections, and call the exported signature.
+
+TensorFlow 1: Load a SavedModel with tf.saved_model.load.
+
+In TensorFlow 1, you can import a SavedModel directly into the current graph and session using <code>. You can call <code> on the tensor input and output names:
+
+TensorFlow 2: Load a model saved with tf.saved_model.
+
+In TensorFlow 2, objects are loaded into a Python object that stores the variables and functions. This is compatible with models saved from TensorFlow 1.
+
+Check out the <code> API docs and Loading and using a custom model section from the Using the SavedModel format guide for details.
+
+Models saved with the TensorFlow 2 API can also access <code>s and variables that are attached to the model (instead of those exported as signatures). For example:
+
+TensorFlow 2: Load a model saved with Keras.
+
+Deprecated: For Keras objects, it's recommended to use the new high-level <code> format and <code>, as demonstrated in the guide here. The low-level SavedModel format continues to be supported for existing code.
+
+The Keras loading API—<code>—allows you to reload a saved model back into a Keras Model object. Note that this only allows you to load SavedModels saved with Keras (<code> or <code>).
+
+Models saved with <code> should be loaded with <code>. You can load a Keras model saved with <code> using <code> but you will only get the TensorFlow graph. Refer to the <code> API docs and Save and load Keras models guide for details.
+
+GraphDef and MetaGraphDef.
+
+There is no straightforward way to load a raw <code> or <code> to TF2. However, you can convert the TF1 code that imports the graph into a TF2 <code> using <code>.
+
+First, save a MetaGraphDef:
+
+Using TF1 APIs, you can use <code> to import the graph and restore the values:
+
+There are no TF2 APIs for loading the graph, but you can still import it into a concrete function that can be executed in eager mode:
+
+Changes from TensorFlow 1 to TensorFlow 2.
+
+This section lists out key saving and loading terms from TensorFlow 1, their TensorFlow 2 equivalents, and what has changed.
+
+SavedModel.
+
+SavedModel is a format that stores a complete TensorFlow program with parameters and computation. It contains signatures used by serving platforms to run the model.
+
+The file format itself has not changed significantly, so SavedModels can be loaded and served using either TensorFlow 1 or TensorFlow 2 APIs.
+
+Differences between TensorFlow 1 and TensorFlow 2.
+
+The serving and inference use cases have not been updated in TensorFlow 2, aside from the API changes—the improvement was introduced in the ability to reuse and compose models loaded from SavedModel.
+
+In TensorFlow 2, the program is represented by objects like <code>, <code>, or higher-level Keras models (<code>) and layers (<code>). There are no more global variables that have values stored in a session, and the graph now exists in different <code>s. Consequently, during a model export, SavedModel saves each component and function graphs separately.
+
+When you write a TensorFlow program with the TensorFlow Python APIs, you must build an object to manage the variables, functions, and other resources. Generally, this is accomplished by using the Keras APIs, but you can also build the object by creating or subclassing <code>.
+
+Keras models (<code>) and <code> automatically track variables and functions attached to them. SavedModel saves these connections between modules, variables, and functions, so that they can be restored when loading.
+
+Signatures.
+
+Signatures are the endpoints of a SavedModel—they tell the user how to run the model and what inputs are needed.
+
+In TensorFlow 1, signatures are created by listing the input and output tensors. In TensorFlow 2, signatures are generated by passing in concrete functions. (Read more about TensorFlow functions in the Introduction to graphs and tf.function guide, particularly the Polymorphism: one Function, many graphs section.) In short, a concrete function is generated from a <code>:
+
+<code>.
+
+In TensorFlow 1, you could call <code> with the imported graph as long as you already know the tensor names. This allows you to retrieve the restored variable values, or run parts of the model that were not exported in the signatures.
+
+In TensorFlow 2, you can directly access a variable, such as a weights matrix (<code>):
+
+or call <code>s attached to the model object: for example, <code>.
+
+Unlike TF1, there is no way to extract parts of a function and access intermediate values. You must export all of the needed functionality in the saved object.
+
+TensorFlow Serving migration notes.
+
+SavedModel was originally created to work with TensorFlow Serving. This platform offers different types of prediction requests: classify, regress, and predict.
+
+The TensorFlow 1 API allows you to create these types of signatures with the utils:
+
+<code>.
+
+<code>.
+
+<code>.
+
+Classification (<code>) and regression (<code>) restrict the inputs and outputs, so the inputs must be a <code>, and the outputs must be <code>, <code> or <code>. Meanwhile, the predict signature (<code>) has no restrictions.
+
+SavedModels exported with the TensorFlow 2 API are compatible with TensorFlow Serving, but will only contain prediction signatures. The classification and regression signatures have been removed.
+
+If you require the use of the classification and regression signatures, you may modify the exported SavedModel using <code>.
+
+Next steps.
+
+To learn more about SavedModels in TensorFlow 2, check out the following guides:
+
+Using the SavedModel format.
+
+Save and load Keras models.
+
+If you are using TensorFlow Hub, you may find these guides useful:
+
+TensorFlow Hub: Model compatibility for TensorFlow 1/TensorFlow 2.
+
+Migrating from TensorFlow 1 to TensorFlow 2 with TensorFlow Hub.

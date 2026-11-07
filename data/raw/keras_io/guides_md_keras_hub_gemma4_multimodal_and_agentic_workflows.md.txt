@@ -1,0 +1,449 @@
+Multimodal and Agentic Workflows with Gemma 4 in KerasHub.
+
+Overview.
+
+Gemma 4 is a family of multimodal open models built for long-context reasoning, coding, and agentic workflows. In KerasHub, Gemma 4 presets are exposed through the standard <code> API, making it straightforward to load the model family for text, image, video, and audio-aware workflows from a single interface.
+
+Gemma 4 introduces key capability and architectural advancements:
+
+Reasoning: All models in the family are designed as highly capable reasoners, with configurable thinking modes.
+
+Extended multimodalities: All Gemma 4 models process text and images with variable aspect ratio and resolution support, and the full family supports video-style frame understanding. Audio is available on the E2B and E4B models.
+
+Diverse and efficient architectures: Offers dense and Mixture-of-Experts variants across multiple sizes for scalable deployment.
+
+Optimized for on-device use: Smaller models are designed for efficient local execution on laptops and mobile devices.
+
+Increased context window: The small models feature a 128K context window, while the medium models support 256K.
+
+Enhanced coding and agentic capabilities: Strong coding performance is paired with native function-calling support for autonomous workflows.
+
+Native system prompt support: Gemma 4 supports the system role directly, enabling more structured and controllable conversations.
+
+This guide focuses on practical usage examples in KerasHub. It covers text generation, image captioning, object detection-style JSON parsing with box overlays, audio transcription, function calling, coding, thinking and reasoning mode, multi-image comparison, video-oriented prompting, OCR, and speech translation.
+
+Prompt Structure and Special Tokens.
+
+Gemma 4 introduces a new approach to prompt formatting, relying on native control tokens baked into its vocabulary rather than instruction-based text delimiters. This ensures more reliable structured outputs and conversation management.
+
+Gemma 4 introduces several special tokens for dialogue and modalities:
+
+Dialogue delimiters: Uses `<|turn>system <code><|turn>user <code><|turn>model <code> ` to end a turn (also acting as the EOS token).
+
+Multimodal tokens: Supports <code> for images, <code> for audio, and <code> for video content placement.
+
+Thinking mode: The <code> token enables the model to output its internal reasoning before the final answer.
+
+Tool calling: Uses <code>, <code>, <code>, <code>, <code>, and <code> for native function calling.
+
+Delimiter token: Uses <code> within structured data to treat special characters as literal text, preventing syntax errors.
+
+Gemma 4 introduces dedicated tokens for tool management (like <code>, <code>, and <code>). This simplifies the prompt significantly because the model natively understands these boundaries without us having to explain them in the prompt instructions.
+
+This guide demonstrates how to use these tokens effectively across different modalities and workflows.
+
+Setup.
+
+Install the latest Keras and KerasHub packages first.
+
+To load Gemma 4 from Kaggle, make sure your environment exposes <code> and <code>, and that your account has accepted the Gemma 4 model license.
+
+Keras lets you choose the backend that fits your environment. This notebook defaults to JAX, but you can switch to TensorFlow or PyTorch by setting <code> before importing Keras.
+
+Note: Since this guide exercises the full range of Gemma 4's multimodal capabilities (including high-resolution images and video frames), it requires significant GPU memory. For a smooth experience and to avoid Out-Of-Memory (OOM) errors, running on a high-end GPU/TPU with large memory (such as an NVIDIA H100 or similar) is strongly recommended.
+
+Optional: Upgrade CUDA and JAX if you encounter ptxas errors.
+
+Helper utilities.
+
+The next cell keeps the rest of the notebook readable. In addition to loading images and audio, it includes a parser for Gemma 4 detection-style responses.
+
+Gemma 4 may emit a short natural-language preamble before the JSON payload. The helper extracts the JSON block, rescales the 0-1000 coordinates back to pixel space, and renders boxes with <code>.
+
+Load the Gemma 4 preset.
+
+This guide uses <code> (2.3B effective, 5.1B with embeddings) from Kaggle. It is a practical starting point because it supports text, image, video-style prompting, and audio-enabled workflows in a relatively small checkpoint.
+
+Loading preset: gemma4instruct2b Downloading to /root/.cache/kagglehub/models/keras/gemma4/keras/gemma4instruct2b/2/config.json...
+
+100%|██████████| 4.50k/4.50k [00:00<00:00, 18.9MB/s].
+
+Downloading to /root/.cache/kagglehub/models/keras/gemma4/keras/gemma4instruct2b/2/task.json...
+
+100%|██████████| 12.2k/12.2k [00:00<00:00, 54.3MB/s].
+
+Downloading to /root/.cache/kagglehub/models/keras/gemma4/keras/gemma4instruct2b/2/assets/tokenizer/vocabulary.spm...
+
+100%|██████████| 4.96M/4.96M [00:00<00:00, 6.25MB/s].
+
+Downloading to /root/.cache/kagglehub/models/keras/gemma4/keras/gemma4instruct2b/2/model.weights.json...
+
+100%|██████████| 163k/163k [00:00<00:00, 596kB/s].
+
+Downloading to /root/.cache/kagglehub/models/keras/gemma4/keras/gemma4instruct2b/2/model_00000.weights.h5...
+
+100%|██████████| 9.99G/9.99G [05:10<00:00, 34.6MB/s].
+
+Downloading to /root/.cache/kagglehub/models/keras/gemma4/keras/gemma4instruct2b/2/model_00001.weights.h5...
+
+100%|██████████| 414M/414M [00:12<00:00, 35.8MB/s].
+
+1. Text generation.
+
+Start with a simple usage example. This confirms that the preset, tokenizer, and prompt formatting are all working before moving into multimodal prompts. Model response.
+
+Pizza Paradox.
+
+Logline: A meticulous historian, armed with a time machine, accidentally alters the very fabric of culinary history when a misplaced ingredient sends a perfectly good Roman pizza into a bizarre, anachronistic future.
+
+Pitch:
+
+Forget dinosaurs and dark lords. Our story is about dough, destiny, and the delicious chaos of temporal mishaps.
+
+Meet Dr. Aris Thorne, a fastidious historian who believes the past is a delicate ecosystem. Armed with a sleek, slightly temperamental time machine, Aris is on a mission: observe the Renaissance, document the true origins of Neapolitan cuisine.
+
+But in a moment of distracted panic—a misplaced pinch of 17th-century saffron instead of oregano—Aris doesn't just observe history; he rewrites it.
+
+Suddenly, the future isn't just different; it tastes… wrong. From perfectly balanced sourdough to neon-infused, gravity-defying pizza that defies physics. Aris must race against time, navigating alternate timelines and bewildered future food critics, to fix his catastrophic culinary blunder before the world's most beloved dish becomes a bizarre, inedible paradox.
+
+It’s a high-concept comedy of errors, a charming adventure, and a delicious exploration of how small mistakes can reshape everything. Get ready for a pizza that changes the universe.
+
+Tagline: Some recipes are meant to stay buried.
+
+2. Image captioning.
+
+Gemma 4 supports image understanding directly through <code>. A simple captioning prompt is a good way to verify multimodal input handling before moving on to more structured visual tasks. Model response.
+
+This image features two tabby cats lying on a bright pink surface, likely a blanket or soft fabric.
+
+Here's a detailed description:
+
+Subjects: There are two cats.
+
+The cat on the left is a striped tabby with dark and gray markings. It is lying down and appears relaxed.
+
+The cat on the right is also a tabby, with warmer, brownish-orange tones. It is stretched out, with its head resting down, and appears to be grooming or resting.
+
+Setting/Background: The cats are resting on a vibrant, solid pink fabric. The background suggests an interior setting, possibly a bed or sofa.
+
+Objects: There are a few small objects visible near the left cat:
+
+A white remote control (possibly for a TV or device) is lying on the pink fabric near the left cat.
+
+A small, light-colored electronic device or remote is also visible near the right cat.
+
+Overall Impression: The image has a warm, cozy, and domestic feel, highlighting the relaxed state of the two cats in a bright environment.
+
+3. Object detection-style localization.
+
+Gemma 4 can localize objects by returning structured JSON alongside natural- language output. In practice, the model often produces a short explanation before the JSON payload, so it is useful to parse the fenced block explicitly.
+
+In this section, the model identifies cats in the image, the JSON is extracted, the normalized 0-1000 coordinates are rescaled to image pixels, and the boxes are rendered with Keras visualization utilities. Model response.
+
+[{'box2d': [107, 13, 988, 496], 'label': 'cat'}, {'box2d': [45, 518, 772, 996], 'label': 'cat'}].
+
+4. Audio transcription.
+
+Audio input is available on the E2B and E4B Gemma 4 checkpoints. Video-style understanding is supported across the model family, but audio is limited to these smaller variants. The prompt below makes the task explicit and specifies the exact output formatting.
+
+Note: Gemma 4 expects audio input to be sampled at 16kHz. In this guide, we use a helper function <code> (defined in the utilities section) to read the audio file, downmix it to mono if necessary, and resample it to the desired 16kHz rate.
+
+Downloading audio file... Audio shape: (282958,) dtype: float32 Model response.
+
+Intelligence is a multifaceted ability encompassing reasoning, learning, problem-solving, abstraction, creativity, and adaptation, allowing organisms or systems to process information, recognize patterns, form connections, and navigate complex environments efficiently.
+
+5. Function calling.
+
+Gemma 4 supports native function calling for tool-augmented workflows. The basic pattern is consistent across applications: declare the tool, let the model emit a tool call, execute the tool externally, append the tool response, and then continue generation.
+
+<|toolcall>call:getcurrentweather{location:<|"|>Paris<|"|>} <|toolresponse> Model response.
+
+The weather in Paris right now is partly cloudy with a temperature of 18 degrees.
+
+6. Coding.
+
+Gemma 4 is also a strong coding model. You can use the same causal language model interface for code generation, refactoring, explanation, and small utility synthesis tasks. Model response.
+
+7. HTML generation and rendering.
+
+Gemma 4 can generate structured code like HTML. In a notebook environment like Colab, we can use Python's <code> to render the generated HTML directly, providing a visual verification of the model's output. Model response.
+
+8. Thinking mode and Agentic Workflows.
+
+Thinking mode is controlled from the system prompt. Gemma 4 can emit a thought channel before a tool call or before the final answer.
+
+In this section, we demonstrate a small automated agentic workflow for a Smart Home Assistant. We define local Python functions as tools, and write a simple loop to automate the process: the model decides to call a tool, we execute it, and feed the result back to the model until it completes the task.
+
+Agent Turn 1 --- Model response, turn 1.
+
+<|channel>thought.
+
+Analyze the user request: The user has two distinct requests:
+
+"Turn off the kitchen lights by setting action='off'".
+
+"check the temperature in the bedroom by setting sensor_type='temperature'".
+
+Identify necessary tools:
+
+To turn off lights, the <code> tool is relevant.
+
+To check the temperature, the <code> tool is relevant.
+
+Process the first request ("Turn off the kitchen lights"):
+
+Tool: <code>.
+
+<code>: "lights" (implied by "kitchen lights").
+
+<code>: "kitchen".
+
+<code>: "off".
+
+Construct the tool call: <code>.
+
+Process the second request ("check the temperature in the bedroom"):
+
+Tool: <code>.
+
+<code>: "temperature".
+
+<code>: "bedroom".
+
+Construct the tool call: <code>.
+
+Combine the tool calls: Since both actions can be performed independently, they should be called sequentially in the response.
+
+Final Output Generation: Format the identified tool calls into the required JSON structure.<|toolcall>call:controldevice{room:<|"|>kitchen<|"|>,device:<|"|>lights<|"|>,action:<|"|>off<|"|>} <|toolcall>call:readsensor{room:<|"|>bedroom<|"|>,sensor_type:<|"|>temperature<|"|>}.
+
+Executing tool: control_device with args {'room': 'kitchen', 'device': 'lights', 'action': 'off'} Tool Result: Success: lights in kitchen is now off.
+
+Executing tool: readsensor with args {'room': 'bedroom', 'sensortype': 'temperature'} Tool Result: 22°C.
+
+Agent Turn 2 --- Model response, turn 2.
+
+The kitchen lights have been turned off, and the temperature in the bedroom is 22°C.
+
+Agent finished or no tool call.
+
+Reasoning-only thinking example.
+
+Thinking mode is not limited to tool use. It can also be used for complex reasoning tasks, such as solving math problems step-by-step. Model response.
+
+Here's a thinking process to solve this problem:
+
+Understand the Goal: The request asks for the time it takes to travel 200 km, given that the train travels 120 km in 1.5 hours, and the speed remains constant.
+
+Identify the Key Information (Initial Data):
+
+Distance 1 (<math>): 120 km.
+
+Time 1 (<math>): 1.5 hours.
+
+Target Distance (<math>): 200 km.
+
+Goal: Find Time 2 (<math>).
+
+Determine the Speed (The Constant Factor): Since the speed is the same for both trips, I must calculate the speed first.
+
+Formula for Speed (<math>): <math>.
+
+Calculate <math>: <math>.
+
+Calculation: <math>. (Tip: <math>. So, <math>).
+
+Speed (<math>): 80 km/h.
+
+Calculate the Time for the New Distance: Now use the calculated speed and the new distance to find the new time.
+
+Formula for Time (<math>): <math>.
+
+<math> km.
+
+<math> km/h.
+
+Calculate <math>: <math>.
+
+Calculation: $200 / 80 = 20 / 8 = 10 / 4.
+
+9. Multi-image comparison.
+
+Gemma 4 can compare multiple images within a single turn. This is useful for comparing similar objects in different scenes or finding differences.
+
+In this section, we use two images of zebras in different environments (lush jungle vs. dry enclosure) and ask the model to describe the scenes and interactions. Model response.
+
+The two images depict zebras in different settings, showcasing variations in the environment and the animals' behavior.
+
+Image 1 Analysis:
+
+Setting: This scene appears to be in a more natural or semi-natural, lush, and shaded environment. There is dense green foliage, large leaves in the foreground, and trees in the background, suggesting a jungle or woodland setting. The ground is dirt/sand mixed with some sparse grass.
+
+Animals: There are at least three zebras visible. Two are standing in the middle ground, and one is partially visible on the left. They appear to be standing relatively calmly, perhaps grazing or observing their surroundings.
+
+Interaction: The zebras seem to be existing within this dense vegetation. The overall mood is one of quiet coexistence within a natural habitat.
+
+Image 2 Analysis:
+
+Setting: This scene is clearly an enclosure, likely a zoo or wildlife park. There is a visible wire or mesh fence in the background, and the ground is dry, sandy earth with patches of dry grass. The lighting suggests bright, open sunlight.
+
+Animals: There are several zebras visible. The most prominent zebra in the foreground is standing and facing toward the viewer, showcasing its distinct black and white stripes clearly. Other zebras are visible in the background, some of which appear to be lying down or resting on hay/straw.
+
+Interaction: The animals in this scene appear to be interacting with the enclosure environment. Some are resting or feeding on provided material (hay), while the zebra in the foreground is alert and facing outward. The interaction is framed by the boundaries of the enclosure.
+
+Key Differences:
+
+Environment: Image 1 is characterized by dense, lush, natural vegetation and shade, whereas Image 2 is an open, dry enclosure with visible fencing.
+
+Lighting and Atmosphere: Image 1 has a softer, shaded atmosphere, while Image 2 is brightly lit by direct sunlight.
+
+Animal Activity/Focus: In Image 1, the animals seem integrated into the dense foliage. In Image 2, the animals are situated within a defined boundary, and some are actively resting on provided bedding (hay).
+
+In summary, the first image portrays zebras in a more wild, shaded habitat, while the second image shows them in a managed, open enclosure setting.
+
+10. Video prompting.
+
+Gemma 4 supports native video understanding. In KerasHub, you can pass a video as a sequence of frames directly to the model using the <code> argument in the input dictionary, and use the <code> token in the prompt to indicate where the video content belongs.
+
+Note: Video prompts involve processing many frames, which can result in very long sequences. Make sure to increase <code> appropriately when generating responses for video inputs.
+
+Downloading test video... Decoded 300 frames. Subsampled to 32 frames. Model response.
+
+This appears to be a still image or a sequence of stills from a 3D animation or video game scene, depicting a magical or naturalistic outdoor setting.
+
+Here's a detailed description of what is visible in the images:
+
+Setting:
+
+Lush, Vibrant Nature: The scene is dominated by incredibly vibrant, bright green grass that looks very healthy and well-lit.
+
+Forest/Jungle Environment: The background is dense with tall trees and foliage, suggesting a deep forest, jungle, or a very lush garden. The lighting suggests it might be daytime, with dappled sunlight filtering through the leaves.
+
+Atmosphere: The overall mood is serene, magical, and overgrown.
+
+Central Feature:
+
+Fairy Ring/Mound: The focal point is a large, moss-covered mound or hill.
+
+Tree Trunk Base: A large, gnarled tree trunk appears to be growing out of the center of this mound, with its roots forming the base of the structure.
+
+Cave/Opening: There is a dark, arched opening or cave entrance visible in the center of the mound, suggesting a hidden space or entrance to something mysterious.
+
+Stones: Several large, rounded rocks are scattered around the base of the mound.
+
+Overall Impression: The image evokes a sense of fantasy, nature magic, or a hidden sanctuary within a vibrant, overgrown wilderness. It looks like a scene from a fantasy adventure game, a nature-themed cinematic, or a stylized digital artwork.
+
+11. OCR, translation & entity extraction.
+
+Gemma 4 is strong on OCR and document understanding. For document-heavy tasks, the prompting pattern stays simple: pass the image, ask for exact extraction, and make the expected output format explicit.
+
+In this section, we use an image of German street signs. We ask the model to transcribe the German text (OCR), identify the location names (entities), and provide their English translation. Model response.
+
+Here is the extracted text, entity identification, and translation:
+
+Extracted Text (German).
+
+Severins-brücke.
+
+Koelnmesse.
+
+Im Sionstal.
+
+Entities and English Translations.
+
+12. Travel planning from location.
+
+Gemma 4's multimodal capabilities allow it to recognize famous landmarks and provide contextual information, such as creating travel plans based on the location shown in an image. Model response.
+
+Location Identification.
+
+The image displays the Palace of Westminster (including the Houses of Parliament) and the Elizabeth Tower (housing Big Ben) on the River Thames in London, United Kingdom.
+
+3-Day London Travel Plan.
+
+This itinerary balances iconic historical sightseeing, cultural experiences, and London's vibrant atmosphere.
+
+Day 1: Royal & Political History.
+
+Theme: Iconic Landmarks and Westminster History.
+
+Morning (9:00 AM - 1:00 PM): Westminster Abbey. Start your day at this magnificent Gothic church, the site of coronations, royal weddings, and burials. (Book tickets in advance).
+
+Lunch (1:00 PM - 2:00 PM): Grab a traditional pub lunch near Westminster, perhaps in the area around Whitehall.
+
+Afternoon (2:00 PM - 5:00 PM): Houses of Parliament & Big Ben. Take photos of the Palace of Westminster and the iconic clock tower. Walk along the South Bank to see the bridges.
+
+Late Afternoon (5:00 PM - 7:00 PM): Walk along the South Bank. Enjoy the atmosphere, watch street performers, and see the London Eye from a distance.
+
+Evening: Dinner in Covent Garden. Explore the lively market area for diverse dining options and street entertainment.
+
+🍽️ Restaurant Suggestions for Day 1:
+
+The Red Lion (Near Westminster): For classic, traditional British pub fare.
+
+Borough Market (Lunch/Early Dinner): Excellent for sampling various street foods and artisanal products.
+
+Day 2: Royal Grandeur & Museum Culture.
+
+Theme: Royal Parks, Art, and Culture.
+
+Morning (9:30 AM - 1:00 PM): Buckingham Palace & St. James's Park. Visit the official residence of the monarch (check for changing of the guard times). Afterwards, relax and stroll through the beautiful St. James's Park.
+
+Lunch (1:00 PM - 2:00 PM): Casual lunch near Trafalgar Square.
+
+Afternoon (2:00 PM - 5:00 PM): National Gallery (Trafalgar Square). Immerse yourself in world-class art collections, featuring masterpieces by Van Gogh, Da Vinci, and more.
+
+Late Afternoon (5:00 PM - 7:00 PM): Trafalgar Square & Nelson's Column. Enjoy the central hub of London.
+
+Evening: Dinner in Soho. Explore this vibrant, eclectic neighborhood known for its diverse international cuisine and nightlife.
+
+🍽️ Restaurant Suggestions for Day 2:
+
+The Ivy Market Grill (Covent Garden/Soho area): Upscale, classic British dining experience.
+
+Dishoom (Various locations, try Shoreditch or Covent Garden): Famous for delicious, flavorful Bombay Café style food.
+
+Day 3: History, Markets, and River Life.
+
+Theme: History, Markets, and Thames Experience.
+
+Morning (9:30 AM - 1:00 PM): Tower of London. Explore this historic castle, home to the Crown Jewels, and learn about its centuries of royal and dark history. (Allow at least 3 hours).
+
+Lunch (1:00 PM - 2:00 PM): Lunch near the Tower or Borough Market area.
+
+Afternoon (2:00 PM - 5:00 PM): Borough Market Exploration & South Bank Walk. Spend time browsing the incredible food stalls at Borough Market, followed by a relaxed walk along the South Bank, perhaps visiting the Tate Modern if time permits.
+
+Late Afternoon (5:00 PM - 7:00 PM): River Cruise on the Thames. Take a scenic boat tour to see the city skyline from a different perspective.
+
+Evening: Farewell Dinner in a Historic Area. Choose a neighborhood like the City of London or a quieter area in West End for a final memorable meal.
+
+🍽️ Restaurant Suggestions for Day 3:
+
+Padella (Borough Market): Excellent, high-quality pasta dishes.
+
+The Wolseley (Piccadilly): For a truly grand, classic, and elegant final dinner experience.
+
+Essential London Travel Tips.
+
+Transportation: Utilize the Tube (Underground) for fast travel between major zones. Purchase an Oyster Card or use a contactless payment card for easy travel.
+
+Booking: Pre-book tickets for the Tower of London, Westminster Abbey, and the London Eye to save time.
+
+Weather: London weather is unpredictable. Always carry layers and a waterproof jacket, even on sunny days.
+
+Pace: This is a busy city. Be prepared for crowds, especially around major landmarks.
+
+Closing notes.
+
+This guide stays close to the low-level <code> API on purpose. It makes the prompt format explicit, shows how to pass images and audio, and demonstrates how to post-process structured output for downstream visualization.
+
+The above examples demonstrate the high-level usage and capability of this model. You can explore and perform tasks for many different use cases and experiment with complex reasoning, agentic workflows, and multimodal understanding.
+
+Note: This model is trained with 140+ languages and it works well with Text translation, speech translation, Image Translation and other such tasks.
+
+For production usage, the main things to harden are authentication, response validation, retry handling, and guardrails around tool execution and OCR or detection post-processing.
+
+Further Reading.
+
+For LoRA and QLoRA fine-tuning of Gemma, refer to the Parameter-efficient fine-tuning of Gemma with LoRA and QLoRA example.
+
+For quantization, refer to the INT8 quantization in Keras guide.

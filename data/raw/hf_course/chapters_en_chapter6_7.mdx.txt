@@ -1,0 +1,125 @@
+Unigram tokenization.
+
+The Unigram algorithm is used in combination with SentencePiece, which is the tokenization algorithm used by models like AlBERT, T5, mBART, Big Bird, and XLNet.
+
+SentencePiece addresses the fact that not all languages use spaces to separate words. Instead, SentencePiece treats the input as a raw input stream which includes the space in the set of characters to use. Then it can use the Unigram algorithm to construct the appropriate vocabulary.
+
+💡 This section covers Unigram in depth, going as far as showing a full implementation. You can skip to the end if you just want a general overview of the tokenization algorithm.
+
+Training algorithm.
+
+Compared to BPE and WordPiece, Unigram works in the other direction: it starts from a big vocabulary and removes tokens from it until it reaches the desired vocabulary size. There are several options to use to build that base vocabulary: we can take the most common substrings in pre-tokenized words, for instance, or apply BPE on the initial corpus with a large vocabulary size.
+
+At each step of the training, the Unigram algorithm computes a loss over the corpus given the current vocabulary. Then, for each symbol in the vocabulary, the algorithm computes how much the overall loss would increase if the symbol was removed, and looks for the symbols that would increase it the least. Those symbols have a lower effect on the overall loss over the corpus, so in a sense they are "less needed" and are the best candidates for removal.
+
+This is all a very costly operation, so we don't just remove the single symbol associated with the lowest loss increase, but the \<math> (\<math> being a hyperparameter you can control, usually 10 or 20) percent of the symbols associated with the lowest loss increase. This process is then repeated until the vocabulary has reached the desired size.
+
+Note that we never remove the base characters, to make sure any word can be tokenized.
+
+Now, this is still a bit vague: the main part of the algorithm is to compute a loss over the corpus and see how it changes when we remove some tokens from the vocabulary, but we haven't explained how to do this yet. This step relies on the tokenization algorithm of a Unigram model, so we'll dive into this next.
+
+We'll reuse the corpus from the previous examples:
+
+and for this example, we will take all strict substrings for the initial vocabulary :
+
+Tokenization algorithm.
+
+A Unigram model is a type of language model that considers each token to be independent of the tokens before it. It's the simplest language model, in the sense that the probability of token X given the previous context is just the probability of token X. So, if we used a Unigram language model to generate text, we would always predict the most common token.
+
+The probability of a given token is its frequency (the number of times we find it) in the original corpus, divided by the sum of all frequencies of all tokens in the vocabulary (to make sure the probabilities sum up to 1). For instance, <code> is present in <code>, <code>, and <code>, so it has a frequency of 20 in our corpus.
+
+Here are the frequencies of all the possible subwords in the vocabulary:
+
+So, the sum of all frequencies is 210, and the probability of the subword <code> is thus 20/210.
+
+✏️ Now your turn! Write the code to compute the frequencies above and double-check that the results shown are correct, as well as the total sum.
+
+Now, to tokenize a given word, we look at all the possible segmentations into tokens and compute the probability of each according to the Unigram model. Since all tokens are considered independent, this probability is just the product of the probability of each token. For instance, the tokenization <code> of <code> has the probability:
+
+<math>.
+
+Comparatively, the tokenization <code> has the probability:
+
+<math>.
+
+so that one is way more likely. In general, tokenizations with the least tokens possible will have the highest probability (because of that division by 210 repeated for each token), which corresponds to what we want intuitively: to split a word into the least number of tokens possible.
+
+The tokenization of a word with the Unigram model is then the tokenization with the highest probability. In the example of <code>, here are the probabilities we would get for each possible segmentation:
+
+So, <code> would be tokenized as <code> or <code>, depending on which of those segmentations is encountered first (note that in a larger corpus, equality cases like this will be rare).
+
+In this case, it was easy to find all the possible segmentations and compute their probabilities, but in general it's going to be a bit harder. There is a classic algorithm used for this, called the Viterbi algorithm. Essentially, we can build a graph to detect the possible segmentations of a given word by saying there is a branch from character a_ to character _b if the subword from a_ to _b is in the vocabulary, and attribute to that branch the probability of the subword.
+
+To find the path in that graph that is going to have the best score the Viterbi algorithm determines, for each position in the word, the segmentation with the best score that ends at that position. Since we go from the beginning to the end, that best score can be found by looping through all subwords ending at the current position and then using the best tokenization score from the position this subword begins at. Then, we just have to unroll the path taken to arrive at the end.
+
+Let's take a look at an example using our vocabulary and the word <code>. For each position, the subwords with the best scores ending there are the following:
+
+Thus <code> would be tokenized as <code>.
+
+✏️ Now your turn! Determine the tokenization of the word <code>, and its score.
+
+Back to training.
+
+Now that we have seen how the tokenization works, we can dive a little more deeply into the loss used during training. At any given stage, this loss is computed by tokenizing every word in the corpus, using the current vocabulary and the Unigram model determined by the frequencies of each token in the corpus (as seen before).
+
+Each word in the corpus has a score, and the loss is the negative log likelihood of those scores -- that is, the sum for all the words in the corpus of all the <code>.
+
+Let's go back to our example with the following corpus:
+
+The tokenization of each word with their respective scores is:
+
+So the loss is:
+
+Now we need to compute how removing each token affects the loss. This is rather tedious, so we'll just do it for two tokens here and save the whole process for when we have code to help us. In this (very) particular case, we had two equivalent tokenizations of all the words: as we saw earlier, for example, <code> could be tokenized <code> with the same score. Thus, removing the <code> token from the vocabulary will give the exact same loss.
+
+On the other hand, removing <code> will make the loss worse, because the tokenization of <code> and <code> will become:
+
+These changes will cause the loss to rise by:
+
+Therefore, the token <code> will probably be removed from the vocabulary, but not <code>.
+
+Implementing Unigram.
+
+Now let's implement everything we've seen so far in code. Like with BPE and WordPiece, this is not an efficient implementation of the Unigram algorithm (quite the opposite), but it should help you understand it a bit better.
+
+We will use the same corpus as before as an example:
+
+This time, we will use <code> as our model:
+
+Like for BPE and WordPiece, we begin by counting the number of occurrences of each word in the corpus:
+
+Then, we need to initialize our vocabulary to something larger than the vocab size we will want at the end. We have to include all the basic characters (otherwise we won't be able to tokenize every word), but for the bigger substrings we'll only keep the most common ones, so we sort them by frequency:
+
+We group the characters with the best subwords to arrive at an initial vocabulary of size 300:
+
+💡 SentencePiece uses a more efficient algorithm called Enhanced Suffix Array (ESA) to create the initial vocabulary.
+
+Next, we compute the sum of all frequencies, to convert the frequencies into probabilities. For our model we will store the logarithms of the probabilities, because it's more numerically stable to add logarithms than to multiply small numbers, and this will simplify the computation of the loss of the model:
+
+Now the main function is the one that tokenizes words using the Viterbi algorithm. As we saw before, that algorithm computes the best segmentation of each substring of the word, which we will store in a variable named <code>. We will store one dictionary per position in the word (from 0 to its total length), with two keys: the index of the start of the last token in the best segmentation, and the score of the best segmentation. With the index of the start of the last token, we will be able to retrieve the full segmentation once the list is completely populated.
+
+Populating the list is done with just two loops: the main loop goes over each start position, and the second loop tries all substrings beginning at that start position. If the substring is in the vocabulary, we have a new segmentation of the word up until that end position, which we compare to what is in <code>.
+
+Once the main loop is finished, we just start from the end and hop from one start position to the next, recording the tokens as we go, until we reach the start of the word:
+
+We can already try our initial model on some words:
+
+Now it's easy to compute the loss of the model on the corpus!
+
+We can check it works on the model we have:
+
+Computing the scores for each token is not very hard either; we just have to compute the loss for the models obtained by deleting each token:
+
+We can try it on a given token:
+
+Since <code> is used in the tokenization of <code>, and removing it will probably make us use the token <code> twice instead, we expect it will have a positive loss. <code> is only used inside the word <code>, which is tokenized as itself, so we expect it to have a zero loss. Here are the results:
+
+💡 This approach is very inefficient, so SentencePiece uses an approximation of the loss of the model without token X: instead of starting from scratch, it just replaces token X by its segmentation in the vocabulary that is left. This way, all the scores can be computed at once at the same time as the model loss.
+
+With all of this in place, the last thing we need to do is add the special tokens used by the model to the vocabulary, then loop until we have pruned enough tokens from the vocabulary to reach our desired size:
+
+Then, to tokenize some text, we just need to apply the pre-tokenization and then use our <code> function:
+
+The XLNetTokenizer uses SentencePiece which is why the <code> character is included. To decode with SentencePiece, concatenate all the tokens and replace <code> with a space.
+
+That's it for Unigram! Hopefully by now you're feeling like an expert in all things tokenizer. In the next section, we will delve into the building blocks of the 🤗 Tokenizers library, and show you how you can use them to build your own tokenizer.

@@ -1,0 +1,99 @@
+Image Segmentation using Composable Fully-Convolutional Networks.
+
+Introduction.
+
+The following example walks through the steps to implement Fully-Convolutional Networks for Image Segmentation on the Oxford-IIIT Pets dataset. The model was proposed in the paper, Fully Convolutional Networks for Semantic Segmentation by Long et. al.(2014). Image segmentation is one of the most common and introductory tasks when it comes to Computer Vision, where we extend the problem of Image Classification from one-label-per-image to a pixel-wise classification problem. In this example, we will assemble the aforementioned Fully-Convolutional Segmentation architecture, capable of performing Image Segmentation. The network extends the pooling layer outputs from the VGG in order to perform upsampling and get a final result. The intermediate outputs coming from the 3rd, 4th and 5th Max-Pooling layers from VGG19 are extracted out and upsampled at different levels and factors to get a final output with the same shape as that of the output, but with the class of each pixel present at each location, instead of pixel intensity values. Different intermediate pool layers are extracted and processed upon for different versions of the network. The FCN architecture has 3 versions of differing quality.
+
+FCN-32S.
+
+FCN-16S.
+
+FCN-8S.
+
+All versions of the model derive their outputs through an iterative processing of successive intermediate pool layers of the main backbone used. A better idea can be gained from the figure below.
+
+To get a better idea on Image Segmentation or find more pre-trained models, feel free to navigate to the Hugging Face Image Segmentation Models page, or a PyImageSearch Blog on Semantic Segmentation.
+
+Setup Imports.
+
+Set configurations for notebook variables.
+
+We set the required parameters for the experiment. The chosen dataset has a total of 4 classes per image, with regards to the segmentation mask. We also set our hyperparameters in this cell.
+
+Mixed Precision as an option is also available in systems which support it, to reduce load. This would make most tensors use <code> values instead of <code> values, in places where it will not adversely affect computation. This means, during computation, TensorFlow will use <code> Tensors to increase speed at the cost of precision, while storing the values in their original default <code> form.
+
+Load dataset.
+
+We make use of the Oxford-IIIT Pets dataset which contains a total of 7,349 samples and their segmentation masks. We have 37 classes, with roughly 200 samples per class. Our training and validation dataset has 3,128 and 552 samples respectively. Aside from this, our test split has a total of 3,669 samples.
+
+We set a <code> parameter that will batch our samples together, use a <code> parameter to mix our samples together.
+
+Unpack and preprocess dataset.
+
+We define a simple function that includes performs Resizing over our training, validation and test datasets. We do the same process on the masks as well, to make sure both are aligned in terms of shape and size.
+
+Visualize one random sample from the pre-processed dataset.
+
+We visualize what a random sample in our test split of the dataset looks like, and plot the segmentation mask on top to see the effective mask areas. Note that we have performed pre-processing on this dataset too, which makes the image and mask size same.
+
+Perform VGG-specific pre-processing.
+
+<code> requires the use of a <code> function that will pro-actively perform Image-net style Standard Deviation Normalization scheme.
+
+Model Definition.
+
+The Fully-Convolutional Network boasts a simple architecture composed of only <code> Layers, <code> layers and <code> layers.
+
+Pixel-wise prediction is performed by having a Softmax Convolutional layer with the same size of the image, such that we can perform direct comparison We can find several important metrics such as Accuracy and Mean-Intersection-over-Union on the network.
+
+Backbone (VGG-19).
+
+We use the VGG-19 network as the backbone, as the paper suggests it to be one of the most effective backbones for this network. We extract different outputs from the network by making use of <code>. Following this, we add layers on top to make a network perfectly simulating that of Diagram 1. The backbone's <code> layers will be converted to <code> layers based on the original Caffe code present here. All 3 networks will share the same backbone weights, but will have differing results based on their extensions. We make the backbone non-trainable to improve training time requirements. It is also noted in the paper that making the network trainable does not yield major benefits.
+
+FCN-32S.
+
+We extend the last output, perform a <code> and perform 2D Bilinear Upsampling by a factor of 32 to get an image of the same size as that of our input. We use a simple <code> layer over a <code> since it yields performance benefits from being a deterministic mathematical operation over a Convolutional operation It is also noted in the paper that making the Up-sampling parameters trainable does not yield benefits. Original experiments of the paper used Upsampling as well.
+
+FCN-16S.
+
+The pooling output from the FCN-32S is extended and added to the 4th-level Pooling output of our backbone. Following this, we upsample by a factor of 16 to get image of the same size as that of our input.
+
+FCN-8S.
+
+The pooling output from the FCN-16S is extended once more, and added from the 3rd-level Pooling output of our backbone. This result is upsampled by a factor of 8 to get an image of the same size as that of our input.
+
+Load weights into backbone.
+
+It was noted in the paper, as well as through experimentation that extracting the weights of the last 2 Fully-connected Dense layers from the backbone, reshaping the weights to fit that of the <code> layers we had previously converted into <code>, and setting them to it yields far better results and a significant increase in mIOU performance.
+
+Training.
+
+The original paper talks about making use of SGD with Momentum as the optimizer of choice. But it was noticed during experimentation that AdamW yielded better results in terms of mIOU and Pixel-wise Accuracy.
+
+FCN-32S.
+
+FCN-16S.
+
+FCN-8S.
+
+Visualizations.
+
+Plotting metrics for training run.
+
+We perform a comparative study between all 3 versions of the model by tracking training and validation metrics of Accuracy, Loss and Mean IoU.
+
+Visualizing predicted segmentation masks.
+
+To understand the results and see them better, we pick a random image from the test dataset and perform inference on it to see the masks generated by each model. Note: For better results, the model must be trained for a higher number of epochs.
+
+Conclusion.
+
+The Fully-Convolutional Network is an exceptionally simple network that has yielded strong results in Image Segmentation tasks across different benchmarks. With the advent of better mechanisms like Attention as used in SegFormer and DeTR, this model serves as a quick way to iterate and find baselines for this task on unknown data.
+
+Acknowledgements.
+
+I thank Aritra Roy Gosthipaty, Ayush Thakur and Ritwik Raha for giving a preliminary review of the example. I also thank the Google Developer Experts program.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 11: Image segmentation.

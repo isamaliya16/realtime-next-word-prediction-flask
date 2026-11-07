@@ -1,0 +1,87 @@
+Migrate multi-worker CPU/GPU training.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to migrate your multi-worker distributed training workflow from TensorFlow 1 to TensorFlow 2.
+
+To perform multi-worker training with CPUs/GPUs:
+
+In TensorFlow 1, you traditionally use the <code> and <code> APIs.
+
+In TensorFlow 2, use the Keras APIs for writing the model, the loss function, the optimizer, and metrics. Then, distribute the training with Keras <code> API or a custom training loop (with <code>) across multiple workers with <code> or <code>. For more details, refer to the following tutorials:
+
+Distributed training with TensorFlow.
+
+Parameter server training with Keras Model.fit/a custom training loop.
+
+MultiWorkerMirroredStrategy with Keras Model.fit.
+
+MultiWorkerMirroredStrategy with a custom training loop.
+
+Setup.
+
+Start with some necessary imports and a simple dataset for demonstration purposes:
+
+You will need the <code> configuration environment variable for training on multiple machines in TensorFlow. Use <code> to specify the <code> and the <code>s' addresses. (Learn more in the Distributed_training guide.).
+
+Note: Unfortunately, since multi-worker training with <code> APIs in TensorFlow 1 requires multiple clients (which would be especially tricky to be done here in this Colab notebook), you will make the notebook runnable without a <code> environment variable, so it falls back to local training. (Learn more in the Setting up the <code> environment variable section in the Distributed training with TensorFlow guide.).
+
+Use the <code> statement to remove the variable (but in real-world multi-worker training in TensorFlow 1, you won't have to do this):
+
+TensorFlow 1: Multi-worker distributed training with tf.estimator APIs.
+
+The following code snippet demonstrates the canonical workflow of multi-worker training in TF1: you will use a <code>, a <code>, a <code>, and the <code> API to distribute the training:
+
+TensorFlow 2: Multi-worker training with distribution strategies.
+
+In TensorFlow 2, distributed training across multiple workers with CPUs, GPUs, and TPUs is done via <code>s.
+
+The following example demonstrates how to use two such strategies: <code> and <code>, both of which are designed for CPU/GPU training with multiple workers.
+
+<code> employs a coordinator (<code>), which makes it more friendly with the environment in this Colab notebook. You will be using some utilities here to set up the supporting elements essential for a runnable experience here: you will create an in-process cluster, where threads are used to simulate the parameter servers (<code>) and workers (<code>). For more information about parameter server training, refer to the Parameter server training with ParameterServerStrategy tutorial.
+
+In this example, first define the <code> environment variable with a <code> to provide the cluster information. If you are using a cluster management system for your distributed training, check if it provides <code> for you already, in which case you don't need to explicitly set this environment variable. (Learn more in the Setting up the <code> environment variable section in the Distributed training with TensorFlow guide.).
+
+Then, create <code>s for the workers and parameter servers one-by-one:
+
+In real-world distributed training, instead of starting all the <code>s on the coordinator, you will be using multiple machines, and the ones that are designated as <code>s and <code> (parameter servers) will each run a <code>. Refer to Clusters in the real world section in the Parameter server training tutorial for more details.
+
+With everything ready, create the <code> object:
+
+Once you have created a strategy object, define the model, the optimizer, and other variables, and call the Keras <code> within the <code> API to distribute the training. (Refer to the <code> API docs for more information.).
+
+If you prefer to customize your training by, for instance, defining the forward and backward passes, refer to Training with a custom training loop section in Parameter server training tutorial for more details. Partitioners (<code>) <code> in TensorFlow 2 supports variable partitioning and offers same partitioners as TensorFlow 1, with less confusing names:
+
+<code> -> <code>: a partitioner that keeps shards under a maximum size).
+
+<code> -> <code>: a partitioner that allocates a minimum size per shard.
+
+<code> -> <code>: a partitioner that allocates a fixed number of shards.
+
+Alternatively, you can use a <code> object:
+
+You can replace the strategy used above with a <code> object to perform training with this strategy.
+
+As with the <code> APIs, since <code> is a multi-client strategy, there is no easy way to run distributed training in this Colab notebook. Therefore, replacing the code above with this strategy ends up running things locally. The Multi-worker training with Keras Model.fit/a custom training loop tutorials demonstrate how to run multi-worker training with the <code> variable set up, with two workers on a localhost in Colab. In practice, you would create multiple workers on external IP addresses/ports, and use the <code> variable to specify the cluster configuration for each worker.
+
+Next steps.
+
+To learn more about multi-worker distributed training with <code> and <code> in TensorFlow 2, consider the following resources:
+
+Tutorial: Parameter server training with ParameterServerStrategy and Keras Model.fit/a custom training loop.
+
+Tutorial: Multi-worker training with MultiWorkerMirroredStrategy and Keras Model.fit.
+
+Tutorial: Multi-worker training with MultiWorkerMirroredStrategy and a custom training loop.
+
+Guide: Distributed training with TensorFlow.
+
+Guide: Optimize TensorFlow GPU performance with the TensorFlow Profiler.
+
+Guide: Use a GPU (the Using multiple GPUs section).

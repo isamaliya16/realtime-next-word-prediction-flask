@@ -1,0 +1,49 @@
+Transformers for Vision.
+
+The Transformer architecture was initially proposed for sequence-to-sequence learning, with a focus on machine translation. Subsequently, Transformers emerged as the model of choice in various natural language processing tasks . However, in the field of computer vision the dominant architecture has remained the CNN (section <num>). Naturally, researchers started to wonder if it might be possible to do better by adapting Transformer models to image data. This question sparked immense interest in the computer vision community. Recently, proposed a scheme for replacing convolution with self-attention. However, its use of specialized patterns in attention makes it hard to scale up models on hardware accelerators. Then, theoretically proved that self-attention can learn to behave similarly to convolution. Empirically, <math> patches were taken from images as inputs, but the small patch size makes the model only applicable to image data with low resolutions.
+
+Without specific constraints on patch size, vision Transformers (ViTs) extract patches from images and feed them into a Transformer encoder to obtain a global representation, which will finally be transformed for classification . Notably, Transformers show better scalability than CNNs: and when training larger models on larger datasets, vision Transformers outperform ResNets by a significant margin. Similar to the landscape of network architecture design in natural language processing, Transformers have also become a game-changer in computer vision.
+
+Model.
+
+section <num> depicts the model architecture of vision Transformers. This architecture consists of a stem that patchifies images, a body based on the multilayer Transformer encoder, and a head that transforms the global representation into the output label.
+
+Consider an input image with height <math>, width <math>, and <math> channels. Specifying the patch height and width both as <math>, the image is split into a sequence of <math> patches, where each patch is flattened to a vector of length <math>. In this way, image patches can be treated similarly to tokens in text sequences by Transformer encoders. A special “ ” (class) token and the <math> flattened image patches are linearly projected into a sequence of <math> vectors, summed with learnable positional embeddings. The multilayer Transformer encoder transforms <math> input vectors into the same number of output vector representations of the same length. It works exactly the same way as the original Transformer encoder in section <num>, only differing in the position of normalization. Since the “ ” token attends to all the image patches via self-attention (see section <num>), its representation from the Transformer encoder output will be further transformed into the output label.
+
+Patch Embedding.
+
+To implement a vision Transformer, let's start with patch embedding in section <num>. Splitting an image into patches and linearly projecting these flattened patches can be simplified as a single convolution operation, where both the kernel size and the stride size are set to the patch size.
+
+In the following example, taking images with height and width of <code> as inputs, the patch embedding outputs <code> patches that are linearly projected to vectors of length <code>.
+
+Vision Transformer Encoder.
+
+The MLP of the vision Transformer encoder is slightly different from the positionwise FFN of the original Transformer encoder (see section <num>). First, here the activation function uses the Gaussian error linear unit (GELU), which can be considered as a smoother version of the ReLU . Second, dropout is applied to the output of each fully connected layer in the MLP for regularization.
+
+The vision Transformer encoder block implementation just follows the pre-normalization design in section <num>, where normalization is applied right before multi-head attention or the MLP. In contrast to post-normalization ("add & norm" in section <num>), where normalization is placed right after residual connections, pre-normalization leads to more effective or efficient training for Transformers .
+
+Just as in section <num>, no vision Transformer encoder block changes its input shape.
+
+Putting It All Together.
+
+The forward pass of vision Transformers below is straightforward. First, input images are fed into an <code> instance, whose output is concatenated with the “ ” token embedding. They are summed with learnable positional embeddings before dropout. Then the output is fed into the Transformer encoder that stacks <code> instances of the <code> class. Finally, the representation of the “ ” token is projected by the network head.
+
+Training.
+
+Training a vision Transformer on the Fashion-MNIST dataset is just like how CNNs were trained in section <num>.
+
+Summary and Discussion.
+
+You may have noticed that for small datasets like Fashion-MNIST, our implemented vision Transformer does not outperform the ResNet in section <num>. Similar observations can be made even on the ImageNet dataset (1.2 million images). This is because Transformers lack those useful principles in convolution, such as translation invariance and locality (section <num>). However, the picture changes when training larger models on larger datasets (e.g., 300 million images), where vision Transformers outperform ResNets by a large margin in image classification, demonstrating intrinsic superiority of Transformers in scalability . The introduction of vision Transformers has changed the landscape of network design for modeling image data. They were soon shown to be effective on the ImageNet dataset with data-efficient training strategies of DeiT . However, the quadratic complexity of self-attention (section <num>) makes the Transformer architecture less suitable for higher-resolution images. Towards a general-purpose backbone network in computer vision, Swin Transformers addressed the quadratic computational complexity with respect to image size (section <num>) and reinstated convolution-like priors, extending the applicability of Transformers to a range of computer vision tasks beyond image classification with state-of-the-art results .
+
+Exercises.
+
+How does the value of <code> affect training time?
+
+Instead of projecting the “ ” token representation to the output, how would you project the averaged patch representations? Implement this change and see how it affects the accuracy.
+
+Can you modify hyperparameters to improve the accuracy of the vision Transformer?
+
+Discussions.
+
+Discussions.

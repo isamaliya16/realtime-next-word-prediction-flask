@@ -1,0 +1,247 @@
+Integral Calculus.
+
+Differentiation only makes up half of the content of a traditional calculus education. The other pillar, integration, starts out seeming a rather disjoint question, "What is the area underneath this curve?" While seemingly unrelated, integration is tightly intertwined with the differentiation via what is known as the fundamental theorem of calculus.
+
+At the level of machine learning we discuss in this book, we will not need a deep understanding of integration. However, we will provide a brief introduction to lay the groundwork for any further applications we will encounter later on.
+
+Geometric Interpretation.
+
+Suppose that we have a function <math>. For simplicity, let's assume that <math> is non-negative (never takes a value less than zero). What we want to try and understand is: what is the area contained between <math> and the <math>-axis?
+
+In most cases, this area will be infinite or undefined (consider the area under <math>), so people will often talk about the area between a pair of ends, say <math> and <math>.
+
+We will denote this area by the integral symbol below:
+
+<math>.
+
+The inner variable is a dummy variable, much like the index of a sum in a <math>, and so this can be equivalently written with any inner value we like:
+
+<math>.
+
+There is a traditional way to try and understand how we might try to approximate such integrals: we can imagine taking the region in-between <math> and <math> and chopping it into <math> vertical slices. If <math> is large, we can approximate the area of each slice by a rectangle, and then add up the areas to get the total area under the curve. Let's take a look at an example doing this in code. We will see how to get the true value in a later section.
+
+The issue is that while it can be done numerically, we can do this approach analytically for only the simplest functions like.
+
+<math>.
+
+Anything somewhat more complex like our example from the code above.
+
+<math>.
+
+is beyond what we can solve with such a direct method.
+
+We will instead take a different approach. We will work intuitively with the notion of the area, and learn the main computational tool used to find integrals: the fundamental theorem of calculus. This will be the basis for our study of integration.
+
+The Fundamental Theorem of Calculus.
+
+To dive deeper into the theory of integration, let's introduce a function.
+
+<math>.
+
+This function measures the area between <math> and <math> depending on how we change <math>. Notice that this is everything we need since.
+
+<math>.
+
+This is a mathematical encoding of the fact that we can measure the area out to the far end-point and then subtract off the area to the near end point as indicated in section <num>.
+
+Thus, we can figure out what the integral over any interval is by figuring out what <math> is.
+
+To do so, let's consider an experiment. As we often do in calculus, let's imagine what happens when we shift the value by a tiny bit. From the comment above, we know that.
+
+<math>.
+
+This tells us that the function changes by the area under a tiny sliver of a function.
+
+This is the point at which we make an approximation. If we look at a tiny sliver of area like this, it looks like this area is close to the rectangular area with height the value of <math> and the base width <math>. Indeed, one can show that as <math> this approximation becomes better and better. Thus we can conclude:
+
+<math>.
+
+However, we can now notice: this is exactly the pattern we expect if we were computing the derivative of <math>! Thus we see the following rather surprising fact:
+
+<math>.
+
+This is the fundamental theorem of calculus. We may write it in expanded form as <math>.
+
+It takes the concept of finding areas (a priori rather hard), and reduces it to a statement derivatives (something much more completely understood). One last comment that we must make is that this does not tell us exactly what <math> is. Indeed <math> for any <math> has the same derivative. This is a fact-of-life in the theory of integration. Thankfully, notice that when working with definite integrals, the constants drop out, and thus are irrelevant to the outcome.
+
+<math>.
+
+This may seem like abstract non-sense, but let's take a moment to appreciate that it has given us a whole new perspective on computing integrals. Our goal is no-longer to do some sort of chop-and-sum process to try and recover the area, rather we need only find a function whose derivative is the function we have! This is incredible since we can now list many rather difficult integrals by just reversing the table from section <num>. For instance, we know that the derivative of <math> is <math>. Thus, we can say using the fundamental theorem <num> that.
+
+<math>.
+
+Similarly, we know that the derivative of <math> is itself, so that means.
+
+<math>.
+
+In this way, we can develop the entire theory of integration leveraging ideas from differential calculus freely. Every integration rule derives from this one fact.
+
+Change of Variables.
+
+Just as with differentiation, there are a number of rules which make the computation of integrals more tractable. In fact, every rule of differential calculus (like the product rule, sum rule, and chain rule) has a corresponding rule for integral calculus (integration by parts, linearity of integration, and the change of variables formula respectively). In this section, we will dive into what is arguably the most important from the list: the change of variables formula.
+
+First, suppose that we have a function which is itself an integral:
+
+<math>.
+
+Let's suppose that we want to know how this function looks when we compose it with another to obtain <math>. By the chain rule, we know.
+
+<math>.
+
+We can turn this into a statement about integration by using the fundamental theorem <num> as above. This gives.
+
+<math>.
+
+Recalling that <math> is itself an integral gives that the left hand side may be rewritten to be.
+
+<math>.
+
+Similarly, recalling that <math> is an integral allows us to recognize that <math> using the fundamental theorem <num>, and thus we may conclude.
+
+<math>.
+
+This is the change of variables formula.
+
+For a more intuitive derivation, consider what happens when we take an integral of <math> between <math> and <math>. For a small <math>, this integral is approximately <math>, the area of the associated rectangle. Now, let's compare this with the integral of <math> from <math> to <math>. We know that <math>, so the area of this rectangle is approximately <math>. Thus, to make the area of these two rectangles to agree, we need to multiply the first one by <math> as is illustrated in section <num>.
+
+This tells us that.
+
+<math>.
+
+This is the change of variables formula expressed for a single small rectangle.
+
+If <math> and <math> are properly chosen, this can allow for the computation of incredibly complex integrals. For instance, if we even chose <math> and <math> (which means <math>), this can show for instance that.
+
+<math>.
+
+and thus by rearranging that.
+
+<math>.
+
+A Comment on Sign Conventions.
+
+Keen-eyed readers will observe something strange about the computations above. Namely, computations like.
+
+<math>.
+
+can produce negative numbers. When thinking about areas, it can be strange to see a negative value, and so it is worth digging into what the convention is.
+
+Mathematicians take the notion of signed areas. This manifests itself in two ways. First, if we consider a function <math> which is sometimes less than zero, then the area will also be negative. So for instance.
+
+<math>.
+
+Similarly, integrals which progress from right to left, rather than left to right are also taken to be negative areas.
+
+<math>.
+
+The standard area (from left to right of a positive function) is always positive. Anything obtained by flipping it (say flipping over the <math>-axis to get the integral of a negative number, or flipping over the <math>-axis to get an integral in the wrong order) will produce a negative area. And indeed, flipping twice will give a pair of negative signs that cancel out to have positive area.
+
+<math>.
+
+If this discussion sounds familiar, it is! In section <num> we discussed how the determinant represented the signed area in much the same way.
+
+Multiple Integrals.
+
+In some cases, we will need to work in higher dimensions. For instance, suppose that we have a function of two variables, like <math> and we want to know the volume under <math> when <math> ranges over <math> and <math> ranges over <math>.
+
+We write this as.
+
+<math>.
+
+Suppose that we wish to compute this integral. My claim is that we can do this by iteratively computing first the integral in <math> and then shifting to the integral in <math>, that is to say.
+
+<math>.
+
+Let's see why this is.
+
+Consider the figure above where we have split the function into <math> squares which we will index with integer coordinates <math>. In this case, our integral is approximately.
+
+<math>.
+
+Once we discretize the problem, we may add up the values on these squares in whatever order we like, and not worry about changing the values. This is illustrated in section <num>. In particular, we can say that.
+
+<math>.
+
+The sum on the inside is precisely the discretization of the integral.
+
+<math>.
+
+Finally, notice that if we combine these two expressions we get.
+
+<math>.
+
+Thus putting it all together, we have that.
+
+<math>.
+
+Notice that, once discretized, all we did was rearrange the order in which we added a list of numbers. This may make it seem like it is nothing, however this result (called Fubini's Theorem) is not always true! For the type of mathematics encountered when doing machine learning (continuous functions), there is no concern, however it is possible to create examples where it fails (for example the function <math> over the rectangle <math>).
+
+Note that the choice to do the integral in <math> first, and then the integral in <math> was arbitrary. We could have equally well chosen to do <math> first and then <math> to see.
+
+<math>.
+
+Often times, we will condense down to vector notation, and say that for <math> this is.
+
+<math>.
+
+Change of Variables in Multiple Integrals.
+
+As with single variables in <num>, the ability to change variables inside a higher dimensional integral is a key tool. Let's summarize the result without derivation.
+
+We need a function that reparametrizes our domain of integration. We can take this to be <math>, that is any function which takes in <math> real variables and returns another <math>. To keep the expressions clean, we will assume that <math> is injective which is to say it never folds over itself (<math>).
+
+In this case, we can say that.
+
+<math>.
+
+where <math> is the Jacobian of <math>, which is the matrix of partial derivatives of <math>.
+
+<math>.
+
+Looking closely, we see that this is similar to the single variable chain rule <num>, except we have replaced the term <math> with <math>. Let's see how we can to interpret this term. Recall that the <math> term existed to say how much we stretched our <math>-axis by applying <math>. The same process in higher dimensions is to determine how much we stretch the area (or volume, or hyper-volume) of a little square (or little hyper-cube) by applying <math>. If <math> was the multiplication by a matrix, then we know how the determinant already gives the answer.
+
+With some work, one can show that the Jacobian provides the best approximation to a multivariable function <math> at a point by a matrix in the same way we could approximate by lines or planes with derivatives and gradients. Thus the determinant of the Jacobian exactly mirrors the scaling factor we identified in one dimension.
+
+It takes some work to fill in the details to this, so do not worry if they are not clear now. Let's see at least one example we will make use of later on. Consider the integral.
+
+<math>.
+
+Playing with this integral directly will get us no-where, but if we change variables, we can make significant progress. If we let <math> (which is to say that <math>, <math>), then we can apply the change of variable formula to see that this is the same thing as.
+
+<math>.
+
+where.
+
+<math>.
+
+Thus, the integral is.
+
+<math>.
+
+where the final equality follows by the same computation that we used in section section <num>.
+
+We will meet this integral again when we study continuous random variables in section <num>.
+
+Summary.
+
+The theory of integration allows us to answer questions about areas or volumes.
+
+The fundamental theorem of calculus allows us to leverage knowledge about derivatives to compute areas via the observation that the derivative of the area up to some point is given by the value of the function being integrated.
+
+Integrals in higher dimensions can be computed by iterating single variable integrals.
+
+Exercises.
+
+What is <math>?
+
+Use the change of variables formula to integrate <math>.
+
+What is <math>?
+
+Use the change of variables formula to compute <math> and <math> to see they are different.
+
+Discussions.
+
+Discussions.
+
+Discussions.

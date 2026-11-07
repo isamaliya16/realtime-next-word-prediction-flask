@@ -1,0 +1,47 @@
+What if my dataset isn't on the Hub?
+
+You know how to use the Hugging Face Hub to download datasets, but you'll often find yourself working with data that is stored either on your laptop or on a remote server. In this section we'll show you how 🤗 Datasets can be used to load datasets that aren't available on the Hugging Face Hub.
+
+Working with local and remote datasets.
+
+🤗 Datasets provides loading scripts to handle the loading of local and remote datasets. It supports several common data formats, such as:
+
+As shown in the table, for each data format we just need to specify the type of loading script in the <code> function, along with a <code> argument that specifies the path to one or more files. Let's start by loading a dataset from local files; later we'll see how to do the same with remote files.
+
+Loading a local dataset.
+
+For this example we'll use the SQuAD-it dataset, which is a large-scale dataset for question answering in Italian.
+
+The training and test splits are hosted on GitHub, so we can download them with a simple <code> command:
+
+This will download two compressed files called SQuAD_it-train.json.gz and SQuAD_it-test.json.gz, which we can decompress with the Linux <code> command:
+
+We can see that the compressed files have been replaced with SQuADit-train.json_ and SQuADit-test.json_, and that the data is stored in the JSON format.
+
+✎ If you're wondering why there's a <code> character in the above shell commands, that's because we're running them within a Jupyter notebook. Simply remove the prefix if you want to download and unzip the dataset within a terminal.
+
+To load a JSON file with the <code> function, we just need to know if we're dealing with ordinary JSON (similar to a nested dictionary) or JSON Lines (line-separated JSON). Like many question answering datasets, SQuAD-it uses the nested format, with all the text stored in a <code> field. This means we can load the dataset by specifying the <code> argument as follows:
+
+By default, loading local files creates a <code> object with a <code> split. We can see this by inspecting the <code> object:
+
+This shows us the number of rows and the column names associated with the training set. We can view one of the examples by indexing into the <code> split as follows:
+
+Great, we've loaded our first local dataset! But while this worked for the training set, what we really want is to include both the <code> and <code> splits in a single <code> object so we can apply <code> functions across both splits at once. To do this, we can provide a dictionary to the <code> argument that maps each split name to a file associated with that split:
+
+This is exactly what we wanted. Now, we can apply various preprocessing techniques to clean up the data, tokenize the reviews, and so on.
+
+The <code> argument of the <code> function is quite flexible and can be either a single file path, a list of file paths, or a dictionary that maps split names to file paths. You can also glob files that match a specified pattern according to the rules used by the Unix shell (e.g., you can glob all the JSON files in a directory as a single split by setting <code>). See the 🤗 Datasets documentation for more details.
+
+The loading scripts in 🤗 Datasets actually support automatic decompression of the input files, so we could have skipped the use of <code> by pointing the <code> argument directly to the compressed files:
+
+This can be useful if you don't want to manually decompress many GZIP files. The automatic decompression also applies to other common formats like ZIP and TAR, so you just need to point <code> to the compressed files and you're good to go!
+
+Now that you know how to load local files on your laptop or desktop, let's take a look at loading remote files.
+
+Loading a remote dataset.
+
+If you're working as a data scientist or coder in a company, there's a good chance the datasets you want to analyze are stored on some remote server. Fortunately, loading remote files is just as simple as loading local ones! Instead of providing a path to local files, we point the <code> argument of <code> to one or more URLs where the remote files are stored. For example, for the SQuAD-it dataset hosted on GitHub, we can just point <code> to the SQuADit- .json.gz_ URLs as follows:
+
+This returns the same <code> object obtained above, but saves us the step of manually downloading and decompressing the SQuADit- .json.gz_ files. This wraps up our foray into the various ways to load datasets that aren't hosted on the Hugging Face Hub. Now that we've got a dataset to play with, let's get our hands dirty with various data-wrangling techniques!
+
+✏️ Try it out! Pick another dataset hosted on GitHub or the UCI Machine Learning Repository and try loading it both locally and remotely using the techniques introduced above. For bonus points, try loading a dataset that’s stored in a CSV or text format (see the documentation for more information on these formats).

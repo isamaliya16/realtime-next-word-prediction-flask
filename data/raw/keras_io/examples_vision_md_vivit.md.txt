@@ -1,0 +1,67 @@
+Video Vision Transformer.
+
+Introduction.
+
+Videos are sequences of images. Let's assume you have an image representation model (CNN, ViT, etc.) and a sequence model (RNN, LSTM, etc.) at hand. We ask you to tweak the model for video classification. The simplest approach would be to apply the image model to individual frames, use the sequence model to learn sequences of image features, then apply a classification head on the learned sequence representation. The Keras example Video Classification with a CNN-RNN Architecture explains this approach in detail. Alernatively, you can also build a hybrid Transformer-based model for video classification as shown in the Keras example Video Classification with Transformers.
+
+In this example, we minimally implement ViViT: A Video Vision Transformer by Arnab et al., a pure Transformer-based model for video classification. The authors propose a novel embedding scheme and a number of Transformer variants to model video clips. We implement the embedding scheme and one of the variants of the Transformer architecture, for simplicity.
+
+This example requires <code> package, which can be installed by running the code cell below.
+
+Imports.
+
+Hyperparameters.
+
+The hyperparameters are chosen via hyperparameter search. You can learn more about the process in the "conclusion" section.
+
+Dataset.
+
+For our example we use the MedMNIST v2: A Large-Scale Lightweight Benchmark for 2D and 3D Biomedical Image Classification dataset. The videos are lightweight and easy to train on.
+
+<code> pipeline.
+
+Tubelet Embedding.
+
+In ViTs, an image is divided into patches, which are then spatially flattened, a process known as tokenization. For a video, one can repeat this process for individual frames. Uniform frame sampling as suggested by the authors is a tokenization scheme in which we sample frames from the video clip and perform simple ViT tokenization.
+
+Tubelet Embedding is different in terms of capturing temporal information from the video. First, we extract volumes from the video -- these volumes contain patches of the frame and the temporal information as well. The volumes are then flattened to build video tokens.
+
+Positional Embedding.
+
+This layer adds positional information to the encoded video tokens.
+
+Video Vision Transformer.
+
+The authors suggest 4 variants of Vision Transformer:
+
+Spatio-temporal attention.
+
+Factorized encoder.
+
+Factorized self-attention.
+
+Factorized dot-product attention.
+
+In this example, we will implement the Spatio-temporal attention model for simplicity. The following code snippet is heavily inspired from Image classification with Vision Transformer. One can also refer to the official repository of ViViT which contains all the variants, implemented in JAX.
+
+Train.
+
+Inference.
+
+Final thoughts.
+
+With a vanilla implementation, we achieve ~79-80% Top-1 accuracy on the test dataset.
+
+The hyperparameters used in this tutorial were finalized by running a hyperparameter search using W&B Sweeps. You can find out our sweeps result here and our quick analysis of the results here.
+
+For further improvement, you could look into the following:
+
+Using data augmentation for videos.
+
+Using a better regularization scheme for training.
+
+Apply different variants of the transformer model as in the paper.
+
+We would like to thank Anurag Arnab (first author of ViViT) for helpful discussion. We are grateful to Weights and Biases program for helping with GPU credits.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.

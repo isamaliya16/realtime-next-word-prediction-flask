@@ -1,0 +1,161 @@
+Gradient Descent.
+
+In this section we are going to introduce the basic concepts underlying gradient descent. Although it is rarely used directly in deep learning, an understanding of gradient descent is key to understanding stochastic gradient descent algorithms. For instance, the optimization problem might diverge due to an overly large learning rate. This phenomenon can already be seen in gradient descent. Likewise, preconditioning is a common technique in gradient descent and carries over to more advanced algorithms. Let's start with a simple special case.
+
+One-Dimensional Gradient Descent.
+
+Gradient descent in one dimension is an excellent example to explain why the gradient descent algorithm may reduce the value of the objective function. Consider some continuously differentiable real-valued function <math>. Using a Taylor expansion we obtain.
+
+<math>.
+
+That is, in first-order approximation <math> is given by the function value <math> and the first derivative <math> at <math>. It is not unreasonable to assume that for small <math> moving in the direction of the negative gradient will decrease <math>. To keep things simple we pick a fixed step size <math> and choose <math>. Plugging this into the Taylor expansion above we get.
+
+<math>.
+
+If the derivative <math> does not vanish we make progress since <math>. Moreover, we can always choose <math> small enough for the higher-order terms to become irrelevant. Hence we arrive at.
+
+<math>.
+
+This means that, if we use.
+
+<math>.
+
+to iterate <math>, the value of function <math> might decline. Therefore, in gradient descent we first choose an initial value <math> and a constant <math> and then use them to continuously iterate <math> until the stop condition is reached, for example, when the magnitude of the gradient <math> is small enough or the number of iterations has reached a certain value.
+
+For simplicity we choose the objective function <math> to illustrate how to implement gradient descent. Although we know that <math> is the solution to minimize <math>, we still use this simple function to observe how <math> changes.
+
+Next, we use <math> as the initial value and assume <math>. Using gradient descent to iterate <math> for 10 times we can see that, eventually, the value of <math> approaches the optimal solution.
+
+The progress of optimizing over <math> can be plotted as follows.
+
+Learning Rate.
+
+The learning rate <math> can be set by the algorithm designer. If we use a learning rate that is too small, it will cause <math> to update very slowly, requiring more iterations to get a better solution. To show what happens in such a case, consider the progress in the same optimization problem for <math>. As we can see, even after 10 steps we are still very far from the optimal solution.
+
+Conversely, if we use an excessively high learning rate, <math> might be too large for the first-order Taylor expansion formula. That is, the term <math> in <num> might become significant. In this case, we cannot guarantee that the iteration of <math> will be able to lower the value of <math>. For example, when we set the learning rate to <math>, <math> overshoots the optimal solution <math> and gradually diverges.
+
+Local Minima.
+
+To illustrate what happens for nonconvex functions consider the case of <math> for some constant <math>. This function has infinitely many local minima. Depending on our choice of the learning rate and depending on how well conditioned the problem is, we may end up with one of many solutions. The example below illustrates how an (unrealistically) high learning rate will lead to a poor local minimum.
+
+Multivariate Gradient Descent.
+
+Now that we have a better intuition of the univariate case, let's consider the situation where <math>. That is, the objective function <math> maps vectors into scalars. Correspondingly its gradient is multivariate, too. It is a vector consisting of <math> partial derivatives:
+
+<math>.
+
+Each partial derivative element <math> in the gradient indicates the rate of change of <math> at <math> with respect to the input <math>. As before in the univariate case we can use the corresponding Taylor approximation for multivariate functions to get some idea of what we should do. In particular, we have that.
+
+<math>.
+
+In other words, up to second-order terms in <math> the direction of steepest descent is given by the negative gradient <math>. Choosing a suitable learning rate <math> yields the prototypical gradient descent algorithm:
+
+<math>.
+
+To see how the algorithm behaves in practice let's construct an objective function <math> with a two-dimensional vector <math> as input and a scalar as output. The gradient is given by <math>. We will observe the trajectory of <math> by gradient descent from the initial position <math>.
+
+To begin with, we need two more helper functions. The first uses an update function and applies it 20 times to the initial value. The second helper visualizes the trajectory of <math>.
+
+Next, we observe the trajectory of the optimization variable <math> for learning rate <math>. We can see that after 20 steps the value of <math> approaches its minimum at <math>. Progress is fairly well-behaved albeit rather slow.
+
+Adaptive Methods.
+
+As we could see in section <num>, getting the learning rate <math> "just right" is tricky. If we pick it too small, we make little progress. If we pick it too large, the solution oscillates and in the worst case it might even diverge. What if we could determine <math> automatically or get rid of having to select a learning rate at all? Second-order methods that look not only at the value and gradient of the objective function but also at its curvature can help in this case. While these methods cannot be applied to deep learning directly due to the computational cost, they provide useful intuition into how to design advanced optimization algorithms that mimic many of the desirable properties of the algorithms outlined below.
+
+Newton's Method.
+
+Reviewing the Taylor expansion of some function <math> there is no need to stop after the first term. In fact, we can write it as.
+
+<math>.
+
+To avoid cumbersome notation we define <math> to be the Hessian of <math>, which is a <math> matrix. For small <math> and simple problems <math> is easy to compute. For deep neural networks, on the other hand, <math> may be prohibitively large, due to the cost of storing <math> entries. Furthermore it may be too expensive to compute via backpropagation. For now let's ignore such considerations and look at what algorithm we would get.
+
+After all, the minimum of <math> satisfies <math>. Following calculus rules in section <num>, by taking derivatives of <num> with regard to <math> and ignoring higher-order terms we arrive at.
+
+<math>.
+
+That is, we need to invert the Hessian <math> as part of the optimization problem.
+
+As a simple example, for <math> we have <math> and <math>. Hence for any <math> we obtain <math>. In other words, a single step is sufficient to converge perfectly without the need for any adjustment! Alas, we got a bit lucky here: the Taylor expansion was exact since <math>.
+
+Let's see what happens in other problems. Given a convex hyperbolic cosine function <math> for some constant <math>, we can see that the global minimum at <math> is reached after a few iterations.
+
+Now let's consider a nonconvex function, such as <math> for some constant <math>. After all, note that in Newton's method we end up dividing by the Hessian. This means that if the second derivative is negative we may walk into the direction of increasing the value of <math>. That is a fatal flaw of the algorithm. Let's see what happens in practice.
+
+This went spectacularly wrong. How can we fix it? One way would be to "fix" the Hessian by taking its absolute value instead. Another strategy is to bring back the learning rate. This seems to defeat the purpose, but not quite. Having second-order information allows us to be cautious whenever the curvature is large and to take longer steps whenever the objective function is flatter. Let's see how this works with a slightly smaller learning rate, say <math>. As we can see, we have quite an efficient algorithm.
+
+Convergence Analysis.
+
+We only analyze the convergence rate of Newton's method for some convex and three times differentiable objective function <math>, where the second derivative is nonzero, i.e., <math>. The multivariate proof is a straightforward extension of the one-dimensional argument below and omitted since it does not help us much in terms of intuition.
+
+Denote by <math> the value of <math> at the <math> iteration and let <math> be the distance from optimality at the <math> iteration. By Taylor expansion we have that the condition <math> can be written as.
+
+<math>.
+
+which holds for some <math>. Dividing the above expansion by <math> yields.
+
+<math>.
+
+Recall that we have the update <math>. Plugging in this update equation and taking the absolute value of both sides, we have.
+
+<math>.
+
+Consequently, whenever we are in a region of bounded <math>, we have a quadratically decreasing error.
+
+<math>.
+
+As an aside, optimization researchers call this linear convergence, whereas a condition such as <math> would be called a constant rate of convergence. Note that this analysis comes with a number of caveats. First, we do not really have much of a guarantee when we will reach the region of rapid convergence. Instead, we only know that once we reach it, convergence will be very quick. Second, this analysis requires that <math> is well-behaved up to higher-order derivatives. It comes down to ensuring that <math> does not have any "surprising" properties in terms of how it might change its values.
+
+Preconditioning.
+
+Quite unsurprisingly computing and storing the full Hessian is very expensive. It is thus desirable to find alternatives. One way to improve matters is preconditioning. It avoids computing the Hessian in its entirety but only computes the diagonal entries. This leads to update algorithms of the form.
+
+<math>.
+
+While this is not quite as good as the full Newton's method, it is still much better than not using it. To see why this might be a good idea consider a situation where one variable denotes height in millimeters and the other one denotes height in kilometers. Assuming that for both the natural scale is in meters, we have a terrible mismatch in parametrizations. Fortunately, using preconditioning removes this. Effectively preconditioning with gradient descent amounts to selecting a different learning rate for each variable (coordinate of vector <math>). As we will see later, preconditioning drives some of the innovation in stochastic gradient descent optimization algorithms.
+
+Gradient Descent with Line Search.
+
+One of the key problems in gradient descent is that we might overshoot the goal or make insufficient progress. A simple fix for the problem is to use line search in conjunction with gradient descent. That is, we use the direction given by <math> and then perform binary search as to which learning rate <math> minimizes <math>.
+
+This algorithm converges rapidly (for an analysis and proof see e.g., ). However, for the purpose of deep learning this is not quite so feasible, since each step of the line search would require us to evaluate the objective function on the entire dataset. This is way too costly to accomplish.
+
+Summary.
+
+Learning rates matter. Too large and we diverge, too small and we do not make progress.
+
+Gradient descent can get stuck in local minima.
+
+In high dimensions adjusting the learning rate is complicated.
+
+Preconditioning can help with scale adjustment.
+
+Newton's method is a lot faster once it has started working properly in convex problems.
+
+Beware of using Newton's method without any adjustments for nonconvex problems.
+
+Exercises.
+
+Experiment with different learning rates and objective functions for gradient descent.
+
+Implement line search to minimize a convex function in the interval <math>.
+
+Do you need derivatives for binary search, i.e., to decide whether to pick <math> or <math>.
+
+How rapid is the rate of convergence for the algorithm?
+
+Implement the algorithm and apply it to minimizing <math>.
+
+Design an objective function defined on <math> where gradient descent is exceedingly slow. Hint: scale different coordinates differently.
+
+Implement the lightweight version of Newton's method using preconditioning:
+
+Use diagonal Hessian as preconditioner.
+
+Use the absolute values of that rather than the actual (possibly signed) values.
+
+Apply this to the problem above.
+
+Apply the algorithm above to a number of objective functions (convex or not). What happens if you rotate coordinates by <math> degrees?
+
+Discussions.

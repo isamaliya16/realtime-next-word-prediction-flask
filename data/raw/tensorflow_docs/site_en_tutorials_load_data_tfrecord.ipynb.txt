@@ -1,0 +1,173 @@
+TFRecord and tf.train.Example.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+The TFRecord format is a simple format for storing a sequence of binary records.
+
+Protocol buffers are a cross-platform, cross-language library for efficient serialization of structured data.
+
+Protocol messages are defined by <code> files, these are often the easiest way to understand a message type.
+
+The <code> message (or protobuf) is a flexible message type that represents a <code> mapping. It is designed for use with TensorFlow and is used throughout the higher-level APIs such as TFX.
+
+This notebook demonstrates how to create, parse, and use the <code> message, and then serialize, write, and read <code> messages to and from <code> files.
+
+Note: While useful, these structures are optional. There is no need to convert existing code to use TFRecords, unless you are using tf.data and reading data is still the bottleneck to training. You can refer to Better performance with the tf.data API for dataset performance tips.
+
+Note: In general, you should shard your data across multiple files so that you can parallelize I/O (within a single host or across multiple hosts). The rule of thumb is to have at least 10 times as many files as there will be hosts reading data. At the same time, each file should be large enough (at least 10 MB+ and ideally 100 MB+) so that you can benefit from I/O prefetching. For example, say you have <code> GB of data and you plan to train on up to <code> hosts. Ideally, you should shard the data to ~<code> files, as long as ~<code> is 10 MB+ (and ideally 100 MB+). If it is less than that, you might need to create fewer shards to trade off parallelism benefits and I/O prefetching benefits.
+
+Setup.
+
+<code>.
+
+Data types for <code>.
+
+Fundamentally, a <code> is a <code> mapping.
+
+The <code> message type can accept one of the following three types (See the <code> file for reference). Most other generic types can be coerced into one of these:
+
+<code> (the following types can be coerced).
+
+<code>.
+
+<code>.
+
+<code> (the following types can be coerced).
+
+<code> (<code>).
+
+<code> (<code>).
+
+<code> (the following types can be coerced).
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+In order to convert a standard TensorFlow type to a <code>-compatible <code>, you can use the shortcut functions below. Note that each function takes a scalar input value and returns a <code> containing one of the three <code> types above:
+
+Note: To stay simple, this example only uses scalar inputs. The simplest way to handle non-scalar features is to use <code> to convert tensors to binary-strings. Strings are scalars in TensorFlow. Use <code> to convert the binary-string back to a tensor.
+
+Below are some examples of how these functions work. Note the varying input types and the standardized output types. If the input type for a function does not match one of the coercible types stated above, the function will raise an exception (e.g. <code> will error out because <code> is a float—therefore, it should be used with the <code> function instead):
+
+All proto messages can be serialized to a binary-string using the <code> method:
+
+Creating a <code> message.
+
+Suppose you want to create a <code> message from existing data. In practice, the dataset may come from anywhere, but the procedure of creating the <code> message from a single observation will be the same:
+
+Within each observation, each value needs to be converted to a <code> containing one of the 3 compatible types, using one of the functions above.
+
+You create a map (dictionary) from the feature name string to the encoded feature value produced in #1.
+
+The map produced in step 2 is converted to a <code> message.
+
+In this notebook, you will create a dataset using NumPy.
+
+This dataset will have 4 features:
+
+a boolean feature, <code> or <code> with equal probability.
+
+an integer feature uniformly randomly chosen from <code>.
+
+a string feature generated from a string table by using the integer feature as an index.
+
+a float feature from a standard normal distribution.
+
+Consider a sample consisting of 10,000 independently and identically distributed observations from each of the above distributions:
+
+Each of these features can be coerced into a <code>-compatible type using one of <code>, <code>, <code>. You can then create a <code> message from these encoded features:
+
+For example, suppose you have a single observation from the dataset, <code>. You can create and print the <code> message for this observation using <code>. Each single observation will be written as a <code> message as per the above. Note that the <code> message is just a wrapper around the <code> message:
+
+To decode the message use the <code> method.
+
+TFRecords format details.
+
+A TFRecord file contains a sequence of records. The file can only be read sequentially.
+
+Each record contains a byte-string, for the data-payload, plus the data-length, and CRC-32C (32-bit CRC using the Castagnoli polynomial) hashes for integrity checking.
+
+Each record is stored in the following formats:
+
+uint64 length uint32 maskedcrc32oflength byte data[length] uint32 maskedcrc32ofdata.
+
+The records are concatenated together to produce the file. CRCs are described here, and the mask of a CRC is:
+
+masked_crc = ((crc >> 15) | (crc << 17)) + 0xa282ead8ul.
+
+Note: There is no requirement to use <code> in TFRecord files. <code> is just a method of serializing dictionaries to byte-strings. Any byte-string that can be decoded in TensorFlow could be stored in a TFRecord file. Examples include: lines of text, JSON (using <code>), encoded image data, or serialized <code> (using <code>/<code>). See the <code> module for more options.
+
+Reading and writing TFRecord files.
+
+The <code> module also contains pure-Python functions for reading and writing TFRecord files.
+
+Writing a TFRecord file.
+
+Next, write the 10,000 observations to the file <code>. Each observation is converted to a <code> message, then written to file. You can then verify that the file <code> has been created:
+
+Reading a TFRecord file in python.
+
+These serialized tensors can be easily parsed using <code>:
+
+That returns a <code> proto which is dificult to use as is, but it's fundamentally a representation of a:
+
+The following code manually converts the <code> to a dictionary of NumPy arrays, without using TensorFlow Ops. Refer to the PROTO file for details.
+
+Reading a TFRecord file Using tf.data.
+
+You can also read the TFRecord file using the <code> class.
+
+More information on consuming TFRecord files using <code> can be found in the tf.data: Build TensorFlow input pipelines guide.
+
+Using <code>s can be useful for standardizing input data and optimizing performance.
+
+At this point the dataset contains serialized <code> messages. When iterated over it returns these as scalar string tensors.
+
+Use the <code> method to only show the first 10 records.
+
+Note: iterating over a <code> only works with eager execution enabled.
+
+These tensors can be parsed using the function below. Note that the <code> is necessary here because <code>s use graph-execution, and need this description to build their shape and type signature:
+
+Alternatively, use <code> to parse the whole batch at once. Apply this function to each item in the dataset using the <code> method:
+
+Use eager execution to display the observations in the dataset. There are 10,000 observations in this dataset, but you will only display the first 10. The data is displayed as a dictionary of features. Each item is a <code>, and the <code> element of this tensor displays the value of the feature:
+
+Here, the <code> function unpacks the <code> fields into standard tensors.
+
+Walkthrough: Reading and writing image data.
+
+This is an end-to-end example of how to read and write image data using TFRecords. Using an image as input data, you will write the data as a TFRecord file, then read the file back and display the image.
+
+This can be useful if, for example, you want to use several models on the same input dataset. Instead of storing the image data raw, it can be preprocessed into the TFRecords format, and that can be used in all further processing and modelling.
+
+First, let's download this image of a cat in the snow and this photo of the Williamsburg Bridge, NYC under construction.
+
+Fetch the images.
+
+Write the TFRecord file.
+
+As before, encode the features as types compatible with <code>. This stores the raw image string feature, as well as the height, width, depth, and arbitrary <code> feature. The latter is used when you write the file to distinguish between the cat image and the bridge image. Use <code> for the cat image, and <code> for the bridge image:
+
+Notice that all of the features are now stored in the <code> message. Next, functionalize the code above and write the example messages to a file named <code>:
+
+Read the TFRecord file.
+
+You now have the file—<code>—and can now iterate over the records in it to read back what you wrote. Given that in this example you will only reproduce the image, the only feature you will need is the raw image string. Extract it using the getters described above, namely <code>. You can also use the labels to determine which record is the cat and which one is the bridge:
+
+Recover the images from the TFRecord file:

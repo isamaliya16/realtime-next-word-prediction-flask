@@ -1,0 +1,213 @@
+Image Classification using Global Context Vision Transformer.
+
+Setup.
+
+Introduction.
+
+In this notebook, we will utilize multi-backend Keras 3.0 to implement the GCViT: Global Context Vision Transformer paper, presented at ICML 2023 by A Hatamizadeh et al. The, we will fine-tune the model on the Flower dataset for image classification task, leveraging the official ImageNet pre-trained weights. A highlight of this notebook is its compatibility with multiple backends: TensorFlow, PyTorch, and JAX, showcasing the true potential of multi-backend Keras.
+
+Motivation.
+
+Note: In this section we'll learn about the backstory of GCViT and try to understand why it is proposed.
+
+During recent years, Transformers have achieved dominance in Natural Language Processing (NLP) tasks and with the self-attention mechanism which allows for capturing both long and short-range information.
+
+Following this trend, Vision Transformer (ViT) proposed to utilize image patches as tokens in a gigantic architecture similar to encoder of the original Transformer.
+
+Despite the historic dominance of Convolutional Neural Network (CNN) in computer vision, ViT-based models have shown SOTA or competitive performance in various computer vision tasks.
+
+However, quadratic [<code>] computational complexity of self-attention and lack of multi-scale information makes it difficult for ViT to be considered as general-purpose architecture for Compute Vision tasks like segmentation and object detection where it requires dense prediction at the pixel level.
+
+Swin Transformer has attempted to address the issues of ViT by proposing multi-resolution/hierarchical architectures in which the self-attention is computed in local windows and cross-window connections such as window shifting are used for modeling the interactions across different regions. But the limited receptive field of local windows can not capture long-range information, and cross-window-connection schemes such as window-shifting only cover a small neighborhood in the vicinity of each window. Also, it lacks inductive-bias that encourages certain translation invariance is still preferable for general-purpose visual modeling, particularly for the dense prediction tasks of object detection and semantic segmentation.
+
+To address above limitations, Global Context (GC) ViT network is proposed.
+
+Architecture.
+
+Let's have a quick overview of our key components.
+
+<code> A stem/patchify layer processes images at the network’s beginning. For this network, it creates patches/tokens and converts them into embeddings.
+
+<code> It is the repetitive building block that extracts features using different blocks.
+
+<code> It generates global tokens/patches with Depthwise-CNN, SqueezeAndExcitation (Squeeze-Excitation), CNN and MaxPooling. So basically it's a Feature Extractor.
+
+<code> It is the repetitive module that applies attention to the features and projects them to a certain dimension.
+
+<code> Local Multi head Self Attention.
+
+<code> Global Multi head Self Attention.
+
+<code> Linear layer that projects a vector to another dimension.
+
+<code> It is very similar to Global Token Gen. module except it uses CNN instead of MaxPooling to downsample with additional Layer Normalization modules.
+
+<code> It is the module responsible for the classification task.
+
+<code> It converts <code> features to <code> features.
+
+<code> It processes <code> features to make a decision about class.
+
+I've annotated the architecture figure to make it easier to digest.
+
+Unit Blocks.
+
+Note: This blocks are used to build other modules throughout the paper. Most of the blocks are either borrowed from other work or modified version old work.
+
+<code>: Squeeze-Excitation (SE) aka Bottleneck module acts sd kind of channel attention. It consits of AvgPooling, Dense/FullyConnected (FC)/Linear , GELU and Sigmoid module.
+
+<code> This is similar to the one used in EfficientNetV2. It uses Depthwise-Conv, GELU, SqueezeAndExcitation, Conv, to extract feature with a resiudal connection. Note that, no new module is declared for this one, we simply applied corresponding modules directly.
+
+<code>: It is a CNN based downsample module which abvobe mentioned <code> module to extract feature, Strided Conv to simultaneously reduce spatial dimension and increse channelwise dimention of the features and finally LayerNormalization module to normalize features. In the paper/figure this module is referred as downsample module. I think it is mention worthy that SwniTransformer used <code> module instead of <code> to reduce the spatial dimention and increase channelwise dimension which uses fully-connected/dense/linear module. According to the GCViT paper, one of the purposes of using <code> is to add inductive bias through CNN module.
+
+<code> This is our very own Multi Layer Perceptron module. This a feed-forward/fully-connected/linear module which simply projects input to an arbitary dimension.
+
+Stem.
+
+Notes: In the code, this module is referred to as PatchEmbed but on paper, it is referred to as Stem.
+
+In the model, we have first used <code> module. Let's try to understand this module. As we can see from the <code> method.
+
+This module first pads input.
+
+Then uses convolutions to extract patches with embeddings.
+
+Finally, uses <code> module to first extract features with convolution but neither reduces spatial dimension nor increases spatial dimension.
+
+One important point to notice, unlike ViT or SwinTransformer, GCViT creates overlapping patches. We can notice that from the code, <code>. If we wanted non-overlapping patches then we would've used the same <code> and <code>.
+
+This module reduces the spatial dimension of input by <code>. Summary: image → padding → convolution → (feature_extract + downsample).
+
+Global Token Gen.
+
+Notes: It is one of the two CNN modules that is used to imppose inductive bias.
+
+As we can see from above cell, in the <code> we have first used `toqglobal/Global Token Gen./FeatureExtraction`. Let's try to understand how it works.
+
+This module is series of <code> module, according to paper we need to repeat this module <code> times, where <code>, <code>, <code>.
+
+<code> This layer is very similar to <code> module except it uses MaxPooling module to reduce the dimension, it doesn't increse feature dimension (channelsie) and it doesn't uses LayerNormalizaton. This module is used to in <code> module repeatedly to generte global tokens for global-context-attention.
+
+One important point to notice from the figure is that, global tokens is shared across the whole image which means we use only one global window for all local tokens in a image. This makes the computation very efficient.
+
+For input feature map with shape <code>, we'll get output shape <code>. If we copy these global tokens for total <code> local windows in an image where, <code>, then output shape: <code>." Summary: This module is used to <code> the image to fit window.
+
+Attention.
+
+Notes: This is the core contribution of the paper.
+
+As we can see from the <code> method.
+
+<code> module applies both local and global window attention depending on <code> parameter.
+
+First it converts input features into <code> for local attention and <code> for global attention. For global attention, it takes global query from <code>. One thing to notice from the code is that we divide the features or embed_dim among all the heads of Transformer to reduce the computation. <code>.
+
+Before sending query, key and value for attention, global token goes through an important process. Same global tokens or one global window gets copied for all the local windows to increase efficiency. <code>, here <code> means <code> in a image.
+
+Then simply applies <code> or <code> depending on <code> parameter. One thing to notice from the code is that we are adding relative-positional-embedding with the attention mask instead of the patch embedding. <code>.
+
+Now, let's think for a bit and try to understand what is happening here. Let's focus on the figure below. We can see from the left, that in the local-attention the query is local and it's limited to the local window (red square border) hence we don't have access to long-range information. But on the right that due to global query we're now not limited to local-windows (blue square border) and we have access to long-range information.
+
+In ViT we compare (attention) image-tokens with image-tokens, in SwinTransformer we compare window-tokens with window-tokens but in GCViT we compare image-tokens with window-tokens. But now you may ask, how can compare(attention) image-tokens with window-tokens even after image-tokens have larger dimensions than window-tokens? (from above figure image-tokens have shape <code> and window-tokens have shape <code>). Yes, you are right we can't directly compare them hence we resize image-tokens to fit window-tokens with `Global Token Gen./FeatureExtraction` CNN module. The following table should give you a clear comparison.
+
+Block.
+
+Notes: This module doesn't have any Convolutional module.
+
+In the <code> second module that we have used is <code>. Let's try to understand how it works. As we can see from the <code> method.
+
+<code> module takes either only feature_maps for local attention or additional global query for global attention.
+
+Before sending feature maps for attention, this module converts batch feature maps to batch windows as we'll be applying Window Attention.
+
+Then we send batch batch windows for attention.
+
+After attention has been applied we revert batch windows to batch feature maps.
+
+Before sending the attention to applied features for output, this module applies Stochastic Depth regularization in the residual connection. Also, before applying Stochastic Depth it rescales the input with trainable parameters. Note that, this Stochastic Depth block hasn't been shown in the figure of the paper.
+
+Window.
+
+In the <code> module, we have created windows before and after applying attention. Let's try to understand how we're creating windows.
+
+Following module converts feature maps <code> to stacked windows <code> → <code>.
+
+This module uses <code> & <code> to create these windows out of image instead of iterating over them.
+
+Level.
+
+Note: This module has both Transformer and CNN modules.
+
+In the model, the second module that we have used is <code>. Let's try to understand this module. As we can see from the <code> method.
+
+First it creates global_token with a series of <code> modules. As we'll see later that <code> is nothing but a simple CNN based module.
+
+Then it uses series of<code> modules to apply local or global window attention depending on depth level.
+
+Finally, it uses <code> to reduce the dimension of contextualized features. Summary: featuremap → globaltoken → local/global window attention → dowsample.
+
+Model.
+
+Let's directly jump to the model. As we can see from the <code> method.
+
+It creates patch embeddings from an image. This layer doesn't flattens these embeddings which means output of this module will be <code> instead of <code>.
+
+Then it applies <code> module which randomly sets input units to 0.
+
+It passes these embeddings to series of <code> modules which we are calling <code> where.
+
+Global token is generated.
+
+Both local & global attention is applied.
+
+Finally downsample is applied.
+
+So, output after <code> number of levels, shape: `(batch, width/windowsize x 2^{n-1}, width/windowsize x 2^{n-1}, embed_dim x 2^{n-1})`. In the last layer, paper doesn't use downsample and increase channels.
+
+Output of above layer is normalized using <code> module.
+
+In the head, 2D features are converted to 1D features with <code> module. Output shape after this module is <code>.
+
+Finally, pooled features are sent to <code> module for classification. Sumamry: image → (patchs + embedding) → dropout → (attention + feature extraction) → normalizaion → pooling → classify.
+
+Build Model.
+
+Let's build a complete model with all the modules that we've explained above. We'll build GCViT-XXTiny model with the configuration mentioned in the paper.
+
+Also we'll load the ported official pre-trained weights and try for some predictions.
+
+Model: "gcvit".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( None , 224 , 224 , 3 ) │ 0 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ patchembed ( PatchEmbed ) │ ( None , 56 , 56 , 64 ) │ 45,632 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ posdrop ( Dropout ) │ ( None , 56 , 56 , 64 ) │ 0 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ levels0 ( Level ) │ ( None , 28 , 28 , 128 ) │ 180,964 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ levels1 ( Level ) │ ( None , 14 , 14 , 256 ) │ 688,456 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ levels2 ( Level ) │ ( None , 7 , 7 , 512 ) │ 5,170,608 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ levels_3 ( Level ) │ ( None , 7 , 7 , 512 ) │ 5,395,744 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ norm ( LayerNormalization ) │ ( None , 7 , 7 , 512 ) │ 1,024 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ pool ( GlobalAveragePooling2D ) │ ( None , 512 ) │ 0 │ ├────────────────────────────────────┼───────────────────────────────┼─────────────┤ │ head ( Dense ) │ ( None , 1000 ) │ 513,000 │ └────────────────────────────────────┴───────────────────────────────┴─────────────┘.
+
+Total params: 11,995,428 (45.76 MB).
+
+Trainable params: 11,995,428 (45.76 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+Sanity check for Pre-Trained Weights.
+
+Fine-tune GCViT Model.
+
+In the following cells, we will fine-tune GCViT model on Flower Dataset which consists <code> classes.
+
+Configs.
+
+Data Loader.
+
+Flower Dataset.
+
+Re-Build Model for Flower Dataset.
+
+Training.
+
+Reference.
+
+gcvit-tf - A Python library for GCViT with TF2.0.
+
+gcvit - Official codebase for GCViT.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

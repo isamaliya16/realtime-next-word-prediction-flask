@@ -1,0 +1,145 @@
+Accelerating PyTorch Transformers by replacing <code> with Nested Tensors and <code> Author: Mikayla Gawarecki.
+
+Over the past few years, the PyTorch team has developed various lower level features that, when composed, can create a variety of transformer variants. These include:
+
+Nested Tensors with the <code> layout (AKA NJTs).
+
+<code>.
+
+<code>.
+
+<code>.
+
+This tutorial will give a brief overview of the above technologies and demonstrate how they can be composed to yield flexible and performant transformer \ layers with improved user experience.
+
+One may observe that the <code> module currently provides various <code>-related layers. In particular, it includes <code>, <code>, <code>, <code>, <code> and <code>. This family of layers was initially implemented following the Attention is All You Need paper. The components discussed in this tutorial provide improved user experience, flexibility and performance over the existing <code> layers.
+
+Is this tutorial for me?
+
+If you are wondering about what building blocks the <code> library provides for writing your own transformer layers and best practices, you are in the right place. Please keep reading!
+
+If you are looking for an out-of-the-box implementation of a popular transformer architecture, note that there are many open-source libraries that provide them, including:
+
+HuggingFace transformers.
+
+xformers.
+
+torchtune.
+
+If you are only interested in performant attention score modifications, please check out the FlexAttention blog that contains a gym of masks.
+
+Introducing the Building Blocks First, we will briefly introduce the four technologies mentioned in the introduction.
+
+torch.nested.
+
+Nested tensors generalize the shape of regular dense tensors, allowing for representation of ragged-sized data with the same tensor UX. In the context of transformers, we can think of nested tensors as a tool for representing variable sequence lengths. They eliminate the need for the bug-prone practices of explicit padding and masking (think <code> in <code>).
+
+scaleddotproduct_attention.
+
+<code> is a primitive for \text{softmax}(\frac{QK^T}{\sqrt{E}} + B)V that dispatches into either fused implementations of the operator or a fallback implementation. It works out of the box in eager mode (i.e. the default mode of using PyTorch where operations are executed on the fly as they are encountered) and also integrates seamlessly with <code>. As of 2.6, it will also offer grouped query attention natively.
+
+torch.compile().
+
+<code> is a compiler introduced in version 2.0 that is able to capture a graph of PyTorch code and perform various optimizations on it, such as fusing together sequences of ops. Nested tensors with the <code> layout and <code> work seamlessly with compile. In the context of transformers, the value add of using compile with nested tensor and SDPA is that compile can remove framework overhead ones sees in eager mode and fuse sequences of ops in transformers together, such as projection and activation.
+
+FlexAttention.
+
+<code> is a primitive that allows users to modify attention scores prior to the softmax operation. It generalizes the additive <code> term above for <code>, allowing for arbitrary calculation. It requires compile to achieve good performance.
+
+The above building blocks are "All You Need" (as of October 2024).
+
+The main premise in this section is that most transformer variations are GPT-style, consisting of layers like Embedding, Positional Encoding, Attention Blocks and Feed Forward networks. If we were to try to classify the differences in this space, we might land on something like:
+
+Layer type (activation functions such as <code> and others, normalization functions such as <code> and others, positional encodings, such as Sinusoidal, Rotary.).
+
+Layer ordering, such as where to apply norms and positional encoding.
+
+Modifications to attention score, such as <code>, Relative Positional Bias and so on.
+
+In a pre-compiler environment, you might write a custom transformer and notice that it functions correctly but is slow. To address this, you might develop a custom fused kernel for the specific series of operations. In a compiler environment, you can simply perform the initial step and then compile and benefit from improved performance.
+
+MultiheadAttention Remember that MultiheadAttention takes in a query, key, and value, and consists of an input projection, a <code> operator and an output projection. The main takeaway we want to demonstrate here is the improvement yielded when we replaced padded/masked inputs with nested tensors. The improvements are threefold:
+
+User Experience Remember that <code> requires <code>, <code>, and <code> to be dense <code>. It also provides a <code> that is used to mask out padding tokens in the <code> that arise due to different sequence lengths within a batch. Since there is no <code> in <code>, users have to take care to mask/slice the outputs appropriately to account for query sequence lengths. <code> cleanly removes the need for this sort of error-prone padding masks.
+
+Memory Instead of materializing a dense <code> tensor with a <code> padding mask (where <code> is batch size, <code> is max sequence length in the batch and <code> is embedding size), nested tensors allow you to cleanly represent the batch of varying sequence lengths. As a result, the input and intermediate activations will use less memory.
+
+Performance Since padding is not materialized and unnecessary computation on padding is skipped, performance and memory usage improve.
+
+We'll demonstrate the above by building upon the <code> layer in the Nested Tensor tutorial and comparing it to the <code> layer.
+
+Utilities In this section, we include a utility to generate semi-realistic data using <code> distribution for sentence lengths. This is used to generate the nested query, key, and value tensors. We also include a benchmark utility.
+
+We will now demonstrate the performance improvements of using nested tensors in the <code> layer + compile for self attention. We compare this against the traditional <code> + compile with padding and masking.
+
+For reference, here are some sample outputs on A100:
+
+We can also see the same for backward pass.
+
+Sample outputs on A100:
+
+GPT-style layer A basic GPT-style transformer layer consists of a causal self-attention layer followed by a feed-forward network (FFN) with skip connections. Implementing this is fairly straightforward using the <code> layer above and gives equivalent results to an <code> with <code>.
+
+We demonstrate examples of implementing the rest of the <code> layers here but omit that from this tutorial for brevity.
+
+Going one step further So far, we have demonstrated how to implement a performant <code> layer that follows the traditional <code>. Going back to our classification of modifications to the transformer architecture, remember that we classified the modifications into layer type, layer ordering, and modifications to the attention score. We trust that changing layer type and layer ordering (such as swapping <code> for <code>) is fairly straightforward.
+
+In this section, we will discuss various functionalities using the aforementioned building blocks, including the following:
+
+Cross Attention.
+
+Fully masked rows no longer cause NaNs.
+
+Packed Projection.
+
+Cross Attention Cross attention is a form of attention where the query and key/value tensors are from different sequences.
+
+One example of this is in <code> where the query comes from the decoder and the key/value come from the encoder.
+
+The above MultiheadAttention layer nicely generalizes to this case with nested tensors for both query and key/value.
+
+As above, we can compare this against the vanilla compiled <code>.
+
+Sample outputs on A100:
+
+Fully masked rows no longer cause NaNs.
+
+There has been a long standing issue with <code> and <code> where if a row was fully masked out, the output of the attention layer would be NaN. See issue. This is because the softmax over an empty set is undefined.
+
+Thanks to this PR this is no longer the case. Instead, the output corresponding to fully masked rows in <code> will be 0. For cases where <code> does not employ the "fast-path", this will also apply.
+
+Using a custom MHA layer with NJTs is strongly recommended over the existing "fast-path" in <code> as NJT's ability to model raggedness appropriately makes it possible to properly express empty sequences.
+
+Packed Projection.
+
+Packed projection is a technique that makes use of the fact that when the input for projection (matrix multiplications) are the same (self-attention), we can pack the projection weights and biases into single tensors. It is especially useful when the individual projections are memory bound rather than compute bound. There are two examples that we will demonstrate here:
+
+Input projection for MultiheadAttention.
+
+SwiGLU activation in feed-forward network of Transformer Layer.
+
+Input projection for MultiheadAttention When doing self-attention, the <code>, <code>, and <code> are the same tensor. Each of these tensors is projected with a <code> layer. Instead, we can pack this into one layer, which is what we do in the MultiheadAttention layer above.
+
+Let us compare the performance of the packed projection against the usual method:
+
+SwiGLU feed forward network of Transformer Layer Swish-Gated Linear Unit (SwiGLU) is a non-linear activation function that is increasingly popular in the feed-forward network of the transformer layer (e.g. Llama). A feed-forward network with SwiGLU activation is defined as:
+
+An alternative way of implementing this that uses packed projection is.
+
+We can compare the performance of the two implementations as follows Depending on your hardware, you might see different results. On an A100 I see 1.12x speedup for D=128.
+
+Extended examples.
+
+We intend to update this tutorial to demonstrate more examples of how to use the various performant building blocks such as KV-Caching, Grouped Query Attention etc. Further, there are several good examples of using various performant building blocks to implement various transformer architectures. Some examples include.
+
+gpt-fast.
+
+segment-anything-fast.
+
+lucidrains implementation of NaViT with nested tensors.
+
+torchtune's implementation of VisionTransformer.
+
+Conclusion.
+
+In this tutorial, we have introduced the low level building blocks PyTorch provides for writing transformer layers and demonstrated examples how to compose them. It is our hope that this tutorial has educated the reader on the ease with which flexible and performant transformer layers can be implemented by users of PyTorch.

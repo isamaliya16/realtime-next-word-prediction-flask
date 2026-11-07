@@ -1,0 +1,357 @@
+Extension types.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Setup.
+
+Extension types.
+
+User-defined types can make projects more readable, modular, maintainable. However, most TensorFlow APIs have very limited support for user-defined Python types. This includes both high-level APIs (such as Keras, tf.function, <code>) and lower-level APIs (such as <code> and <code>). TensorFlow extension types can be used to create user-defined object-oriented types that work seamlessly with TensorFlow's APIs. To create an extension type, simply define a Python class with <code> as its base, and use type annotations to specify the type for each field.
+
+The <code> base class works similarly to <code> and <code> from the standard Python library. In particular, it automatically adds a constructor and special methods (such as <code> and <code>) based on the field type annotations.
+
+Typically, extension types tend to fall into one of two categories:
+
+Data structures, which group together a collection of related values, and can provide useful operations based on those values. Data structures may be fairly general (such as the <code> example above); or they may be highly customized to a specific model.
+
+Tensor-like types, which specialize or extend the concept of "Tensor." Types in this category have a <code>, a <code>, and usually a <code>; and it makes sense to use them with Tensor operations (such as <code>, <code>, or <code>). <code> and <code> are examples of tensor-like types.
+
+Supported APIs.
+
+Extension types are supported by the following TensorFlow APIs:
+
+Keras: Extension types can be used as inputs and outputs for Keras <code> and <code>.
+
+<code>: Extension types can be included in <code>, and returned by dataset <code>.
+
+TensorFlow Hub: Extension types can be used as inputs and outputs for <code> modules.
+
+SavedModel: Extension types can be used as inputs and outputs for <code> functions.
+
+<code>: Extension types can be used as arguments and return values for functions wrapped with the <code> decorator.
+
+While loops: Extension types can be used as loop variables in <code>, and can be used as arguments and return values for the while-loop's body.
+
+Conditionals: Extension types can be conditionally selected using <code> and <code>.
+
+<code>: Extension types can be used as arguments and return values for the <code> argument to <code>.
+
+Tensor ops: Extension types can be extended to support most TensorFlow ops that accept Tensor inputs (such as <code>, <code>, and <code>). Go to the "Dispatch" section below for more information.
+
+Distribution strategy: Extension types can be used as per-replica values.
+
+For more details, see the section on "TensorFlow APIs that support ExtensionTypes" below.
+
+Requirements.
+
+Field types.
+
+All fields—instance variables—must be declared, and a type annotation must be provided for each field. The following type annotations are supported:
+
+Type | Example ---- | ------- Python integers | <code> Python floats | <code> Python strings | <code> Python booleans | <code> Python <code> | <code> Tensor shapes | <code> Tensor <code>s | <code> Tensors | <code> Extension types | <code> Ragged tensors | <code> Sparse tensors | <code> Indexed slices | <code> Optional tensors | <code> Type unions | <code> Tuples | <code> Var-length tuples | <code> Mappings | <code> Optional values | <code>.
+
+Mutability.
+
+Extension types are required to be immutable. This ensures that they can be properly tracked by TensorFlow's graph-tracing mechanisms. If you find yourself wanting to mutate an extension type value, consider instead defining methods that transform values. For example, rather than defining a <code> method to mutate a <code>, you could define a <code> method that returns a new <code>:
+
+Functionality added by <code>.
+
+The <code> base class provides the following functionality:
+
+A constructor (<code>).
+
+A printable representation method (<code>).
+
+Equality and inequality operators (<code>).
+
+A validation method (<code>).
+
+Enforced immutability.
+
+A nested <code>.
+
+Tensor API dispatch support.
+
+Go to the "Customizing <code>s" section below for more information on customizing this functionality.
+
+Constructor.
+
+The constructor added by <code> takes each field as a named argument (in the order they were listed in the class definition). This constructor will type-check each parameter, and convert them where necessary. In particular, <code> fields are converted using <code>; <code> fields are converted to <code>s; and <code> fields are converted to immutable dicts.
+
+The constructor raises an <code> if a field value can not be converted to its declared type:
+
+The default value for a field can be specified by setting its value at the class level:
+
+Printable representation.
+
+<code> adds a default printable representation method (<code>) that includes the class name and the value for each field:
+
+Equality operators.
+
+<code> adds default equality operators (<code> and <code>) that consider two values equal if they have the same type and all their fields are equal. Tensor fields are considered equal if they have the same shape and are elementwise equal for all elements.
+
+Note: if any field contains a <code>, then <code> may return a scalar boolean <code> (rather than a Python boolean value).
+
+Validation method.
+
+<code> adds a <code> method, which can be overridden to perform validation checks on fields. It is run after the constructor is called, and after fields have been type-checked and converted to their declared types, so it can assume that all fields have their declared types.
+
+The following example updates <code> to validate the <code>s and <code>s of its fields:
+
+Enforced immutability.
+
+<code> overrides the <code> and <code> methods to prevent mutation, ensuring that extension type values are immutable.
+
+Nested TypeSpec.
+
+Each <code> class has a corresponding <code> class, which is created automatically and stored as <code>.
+
+This class captures all the information from a value except for the values of any nested tensors. In particular, the <code> for a value is created by replacing any nested Tensor, ExtensionType, or CompositeTensor with its <code>.
+
+<code> values can be constructed explicitly, or they can be built from an <code> value using <code>:
+
+<code>s are used by TensorFlow to divide values into a static component and a dynamic component:
+
+The static component (which is fixed at graph-construction time) is encoded with a <code>.
+
+The dynamic component (which can vary each time the graph is run) is encoded as a list of <code>s.
+
+For example, <code> retraces its wrapped function whenever an argument has a previously unseen <code>:
+
+For more information, see the tf.function Guide.
+
+Customizing <code>s.
+
+In addition to simply declaring fields and their types, extension types may:
+
+Override the default printable representation (<code>).
+
+Define methods.
+
+Define <code>s and <code>s.
+
+Define properties.
+
+Override the default constructor (<code>).
+
+Override the default equality operator (<code>).
+
+Define operators (such as <code> and <code>).
+
+Declare default values for fields.
+
+Define subclasses.
+
+Overriding the default printable representation.
+
+You can override this default string conversion operator for extension types. The following example updates the <code> class to generate a more readable string representation when values are printed in Eager mode.
+
+Defining methods.
+
+Extension types may define methods, just like any normal Python class. For example, the <code> type could define a <code> method that returns a copy of <code> with masked values replaced by a given <code> value. Methods may optionally be annotated with the <code> decorator.
+
+Defining <code>s and <code>s.
+
+Extension types may define methods using the <code> and <code> decorators. For example, the <code> type could define a factory method that masks any element with a given value:
+
+Defining properties.
+
+Extension types may define properties using the <code> decorator, just like any normal Python class. For example, the <code> type could define a <code> property that's a shorthand for the <code> of the values:
+
+Overriding the default constructor.
+
+You can override the default constructor for extension types. Custom constructors must set a value for every declared field; and after the custom constructor returns, all fields will be type-checked, and values will be converted as described above.
+
+Alternatively, you might consider leaving the default constructor as-is, but adding one or more factory methods. For example:
+
+Overriding the default equality operator (<code>).
+
+You can override the default <code> operator for extension types. The following example updates <code> to ignore masked elements when comparing for equality.
+
+Note: You generally don't need to override <code>, since its default implementation simply calls <code> and negates the result.
+
+Using forward references.
+
+If the type for a field has not been defined yet, you may use a string containing the name of the type instead. In the following example, the string <code> is used to annotate the <code> field because the <code> type hasn't been (fully) defined yet.
+
+Defining subclasses.
+
+Extension types may be subclassed using the standard Python syntax. Extension type subclasses may add new fields, methods, and properties; and may override the constructor, the printable representation, and the equality operator. The following example defines a basic <code> class that uses three <code> fields to encode a set of edges between nodes. It then defines a subclass that adds a <code> field to record a "feature value" for each node. The subclass also defines a method to propagate the feature values along the edges.
+
+Defining private fields.
+
+An extension type's fields may be marked private by prefixing them with an underscore (following standard Python conventions). This does not impact the way that TensorFlow treats the fields in any way; but simply serves as a signal to any users of the extension type that those fields are private.
+
+Customizing the <code>'s <code>.
+
+Each <code> class has a corresponding <code> class, which is created automatically and stored as <code>. For more information, see the section "Nested TypeSpec" above.
+
+To customize the <code>, simply define your own nested class named <code>, and <code> will use that as the basis for the automatically constructed <code>. You can customize the <code> class by:
+
+Overriding the default printable representation.
+
+Overriding the default constructor.
+
+Defining methods, <code>s, <code>s, and properties.
+
+The following example customizes the <code> class to make it easier to use:
+
+Note: The custom <code> class may not use any instance variables that were not declared in the original <code>.
+
+Tensor API dispatch.
+
+Extension types can be "tensor-like", in the sense that they specialize or extend the interface defined by the <code> type. Examples of tensor-like extension types include <code>, <code>, and <code>. Dispatch decorators can be used to override the default behavior of TensorFlow operations when applied to tensor-like extension types. TensorFlow currently defines three dispatch decorators:
+
+<code>.
+
+<code>.
+
+<code>.
+
+Dispatch for a single API.
+
+The <code> decorator overrides the default behavior of a specified TensorFlow operation when it is called with the specified signature. For example, you can use this decorator to specify how <code> should process <code> values:
+
+This overrides the default implementation for <code> whenever it is called with a list of <code> values (since the <code> argument is annotated with <code>):
+
+To allow <code> to handle lists of mixed <code> and <code> values, you can refine the type annotation for the <code> parameter and update the body of the function appropriately:
+
+For a list of APIs that can be overridden, see the API documentation for <code>.
+
+Dispatch for all unary elementwise APIs.
+
+The <code> decorator overrides the default behavior of all unary elementwise ops (such as <code>) whenever the value for the first argument (typically named <code>) matches the type annotation <code>. The decorated function should take two arguments:
+
+<code>: A function that takes a single parameter and performs the elementwise operation (for example, <code>).
+
+<code>: The first argument to the elementwise operation.
+
+The following example updates all unary elementwise operations to handle the <code> type:
+
+This function will now be used whenever a unary elementwise operation is called on a <code>.
+
+Dispatch for binary all elementwise APIs.
+
+Similarly, <code> can be used to update all binary elementwise operations to handle the <code> type:
+
+For a list of the elementwise APIs that are overridden, go to the API documentation for <code> and <code>.
+
+Batchable <code>s.
+
+An <code> is batchable if a single instance can be used to represent a batch of values. Typically, this is accomplished by adding batch dimensions to all nested <code>s. The following TensorFlow APIs require that any extension type inputs be batchable:
+
+<code> (<code>, <code>, <code>).
+
+<code> (<code>, <code>, <code>).
+
+<code>.
+
+By default, <code> creates batched values by batching any nested <code>s, <code>s, and <code>s. If this is not appropriate for your class, then you will need to use <code> to override this default behavior. For example, it would not be appropriate to create a batch of <code> values by simply stacking individual sparse tensors' <code>, <code>, and <code> fields -- in most cases, you can't stack these tensors, since they have incompatible shapes; and even if you could, the result would not be a valid <code>.
+
+Note: <code>s do not automatically define dispatchers for <code>, <code>, <code>, etc. If your class needs to be supported by these APIs, then use the dispatch decorators described above.
+
+<code> example: <code>.
+
+As an example, consider a simple <code> class used for load balancing, which tracks how much work is left to do at each node, and how much bandwidth is available to move work between nodes:
+
+To make this type batchable, change the base type to <code>, and adjust the shape of each field to include optional batch dimensions. The following example also adds a <code> field to keep track of the batch shape. This <code> field is not required by <code> or <code>, but it is required by <code>.
+
+You can then use <code> to iterate through a batch of networks:
+
+And you can also use <code> to apply a function to each batch element:
+
+TensorFlow APIs that support <code>s.
+
+@tf.function.
+
+<code> is a decorator that precomputes TensorFlow graphs for Python functions, which can substantially improve the performance of your TensorFlow code. Extension type values can be used transparently with <code>-decorated functions.
+
+If you wish to explicitly specify the <code> for <code>, then you can do so using the extension type's <code>.
+
+Concrete functions.
+
+Concrete functions encapsulate individual traced graphs that are built by <code>. Extension types can be used transparently with concrete functions.
+
+Control flow operations.
+
+Extension types are supported by TensorFlow's control-flow operations:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+Autograph control flow.
+
+Extension types are also supported by control flow statements in <code> (using autograph). In the following example, the <code> statement and <code> statements are automatically converted to <code> and <code> operations, which support extension types.
+
+Keras.
+
+tf.keras is TensorFlow's high-level API for building and training deep learning models. Extension types may be passed as inputs to a Keras model, passed between Keras layers, and returned by Keras models. Keras currently puts two requirements on extension types:
+
+They must be batchable (go to "Batchable <code>s" above).
+
+They must have a field or property named <code>. <code> is assumed to be the batch dimension.
+
+The following two subsections give examples showing how extension types can be used with Keras.
+
+Keras example: <code>.
+
+For the first example, consider the <code> class defined in the "Batchable <code>s" section above, which can be used for load balancing work between nodes. Its definition is repeated here:
+
+You can define a new Keras layer that processes <code>s.
+
+You can then use these layers to create a simple model. To feed an <code> into a model, you can use a <code> layer with <code> set to the extension type's <code>. If the Keras model will be used to process batches, then the <code> must include the batch dimension.
+
+Finally, you can apply the model to a single network and to a batch of networks.
+
+Keras example: MaskedTensor.
+
+In this example, <code> is extended to support <code>. <code> is defined as a property that is calculated from the <code> field. Keras requires that you add this property to both the extension type and its <code>. <code> also defines a <code> variable, which will be required for <code> serialization (below).
+
+Next, the dispatch decorators are used to override the default behavior of several TensorFlow APIs. Since these APIs are used by standard Keras layers (such as the <code> layer), overriding these will allow us to use those layers with <code>. For the purposes of this example, <code> for masked tensors is defined to treat the masked values as zeros (that is, to not include them in the product).
+
+You can then construct a Keras model that accepts <code> inputs, using standard Keras layers:
+
+SavedModel.
+
+A SavedModel is a serialized TensorFlow program, including both weights and computation. It can be built from a Keras model or from a custom model. In either case, extension types can be used transparently with the functions and methods defined by a SavedModel.
+
+SavedModel can save models, layers, and functions that process extension types, as long as the extension types have a <code> field. This name is used to register the extension type, so it can be located when the model is loaded.
+
+Example: saving a Keras model.
+
+Keras models that use extension types may be saved using <code>.
+
+Example: saving a custom model.
+
+SavedModel can also be used to save custom <code> subclasses with functions that process extension types.
+
+Loading a SavedModel when the <code> is unavailable.
+
+If you load a <code> that uses an <code>, but that <code> is not available (that is, it has not been imported), then you will get a warning and TensorFlow will fall back to using an "anonymous extension type" object. This object will have the same fields as the original type, but will lack any further customization you have added for the type, such as custom methods or properties.
+
+Using <code>s with TensorFlow Serving.
+
+Currently, TensorFlow Serving (and other consumers of the SavedModel "signatures" dictionary) require that all inputs and outputs be raw tensors. If you wish to use TensorFlow Serving with a model that uses extension types, then you can add wrapper methods that compose or decompose extension type values from tensors. For example:
+
+<code>s.
+
+<code> is an API that enables you to build complex input pipelines from simple, reusable pieces. Its core data structure is <code>, which represents a sequence of elements, in which each element consists of one or more components.
+
+Building <code>s with extension types.
+
+Datasets can be built from extension type values using <code>, <code>, or <code>:
+
+Batching and unbatching <code>s with extension types.
+
+Datasets with extension types can be batchand and unbatched using <code> and <code>.

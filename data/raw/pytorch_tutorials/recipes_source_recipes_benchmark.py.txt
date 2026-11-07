@@ -1,0 +1,93 @@
+PyTorch Benchmark This recipe provides a quick-start guide to using PyTorch <code> module to measure and compare code performance.
+
+Introduction Benchmarking is an important step in writing code. It helps us validate that our code meets performance expectations, compare different approaches to solving the same problem and prevent performance regressions.
+
+There are many options when it comes to benchmarking PyTorch code including the Python builtin <code> module. However, benchmarking PyTorch code has many caveats that can be easily overlooked such as managing the number of threads and synchronizing CUDA devices. Moreover, generating Tensor inputs for benchmarking can be quite tedious.
+
+This recipe demonstrates how to use PyTorch <code> module to avoid common mistakes while making it easier to compare performance of different code, generate input for benchmarking and more.
+
+Setup Before we begin, install <code> if it isn’t already available.
+
+Steps.
+
+Defining functions to benchmark.
+
+Benchmarking with <code>.
+
+Benchmarking with <code>.
+
+Benchmarking with <code>.
+
+Comparing benchmark results.
+
+Saving/Loading benchmark results.
+
+Generating inputs with <code>.
+
+Collecting instruction counts with <code>.
+
+Defining functions to benchmark.
+
+As of the time of this writing, torch.dot does not support batched mode, so we will compare two approaches to implementing it using existing <code> operators: one approach uses a combination of <code> and <code> while the other reduces the problem to <code>.
+
+Benchmarking with <code>.
+
+First, let's benchmark the code using Python's builtin <code> module. We keep the benchmark code simple here so we can compare the defaults of <code> and <code>.
+
+Benchmarking with <code>.
+
+PyTorch <code> module was designed to be familiar to those who have used the <code> module before. However, its defaults make it easier and safer to use for benchmarking PyTorch code. Let's first compare the same basic API as above.
+
+Even though the APIs are the same for the basic functionality, there are some important differences. <code> returns the time per run as opposed to the total runtime like <code> does. PyTorch <code> module also provides formatted string representations for printing the results.
+
+Another important difference, and the reason why the results diverge is that PyTorch benchmark module runs in a single thread by default. We can change the number of threads with the <code> argument.
+
+<code> takes several additional arguments including: <code>, <code>, <code> and <code> which change the repr of the measurement object returned and are used for grouping the results (more on this later).
+
+Running <code> with all threads available gives similar results as the <code> module. More importantly, which version is faster depends on how many threads we run the code with. This is why it's important to benchmark the code with thread settings that are representative of real use cases. Another important thing to remember is to synchronize CPU and CUDA when benchmarking on the GPU. Let's run the above benchmarks again on a CUDA tensor and see what happens.
+
+The results reveal something interesting. The first run of the <code> version using the <code> module takes much longer than the second run. This is because <code> calls into <code> which needs to be loaded the first time it's called which takes some time. This is why it's important to do a warm-up run before benchmarking, luckily for us, PyTorch's <code> module takes care of that.
+
+The difference in the results between <code> and <code> modules is because the <code> module is not synchronizing CUDA and is thus only timing the time to launch the kernel. PyTorch's <code> module does the synchronization for us.
+
+Benchmarking with <code>.
+
+While <code> takes a single continuous measurement of at least 0.2 seconds, <code> takes many measurements whose times total at least 0.2 seconds (which can be changed by the <code> parameter) subject to the constraint that timing overhead is a small fraction of the overall measurement. This is accomplished by first running with an increasing number of runs per loop until the runtime is much larger than measurement overhead (which also serves as a warm up), and then taking measurements until the target time is reached. This has the useful properties that it wastes less data and allows us to compute statistics to estimate the reliability of the measurements.
+
+We can also inspect the individual statistics from the returned measurements object.
+
+Comparing benchmark results.
+
+So far we've been comparing our two versions of batched dot against a single input. In practice, we want to try a combination of inputs as well as different number of threads. The <code> class helps display the results of many measurements in a formatted table. It uses the annotations described above (<code>, <code>, <code>, etc.) as well as <code> to group and organize the table. Let's use <code> to see how our functions perform for different input sizes and number of threads.
+
+The results above indicate that the version which reduces to <code> is better for larger tensors running on multiple threads, while for smaller and/or single thread code, the other version is better.
+
+<code> also provides functions for changing the table format.
+
+Saving/Loading benchmark results.
+
+<code> (and <code> which are described in section 8) can be serialized by the <code> module. This makes A/B testing easy, as you can collect measurements from two separate environments, pickle them, and then load both in a single environment. Timer even takes an <code> constructor argument so that such A/B testing works seamlessly.
+
+Let's imagine that rather than two Python functions, the add/sum and <code> approaches were in two different builds of PyTorch. The example below demonstrates how one might A/B test them. For simplicity, we only use a subset of shapes, and simply round trip results through pickle rather than actually using multiple environments and writing results to disk.
+
+Generating inputs with <code>.
+
+As we've seen in the previous section, there can be some stark performance differences depending on the input tensors. Hence, it is a good idea to run benchmarks on a number of different inputs. However, creating all these input tensors can be tedious which is where <code> and related classes come in. Let's take a look at how we can use the <code> to create some test cases for the benchmark.
+
+There is a lot of flexibility for defining your own <code> which is great for creating a powerful set of inputs to benchmark. But to make things even simpler, PyTorch benchmark module comes with some built-in <code> for common benchmarking needs. Let's take a look at how we can use one of these built-in <code>.
+
+Collecting instruction counts with <code>.
+
+One of the challenges of optimizing code is the variation and opacity of wall time. There are many sources of non-determinism, from adaptive clock speeds to resource contention with other processes. Furthermore, end-to-end time gives no insight into where time is being spent, which is really what we're interested in when optimizing code.
+
+A complementary approach is to also collect instruction counts. These counts are a proxy metric and do not capture all aspects of performance (e.g. memory or I/O bound tasks), however they do have several useful properties. Instruction counts are reproducible, insensitive to environmental variation, and offer fine grained insight into where a program is spending cycles.
+
+To see the utility of instruction counts, let us look at how we might reduce the overhead of <code>. The obvious solution is to move it to C++, so we avoid going between Python and C++ multiple times.
+
+Fortunately, the source is nearly identical. One question that we have to ask in C++ is whether we should take arguments by value or reference.
+
+Learn More.
+
+Take a look at these other recipes to continue your learning:
+
+PyTorch Profiler.

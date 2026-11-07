@@ -1,0 +1,155 @@
+Training a causal language model from scratch.
+
+Up until now, we've mostly been using pretrained models and fine-tuning them for new use cases by reusing the weights from pretraining. As we saw in Chapter 1, this is commonly referred to as transfer learning, and it's a very successful strategy for applying Transformer models to most real-world use cases where labeled data is sparse. In this chapter, we'll take a different approach and train a completely new model from scratch. This is a good approach to take if you have a lot of data and it is very different from the pretraining data used for the available models. However, it also requires considerably more compute resources to pretrain a language model than just to fine-tune an existing one. Examples where it can make sense to train a new model include for datasets consisting of musical notes, molecular sequences such as DNA, or programming languages. The latter have recently gained traction thanks to tools such as TabNine and GitHub's Copilot, powered by OpenAI's Codex model, that can generate long sequences of code. This task of text generation is best addressed with auto-regressive or causal language models such as GPT-2.
+
+In this section we will build a scaled-down version of a code generation model: we'll focus on one-line completions instead of full functions or classes, using a subset of Python code. When working with data in Python you are in frequent contact with the Python data science stack, consisting of the <code>, <code>, <code>, and <code> libraries. When using those frameworks it's common to need to look up specific commands, so it would be nice if we could use a model to complete these calls for us.
+
+In Chapter 6 we created an efficient tokenizer to process Python source code, but what we still need is a large-scale dataset to pretrain a model on. Here, we'll apply our tokenizer to a corpus of Python code derived from GitHub repositories. We will then use the <code> API and 🤗 Accelerate to train the model. Let's get to it!
+
+This is actually showcasing the model that was trained and uploaded to the Hub using the code shown in this section. You can find it here. Note that since there is some randomization happening in the text generation, you will probably get a slightly different result.
+
+Gathering the data.
+
+Python code is abundantly available from code repositories such as GitHub, which we can use to create a dataset by scraping for every Python repository. This was the approach taken in the Transformers textbook to pretrain a large GPT-2 model. Using a GitHub dump of about 180 GB containing roughly 20 million Python files called <code>, the authors built a dataset that they then shared on the Hugging Face Hub.
+
+However, training on the full corpus is time- and compute-consuming, and we only need the subset of the dataset concerned with the Python data science stack. So, let's start by filtering the <code> dataset for all files that include any of the libraries in this stack. Because of the dataset's size, we want to avoid downloading it; instead, we'll use the streaming feature to filter it on the fly. To help us filter the code samples using the libraries we mentioned earlier, we'll use the following function:
+
+Let's test it on two examples:
+
+We can use this to create a function that will stream the dataset and filter the elements we want:
+
+Then we can simply apply this function to the streaming dataset:
+
+This leaves us with about 3% of the original dataset, which is still quite sizable -- the resulting dataset is 6 GB and consists of 600,000 Python scripts!
+
+Filtering the full dataset can take 2-3h depending on your machine and bandwidth. If you don't want to go through this lengthy process yourself, we provide the filtered dataset on the Hub for you to download:
+
+Pretraining the language model will take a while. We suggest that you first run the training loop on a sample of the data by uncommenting the two partial lines above, and make sure that the training successfully completes and the models are stored. Nothing is more frustrating than a training run failing at the last step because you forgot to create a folder or because there's a typo at the end of the training loop!
+
+Let's look at an example from the dataset. We'll just show the first 200 characters of each field:
+
+We can see that the <code> field contains the code that we want our model to train on. Now that we have a dataset, we need to prepare the texts so they're in a format suitable for pretraining.
+
+Preparing the dataset.
+
+The first step will be to tokenize the data, so we can use it for training. Since our goal is to mainly autocomplete short function calls, we can keep the context size relatively small. This has the benefit that we can train the model much faster and it requires significantly less memory. If it is important for your application to have more context (for example, if you want the model to write unit tests based on a file with the function definition), make sure you increase that number, but also keep in mind that this comes with a greater GPU memory footprint. For now, let's fix the context size at 128 tokens, as opposed to the 1,024 or 2,048 used in GPT-2 or GPT-3, respectively.
+
+Most documents contain many more than 128 tokens, so simply truncating the inputs to the maximum length would eliminate a large fraction of our dataset. Instead, we'll use the <code> option to tokenize the whole input and split it into several chunks, as we did in Chapter 6. We'll also use the <code> option to return the length of each created chunk automatically. Often the last chunk will be smaller than the context size, and we'll get rid of these pieces to avoid padding issues; we don't really need them as we have plenty of data anyway.
+
+Let's see exactly how this works by looking at the first two examples:
+
+We can see that we get 34 segments in total from those two examples. Looking at the chunk lengths, we can see that the chunks at the ends of both documents have less than 128 tokens (117 and 41, respectively). These represent just a small fraction of the total chunks that we have, so we can safely throw them away. With the <code> field, we can also reconstruct which chunks belonged to which input samples.
+
+With this operation we're using a handy feature of the <code> function in 🤗 Datasets, which is that it does not require one-to-one maps; as we saw in section 3, we can create batches with more or fewer elements than the input batch. This is useful when doing operations like data augmentation or data filtering that change the number of elements. In our case, when tokenizing each element into chunks of the specified context size, we create many samples from each document. We just need to make sure to delete the existing columns, since they have a conflicting size. If we wanted to keep them, we could repeat them appropriately and return them within the <code> call:
+
+We now have 16.7 million examples with 128 tokens each, which corresponds to about 2.1 billion tokens in total. For reference, OpenAI's GPT-3 and Codex models are trained on 300 and 100 billion tokens, respectively, where the Codex models are initialized from the GPT-3 checkpoints. Our goal in this section is not to compete with these models, which can generate long, coherent texts, but to create a scaled-down version providing a quick autocomplete function for data scientists.
+
+Now that we have the dataset ready, let's set up the model!
+
+✏️ Try it out! Getting rid of all the chunks that are smaller than the context size wasn't a big issue here because we're using small context windows. As you increase the context size (or if you have a corpus of short documents), the fraction of chunks that are thrown away will also grow. A more efficient way to prepare the data is to join all the tokenized samples in a batch with an <code> token in between, and then perform the chunking on the concatenated sequences. As an exercise, modify the <code> function to make use of that approach. Note that you'll want to set <code> and remove the other arguments from the tokenizer to get the full sequence of token IDs.
+
+Initializing a new model.
+
+Our first step is to freshly initialize a GPT-2 model. We'll use the same configuration for our model as for the small GPT-2 model, so we load the pretrained configuration, make sure that the tokenizer size matches the model vocabulary size and pass the <code> and <code> (beginning and end of sequence) token IDs:
+
+With that configuration, we can load a new model. Note that this is the first time we don't use the <code> function, since we're actually initializing a model ourself:
+
+With that configuration, we can load a new model. Note that this is the first time we don't use the <code> function, since we're actually initializing a model ourself:
+
+Our model has 124M parameters that we'll have to tune. Before we can start training, we need to set up a data collator that will take care of creating the batches. We can use the <code> collator, which is designed specifically for language modeling (as the name subtly suggests). Besides stacking and padding batches, it also takes care of creating the language model labels -- in causal language modeling the inputs serve as labels too (just shifted by one element), and this data collator creates them on the fly during training so we don't need to duplicate the <code>.
+
+Note that <code> supports both masked language modeling (MLM) and causal language modeling (CLM). By default it prepares data for MLM, but we can switch to CLM by setting the argument <code>:
+
+Let's have a look at an example:
+
+We can see that the examples have been stacked and all the tensors have the same shape.
+
+Now we can use the <code> method to convert our datasets to TensorFlow datasets with the data collator we created above:
+
+⚠️ Shifting the inputs and labels to align them happens inside the model, so the data collator just copies the inputs to create the labels.
+
+Now we have everything in place to actually train our model -- that wasn't so much work after all! Before we start training we should log in to Hugging Face. If you're working in a notebook, you can do so with the following utility function:
+
+This will display a widget where you can enter your Hugging Face login credentials.
+
+If you aren't working in a notebook, just type the following line in your terminal:
+
+All that's left to do is configure the training arguments and fire up the <code>. We'll use a cosine learning rate schedule with some warmup and an effective batch size of 256 (<code> <code>). Gradient accumulation is used when a single batch does not fit into memory, and incrementally builds up the gradient through several forward/backward passes. We'll see this in action when we create the training loop with 🤗 Accelerate.
+
+Now we can just start the <code> and wait for training to finish. Depending on whether you run it on the full or a subset of the training set this will take 20 or 2 hours, respectively, so grab a few coffees and a good book to read!
+
+After training completes, we can push the model and tokenizer to the Hub:
+
+All that's left to do is configure the training hyperparameters and call <code> and <code>. We'll use a learning rate schedule with some warmup to improve the stability of training:
+
+Now we can just call <code> and wait for training to finish. Depending on whether you run it on the full or a subset of the training set this will take 20 or 2 hours, respectively, so grab a few coffees and a good book to read! After training completes we can push the model and tokenizer to the Hub:
+
+✏️ Try it out! It only took us about 30 lines of code in addition to the <code> to get from raw texts to training GPT-2. Try it out with your own dataset and see if you can get good results!
+
+💡 If you have access to a machine with multiple GPUs, try to run the code there. The <code> automatically manages multiple machines, and this can speed up training tremendously.
+
+💡 If you have access to a machine with multiple GPUs, you can try using a <code> context to substantially speed up training. You'll need to create a <code> object, and make sure that any <code> or <code> methods as well as model creation and the call to <code> are all run in its <code> context. You can see documentation on this here.
+
+Code generation with a pipeline.
+
+Now is the moment of truth: let's see how well the trained model actually works! We can see in the logs that the loss went down steadily, but to put the model to the test let's take a look at how well it works on some prompts. To do that we'll wrap the model in a text generation <code>, and we'll put it on the GPU for fast generations if there is one available:
+
+Let's start with the simple task of creating a scatter plot:
+
+The result looks correct. Does it also work for a <code> operation? Let's see if we can create a <code> from two arrays:
+
+Nice, that's the correct answer -- although it then inserts the column <code> again. Since the number of generated tokens is limited, the following <code> loop is cut off. Let's see if we can do something a bit more complex and have the model help us use the <code> operation:
+
+Not bad; that's the right way to do it. Finally, let's see if we can also use it for <code> and set up a Random Forest model:
+
+Looking at these few examples, it seems that the model has learned some of the syntax of the Python data science stack. Of course, we would need to evaluate the model more thoroughly before deploying it in the real world, but this is still an impressive prototype.
+
+Looking at these few examples, it seems that the model has learned some of the syntax of the Python data science stack (of course, we would need to evaluate it more thoroughly before deploying the model in the real world). Sometimes it requires more customization of the model training to achieve the necessary performance for a given use case, however. For example, what if we would like to dynamically update the batch size or have a conditional training loop that skips bad examples on the fly? One option would be to subclass the <code> and add the necessary changes, but sometimes it's simpler to write the training loop from scratch. That's where 🤗 Accelerate comes in.
+
+Training with 🤗 Accelerate.
+
+We've seen how to train a model with the <code>, which can allow for some customization. However, sometimes we want full control over the training loop, or we want to make some exotic changes. In this case 🤗 Accelerate is a great choice, and in this section we'll go through the steps to use it to train our model. To make things more interesting, we'll also add a twist to the training loop.
+
+Since we are mainly interested in sensible autocompletion for the the data science libraries, it makes sense to give more weight to training samples that make more use of these libraries. We can easily identify these examples through the use of keywords such as <code>, <code>, <code>, <code>, and <code>, which are the most frequent import names for <code>, <code>, and <code> as well as the fit/predict pattern of the latter. If these are each represented as a single token, we can easily check if they occur in the input sequence. Tokens can have a whitespace prefix, so we'll also check for those versions in the tokenizer vocabulary. To verify that it works, we'll add one test token which should be split into multiple tokens:
+
+Great, that seems to work nicely! We can now write a custom loss function that takes the input sequence, the logits, and the key tokens we just selected as inputs. First we need to align the logits and inputs: the input sequence shifted by one to the right forms the labels, since the next token is the label for the current token. We can achieve this by starting the labels from the second token of the input sequence, since the model does not make a prediction for the first token anyway. Then we cut off the last logit, as we don't have a label for the token that follows the full input sequence. With that we can compute the loss per sample and count the occurrences of all keywords in each sample. Finally, we calculate the weighted average over all samples using the occurrences as weights. Since we don't want to throw away all the samples that have no keywords, we add 1 to the weights:
+
+Before we can start training with this awesome new loss function, we need to prepare a few things:
+
+We need dataloaders to load the data in batches.
+
+We need to set up weight decay parameters.
+
+From time to time we want to evaluate, so it makes sense to wrap the evaluation code in a function.
+
+Let's start with the dataloaders. We only need to set the dataset's format to <code>, and then we can pass it to a PyTorch <code> with the appropriate batch size:
+
+Next, we group the parameters so that the optimizer knows which ones will get an additional weight decay. Usually, all bias and LayerNorm weights terms are exempt from this; here's how we can do this:
+
+Since we want to evaluate the model regularly on the validation set during training, let's write a function for that as well. It just runs through the evaluation dataloader and gathers all the losses across processes:
+
+With the <code> function we can report loss and perplexity at regular intervals. Next, we redefine our model to make sure we train from scratch again:
+
+We can then define our optimizer, using the function from before to split the parameters for weight decay:
+
+Now let's prepare the model, optimizer, and dataloaders so we can start training:
+
+🚨 If you're training on a TPU, you'll need to move all the code starting at the cell above into a dedicated training function. See Chapter 3 for more details.
+
+Now that we have sent our <code> to <code>, we can use its length to compute the number of training steps. Remember that we should always do this after preparing the dataloader, as that method will change its length. We use a classic linear schedule from the learning rate to 0:
+
+Lastly, to push our model to the Hub, we will need to create a <code> object in a working folder. First log in to the Hugging Face Hub, if you aren't logged in already. We'll determine the repository name from the model ID we want to give our model (feel free to replace the <code> with your own choice; it just needs to contain your username, which is what the function <code> does):
+
+Then we can clone that repository in a local folder. If it already exists, this local folder should be an existing clone of the repository we are working with:
+
+We can now upload anything we save in <code> by calling the <code> method. This will help us upload the intermediate models at the end of each epoch.
+
+Before we train, let's run a quick test to see if the evaluation function works properly:
+
+Those are very high values for loss and perplexity, but that's not surprising as we haven't trained the model yet. With that, we have everything prepared to write the core part of the training script: the training loop. In the training loop we iterate over the dataloader and pass the batches to the model. With the logits, we can then evaluate our custom loss function. We scale the loss by the number of gradient accumulation steps so as not to create larger losses when aggregating more steps. Before we optimize, we also clip the gradients for better convergence. Finally, every few steps we evaluate the model on the evaluation set with our new <code> function:
+
+And that's it -- you now have your own custom training loop for causal language models such as GPT-2 that you can further customize to your needs.
+
+✏️ Try it out! Either create your own custom loss function tailored to your use case, or add another custom step into the training loop.
+
+✏️ Try it out! When running long training experiments it's a good idea to log important metrics using tools such as TensorBoard or Weights & Biases. Add proper logging to the training loop so you can always check how the training is going.

@@ -1,0 +1,71 @@
+Probabilistic Bayesian Neural Networks.
+
+Introduction.
+
+Taking a probabilistic approach to deep learning allows to account for uncertainty, so that models can assign less levels of confidence to incorrect predictions. Sources of uncertainty can be found in the data, due to measurement error or noise in the labels, or the model, due to insufficient data availability for the model to learn effectively.
+
+This example demonstrates how to build basic probabilistic Bayesian neural networks to account for these two types of uncertainty. We use TensorFlow Probability library, which is compatible with Keras API.
+
+This example requires TensorFlow 2.3 or higher. You can install Tensorflow Probability using the following command:
+
+The dataset.
+
+We use the Wine Quality dataset, which is available in the TensorFlow Datasets. We use the red wine subset, which contains 4,898 examples. The dataset has 11numerical physicochemical features of the wine, and the task is to predict the wine quality, which is a score between 0 and 10. In this example, we treat this as a regression task.
+
+You can install TensorFlow Datasets using the following command:
+
+Setup.
+
+Create training and evaluation datasets.
+
+Here, we load the <code> dataset using <code>, and we convert the target feature to float. Then, we shuffle the dataset and split it into training and test sets. We take the first <code> examples as the train split, and the rest as the test split.
+
+Compile, train, and evaluate the model.
+
+Create model inputs.
+
+Experiment 1: standard neural network.
+
+We create a standard deterministic neural network model as a baseline.
+
+Let's split the wine dataset into training and test sets, with 85% and 15% of the examples, respectively.
+
+Now let's train the baseline model. We use the <code> as the loss function.
+
+We take a sample from the test set use the model to obtain predictions for them. Note that since the baseline model is deterministic, we get a single a point estimate prediction for each test example, with no information about the uncertainty of the model nor the prediction.
+
+Experiment 2: Bayesian neural network (BNN).
+
+The object of the Bayesian approach for modeling neural networks is to capture the epistemic uncertainty, which is uncertainty about the model fitness, due to limited training data.
+
+The idea is that, instead of learning specific weight (and bias) values in the neural network, the Bayesian approach learns weight distributions.
+
+from which we can sample to produce an output for a given input - to encode weight uncertainty.
+
+Thus, we need to define prior and the posterior distributions of these weights, and the training process is to learn the parameters of these distributions.
+
+We use the <code> layer instead of the standard <code> layer in the neural network model.
+
+The epistemic uncertainty can be reduced as we increase the size of the training data. That is, the more data the BNN model sees, the more it is certain about its estimates for the weights (distribution parameters). Let's test this behaviour by training the BNN model on a small subset of the training set, and then on the full training set, to compare the output variances.
+
+Train BNN with a small training subset.
+
+Since we have trained a BNN model, the model produces a different output each time we call it with the same input, since each time a new set of weights are sampled from the distributions to construct the network and produce an output. The less certain the mode weights are, the more variability (wider range) we will see in the outputs of the same inputs.
+
+Train BNN with the whole training set.
+
+Notice that the model trained with the full training dataset shows smaller range (uncertainty) in the prediction values for the same inputs, compared to the model trained with a subset of the training dataset.
+
+Experiment 3: probabilistic Bayesian neural network.
+
+So far, the output of the standard and the Bayesian NN models that we built is deterministic, that is, produces a point estimate as a prediction for a given example. We can create a probabilistic NN by letting the model output a distribution. In this case, the model captures the aleatoric uncertainty as well, which is due to irreducible noise in the data, or to the stochastic nature of the process generating the data.
+
+In this example, we model the output as a <code> distribution, with learnable mean and variance parameters. If the task was classification, we would have used <code> with binary classes, and <code> with multiple classes, to model distribution of the model output.
+
+Since the output of the model is a distribution, rather than a point estimate, we use the negative loglikelihood as our loss function to compute how likely to see the true data (targets) from the estimated distribution produced by the model.
+
+Now let's produce an output from the model given the test examples. The output is now a distribution, and we can use its mean and variance to compute the confidence intervals (CI) of the prediction.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 5: Fundamentals of machine learning.

@@ -1,0 +1,107 @@
+Use TPUs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to perform basic training on Tensor Processing Units (TPUs) and TPU Pods, a collection of TPU devices connected by dedicated high-speed network interfaces, with <code> and custom training loops.
+
+TPUs are Google's custom-developed application-specific integrated circuits (ASICs) used to accelerate machine learning workloads. They are available through Google Colab, the TPU Research Cloud, and Cloud TPU.
+
+Setup.
+
+Before you run this Colab notebook, make sure that your hardware accelerator is a TPU by checking your notebook settings: Runtime > Change runtime type > Hardware accelerator > TPU v2.
+
+Import some necessary libraries, including TensorFlow Datasets:
+
+TPU initialization.
+
+TPUs are typically Cloud TPU workers, which are different from the local process running the user's Python program. Thus, you need to do some initialization work to connect to the remote cluster and initialize the TPUs. Note that the <code> argument to <code> is a special address just for Colab. If you are running your code on Google Compute Engine (GCE), you should instead pass in the name of your Cloud TPU.
+
+Note: The TPU initialization code has to be at the beginning of your program.
+
+Manual device placement.
+
+After the TPU is initialized, you can use manual device placement to place the computation on a single TPU device:
+
+Distribution strategies.
+
+Usually, you run your model on multiple TPUs in a data-parallel way. To distribute your model on multiple TPUs (as well as multiple GPUs or multiple machines), TensorFlow offers the <code> API. You can replace your distribution strategy and the model will run on any given (TPU) device. Learn more in the Distributed training with TensorFlow guide.
+
+Using the <code> option implements synchronous distributed training. TPUs provide their own implementation of efficient all-reduce and other collective operations across multiple TPU cores, which are used in <code>.
+
+To demonstrate this, create a <code> object:
+
+To replicate a computation so it can run in all TPU cores, you can pass it into the <code> API. Below is an example that shows all cores receiving the same inputs <code> and performing matrix multiplication on each core independently. The outputs will be the values from all the replicas.
+
+Classification on TPUs.
+
+Having covered the basic concepts, consider a more concrete example. This section demonstrates how to use the distribution strategy—<code>—to train a Keras model on a Cloud TPU.
+
+Define a Keras model.
+
+Start with a definition of a <code> Keras model for image classification on the MNIST dataset. It's no different than what you would use if you were training on CPUs or GPUs. Note that Keras model creation needs to be inside the <code>, so the variables can be created on each TPU device. Other parts of the code are not necessary to be inside the <code> scope.
+
+This model puts L2 regularization terms on the weights of each layer, so that the custom training loop below can show how you pick them up from <code>.
+
+Load the dataset.
+
+Efficient use of the <code> API is critical when using a Cloud TPU. You can learn more about dataset performance in the Input pipeline performance guide.
+
+If you are using TPU Nodes, you need to store all data files read by the TensorFlow <code> in Google Cloud Storage (GCS) buckets. If you are using TPU VMs, you can store data wherever you like. For more information on TPU Nodes and TPU VMs, refer to the TPU System Architecture documentation.
+
+For most use cases, it is recommended to convert your data into the <code> format and use a <code> to read it. Check the TFRecord and tf.Example tutorial for details on how to do this. It is not a hard requirement and you can use other dataset readers, such as <code> or <code>.
+
+You can load entire small datasets into memory using <code>.
+
+Regardless of the data format used, it is strongly recommended that you use large files on the order of 100MB. This is especially important in this networked setting, as the overhead of opening a file is significantly higher.
+
+As shown in the code below, you should use the Tensorflow Datasets <code> module to get a copy of the MNIST training and test data. Note that <code> is specified to use a copy that is available in a public GCS bucket. If you don't specify this, the TPU will not be able to access the downloaded data.
+
+Train the model using Keras high-level APIs.
+
+You can train your model with Keras <code> and <code> APIs. There is nothing TPU-specific in this step—you write the code as if you were using multiple GPUs and a <code> instead of the <code>. You can learn more in the Distributed training with Keras tutorial.
+
+To reduce Python overhead and maximize the performance of your TPU, pass in the <code> argument to Keras <code>. In this example, it increases throughput by about 50%:
+
+Note: When <code> is set in <code>, Keras compiles both training and evaluation to execute <code> batches inside a single on-device <code> loop per <code> call. Unlike the training dataset (which uses <code>), <code> is typically finite and may have unknown cardinality (for example, when reading from <code> or filtering/truncating with <code>). Always pass <code> to <code> and ensure <code> yields at least <code> full batches; otherwise, if the dataset runs out of batches in the middle of a <code> chunk, TPU replicas can hit <code> (<code>) mid-execution and hang indefinitely while the host waits for evaluation metrics:
+
+Train the model using a custom training loop.
+
+You can also create and train your model using <code> and <code> APIs directly. You can use the <code> API to distribute the <code> given a dataset function. Note that in the example below the batch size passed into the <code> is the per-replica batch size instead of the global batch size. To learn more, check out the Custom training with <code> tutorial.
+
+First, create the model, datasets and <code>s:
+
+Then, run the training loop:
+
+Improving performance with multiple steps inside <code>.
+
+You can improve the performance by running multiple steps within a <code>. This is achieved by wrapping the <code> call with a <code> inside <code>, and AutoGraph will convert it to a <code> on the TPU worker. You can learn more about <code>s in the Better performance with <code> guide.
+
+Despite the improved performance, there are tradeoffs with this method compared to running a single step inside a <code>. Running multiple steps in a <code> is less flexible—you cannot run things eagerly or arbitrary Python code within the steps.
+
+Next steps.
+
+To learn more about Cloud TPUs and how to use them:
+
+Google Cloud TPU: The Google Cloud TPU homepage.
+
+Google Cloud TPU documentation: Google Cloud TPU documentation, which includes:
+
+Introduction to Cloud TPU: An overview of working with Cloud TPUs.
+
+Cloud TPU quickstarts: Quickstart introductions to working with Cloud TPU VMs using TensorFlow and other main machine learning frameworks.
+
+Google Cloud TPU Colab notebooks: End-to-end training examples.
+
+Google Cloud TPU performance guide: Enhance Cloud TPU performance further by adjusting Cloud TPU configuration parameters for your application.
+
+Distributed training with TensorFlow: How to use distribution strategies—including <code>—with examples showing best practices.
+
+TPU embeddings: TensorFlow includes specialized support for training embeddings on TPUs via <code>. In addition, TensorFlow Recommenders has <code>. Embeddings provide efficient and dense representations, capturing complex similarities and relationships between features. TensorFlow's TPU-specific embedding support allows you to train embeddings that are larger than the memory of a single TPU device, and to use sparse and ragged inputs on TPUs.
+
+TPU Research Cloud (TRC): TRC enables researchers to apply for access to a cluster of more than 1,000 Cloud TPU devices.

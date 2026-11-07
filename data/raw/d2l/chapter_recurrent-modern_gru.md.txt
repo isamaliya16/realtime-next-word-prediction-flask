@@ -1,0 +1,85 @@
+Gated Recurrent Units (GRU).
+
+As RNNs and particularly the LSTM architecture (section <num>) rapidly gained popularity during the 2010s, a number of researchers began to experiment with simplified architectures in hopes of retaining the key idea of incorporating an internal state and multiplicative gating mechanisms but with the aim of speeding up computation. The gated recurrent unit (GRU) offered a streamlined version of the LSTM memory cell that often achieves comparable performance but with the advantage of being faster to compute .
+
+Reset Gate and Update Gate.
+
+Here, the LSTM's three gates are replaced by two: the reset gate and the update gate. As with LSTMs, these gates are given sigmoid activations, forcing their values to lie in the interval <math>. Intuitively, the reset gate controls how much of the previous state we might still want to remember. Likewise, an update gate would allow us to control how much of the new state is just a copy of the old one. section <num> illustrates the inputs for both the reset and update gates in a GRU, given the input of the current time step and the hidden state of the previous time step. The outputs of the gates are given by two fully connected layers with a sigmoid activation function.
+
+Mathematically, for a given time step <math>, suppose that the input is a minibatch <math> (number of examples <math>; number of inputs <math>) and the hidden state of the previous time step is <math> (number of hidden units <math>). Then the reset gate <math> and update gate <math> are computed as follows:
+
+<math>.
+
+where <math> and <math> are weight parameters and <math> are bias parameters.
+
+Candidate Hidden State.
+
+Next, we integrate the reset gate <math> with the regular updating mechanism in <num>, leading to the following candidate hidden state <math> at time step <math>:
+
+<math>.
+
+where <math> and <math> are weight parameters, <math> is the bias, and the symbol <math> is the Hadamard (elementwise) product operator. Here we use a tanh activation function.
+
+The result is a candidate, since we still need to incorporate the action of the update gate. Comparing with <num>, the influence of the previous states can now be reduced with the elementwise multiplication of <math> and <math> in <num>. Whenever the entries in the reset gate <math> are close to 1, we recover a vanilla RNN such as that in <num>. For all entries of the reset gate <math> that are close to 0, the candidate hidden state is the result of an MLP with <math> as input. Any pre-existing hidden state is thus reset to defaults.
+
+section <num> illustrates the computational flow after applying the reset gate.
+
+Hidden State.
+
+Finally, we need to incorporate the effect of the update gate <math>. This determines the extent to which the new hidden state <math> matches the old state <math> compared with how much it resembles the new candidate state <math>. The update gate <math> can be used for this purpose, simply by taking elementwise convex combinations of <math> and <math>. This leads to the final update equation for the GRU:
+
+<math>.
+
+Whenever the update gate <math> is close to 1, we simply retain the old state. In this case the information from <math> is ignored, effectively skipping time step <math> in the dependency chain. By contrast, whenever <math> is close to 0, the new latent state <math> approaches the candidate latent state <math>. section <num> shows the computational flow after the update gate is in action.
+
+In summary, GRUs have the following two distinguishing features:
+
+Reset gates help capture short-term dependencies in sequences.
+
+Update gates help capture long-term dependencies in sequences.
+
+Implementation from Scratch.
+
+To gain a better understanding of the GRU model, let's implement it from scratch.
+
+(Initializing Model Parameters).
+
+The first step is to initialize the model parameters. We draw the weights from a Gaussian distribution with standard deviation to be <code> and set the bias to 0. The hyperparameter <code> defines the number of hidden units. We instantiate all weights and biases relating to the update gate, the reset gate, and the candidate hidden state.
+
+Defining the Model.
+
+Now we are ready to [define the GRU forward computation]. Its structure is the same as that of the basic RNN cell, except that the update equations are more complex.
+
+Training.
+
+[Training] a language model on The Time Machine dataset works in exactly the same manner as in section <num>.
+
+[Concise Implementation].
+
+In high-level APIs, we can directly instantiate a GRU model. This encapsulates all the configuration detail that we made explicit above.
+
+The code is significantly faster in training as it uses compiled operators rather than Python.
+
+After training, we print out the perplexity on the training set and the predicted sequence following the provided prefix.
+
+Summary.
+
+Compared with LSTMs, GRUs achieve similar performance but tend to be lighter computationally. Generally, compared with simple RNNs, gated RNNS, just like LSTMs and GRUs, can better capture dependencies for sequences with large time step distances. GRUs contain basic RNNs as their extreme case whenever the reset gate is switched on. They can also skip subsequences by turning on the update gate.
+
+Exercises.
+
+Assume that we only want to use the input at time step <math> to predict the output at time step <math>. What are the best values for the reset and update gates for each time step?
+
+Adjust the hyperparameters and analyze their influence on running time, perplexity, and the output sequence.
+
+Compare runtime, perplexity, and the output strings for <code> and <code> implementations with each other.
+
+What happens if you implement only parts of a GRU, e.g., with only a reset gate or only an update gate?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

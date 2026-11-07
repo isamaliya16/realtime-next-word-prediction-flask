@@ -1,0 +1,39 @@
+End-of-chapter quiz.
+
+Let's test what you learned in this chapter!
+
+1. Which of the following tasks can be framed as a token classification problem?
+
+2. What part of the preprocessing for token classification differs from the other preprocessing pipelines?
+
+100</code> to label the special tokens.", explain: "That's not specific to token classification -- we always use <code>-100</code> as the label for tokens we want to ignore in the loss." }, { text: "We need to make sure to truncate or pad the labels to the same size as the inputs, when applying truncation/padding.", explain: "Indeed! That's not the only difference, though.", correct: true } ]} />.
+
+3. What problem arises when we tokenize the words in a token classification problem and want to label the tokens?
+
+100</code> so they are ignored in the loss." }, { text: "Each word can produce several tokens, so we end up with more tokens than we have labels.", explain: "That is the main problem, and we need to align the original labels with the tokens.", correct: true }, { text: "The added tokens have no labels, so there is no problem.", explain: "That's incorrect; we need as many labels as we have tokens or our models will error out." } ]} />.
+
+4. What does "domain adaptation" mean?
+
+5. What are the labels in a masked language modeling problem?
+
+6. Which of these tasks can be seen as a sequence-to-sequence problem?
+
+7. What is the proper way to preprocess the data for a sequence-to-sequence problem?
+
+inputs=...</code> and <code>targets=...</code>.", explain: "This might be an API we add in the future, but that's not possible right now." }, { text: "The inputs and the targets both have to be preprocessed, in two separate calls to the tokenizer.", explain: "That is true, but incomplete. There is something you need to do to make sure the tokenizer processes both properly." }, { text: "As usual, we just have to tokenize the inputs.", explain: "Not in a sequence classification problem; the targets are also texts we need to convert into numbers!" }, { text: "The inputs have to be sent to the tokenizer, and the targets too, but under a special context manager.", explain: "That's correct, the tokenizer needs to be put into target mode by that context manager.", correct: true } ]} />.
+
+8. Why is there a specific subclass of <code> for sequence-to-sequence problems?
+
+100</code>", explain: "That's not a custom loss at all, but the way the loss is always computed." }, { text: "Because sequence-to-sequence problems require a special evaluation loop", explain: "That's correct. Sequence-to-sequence models' predictions are often run using the <code>generate()</code> method.", correct: true }, { text: "Because the targets are texts in sequence-to-sequence problems", explain: "The <code>Trainer</code> doesn't really care about that since they have been preprocessed before." }, { text: "Because we use two models in sequence-to-sequence problems", explain: "We do use two models in a way, an encoder and a decoder, but they are grouped together in one model." } ]} />.
+
+9. Why is it often unnecessary to specify a loss when calling <code> on a Transformer model?
+
+instead", explain: "No, the loss function is always fixed once you run <code>, and can't be changed in <code>." } ]} />.
+
+10. When should you pretrain a new model?
+
+11. Why is it easy to pretrain a language model on lots and lots of texts?
+
+12. What are the main challenges when preprocessing data for a question answering task?
+
+13. How is post-processing usually done in question answering?

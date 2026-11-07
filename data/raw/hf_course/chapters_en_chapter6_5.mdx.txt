@@ -1,0 +1,95 @@
+Byte-Pair Encoding tokenization.
+
+Byte-Pair Encoding (BPE) was initially developed as an algorithm to compress texts, and then used by OpenAI for tokenization when pretraining the GPT model. It's used by a lot of Transformer models, including GPT, GPT-2, RoBERTa, BART, and DeBERTa.
+
+💡 This section covers BPE in depth, going as far as showing a full implementation. You can skip to the end if you just want a general overview of the tokenization algorithm.
+
+Training algorithm.
+
+BPE training starts by computing the unique set of words used in the corpus (after the normalization and pre-tokenization steps are completed), then building the vocabulary by taking all the symbols used to write those words. As a very simple example, let's say our corpus uses these five words:
+
+The base vocabulary will then be <code>. For real-world cases, that base vocabulary will contain all the ASCII characters, at the very least, and probably some Unicode characters as well. If an example you are tokenizing uses a character that is not in the training corpus, that character will be converted to the unknown token. That's one reason why lots of NLP models are very bad at analyzing content with emojis, for instance.
+
+The GPT-2 and RoBERTa tokenizers (which are pretty similar) have a clever way to deal with this: they don't look at words as being written with Unicode characters, but with bytes. This way the base vocabulary has a small size (256), but every character you can think of will still be included and not end up being converted to the unknown token. This trick is called byte-level BPE.
+
+After getting this base vocabulary, we add new tokens until the desired vocabulary size is reached by learning merges, which are rules to merge two elements of the existing vocabulary together into a new one. So, at the beginning these merges will create tokens with two characters, and then, as training progresses, longer subwords.
+
+At any step during the tokenizer training, the BPE algorithm will search for the most frequent pair of existing tokens (by "pair," here we mean two consecutive tokens in a word). That most frequent pair is the one that will be merged, and we rinse and repeat for the next step.
+
+Going back to our previous example, let's assume the words had the following frequencies:
+
+meaning <code> was present 10 times in the corpus, <code> 5 times, <code> 12 times, <code> 4 times, and <code> 5 times. We start the training by splitting each word into characters (the ones that form our initial vocabulary) so we can see each word as a list of tokens:
+
+Then we look at pairs. The pair <code> is present in the words <code> and <code>, so 15 times total in the corpus. It's not the most frequent pair, though: that honor belongs to <code>, which is present in <code>, <code>, and <code>, for a grand total of 20 times in the vocabulary.
+
+Thus, the first merge rule learned by the tokenizer is <code>, which means that <code> will be added to the vocabulary, and the pair should be merged in all the words of the corpus. At the end of this stage, the vocabulary and corpus look like this:
+
+Now we have some pairs that result in a token longer than two characters: the pair <code>, for instance (present 15 times in the corpus). The most frequent pair at this stage is <code>, however, present 16 times in the corpus, so the second merge rule learned is <code>. Adding that to the vocabulary and merging all existing occurrences leads us to:
+
+Now the most frequent pair is <code>, so we learn the merge rule <code>, which gives us our first three-letter token. After the merge, the corpus looks like this:
+
+And we continue like this until we reach the desired vocabulary size.
+
+✏️ Now your turn! What do you think the next merge rule will be?
+
+Tokenization algorithm.
+
+Tokenization follows the training process closely, in the sense that new inputs are tokenized by applying the following steps:
+
+Normalization.
+
+Pre-tokenization.
+
+Splitting the words into individual characters.
+
+Applying the merge rules learned in order on those splits.
+
+Let's take the example we used during training, with the three merge rules learned:
+
+The word <code> will be tokenized as <code>. <code>, however, will be tokenized as <code> since the letter <code> was not in the base vocabulary. Likewise, the word <code> will be tokenized as <code>: the letter <code> is not in the base vocabulary, and applying the merge rules results first in <code> and <code> being merged and then <code> and <code> being merged.
+
+✏️ Now your turn! How do you think the word <code> will be tokenized?
+
+Implementing BPE.
+
+Now let's take a look at an implementation of the BPE algorithm. This won't be an optimized version you can actually use on a big corpus; we just want to show you the code so you can understand the algorithm a little bit better.
+
+First we need a corpus, so let's create a simple one with a few sentences:
+
+Next, we need to pre-tokenize that corpus into words. Since we are replicating a BPE tokenizer (like GPT-2), we will use the <code> tokenizer for the pre-tokenization:
+
+Then we compute the frequencies of each word in the corpus as we do the pre-tokenization:
+
+The next step is to compute the base vocabulary, formed by all the characters used in the corpus:
+
+We also add the special tokens used by the model at the beginning of that vocabulary. In the case of GPT-2, the only special token is <code>:
+
+We now need to split each word into individual characters, to be able to start training:
+
+Now that we are ready for training, let's write a function that computes the frequency of each pair. We'll need to use this at each step of the training:
+
+Let's have a look at a part of this dictionary after the initial splits:
+
+Now, finding the most frequent pair only takes a quick loop:
+
+So the first merge to learn is <code>, and we add <code> to the vocabulary:
+
+To continue, we need to apply that merge in our <code> dictionary. Let's write another function for this:
+
+And we can have a look at the result of the first merge:
+
+Now we have everything we need to loop until we have learned all the merges we want. Let's aim for a vocab size of 50:
+
+As a result, we've learned 19 merge rules (the initial vocabulary had a size of 31 -- 30 characters in the alphabet, plus the special token):
+
+And the vocabulary is composed of the special token, the initial alphabet, and all the results of the merges:
+
+💡 Using <code> on the same corpus won't result in the exact same vocabulary. This is because when there is a choice of the most frequent pair, we selected the first one encountered, while the 🤗 Tokenizers library selects the first one based on its inner IDs.
+
+To tokenize a new text, we pre-tokenize it, split it, then apply all the merge rules learned:
+
+We can try this on any text composed of characters in the alphabet:
+
+⚠️ Our implementation will throw an error if there is an unknown character since we didn't do anything to handle them. GPT-2 doesn't actually have an unknown token (it's impossible to get an unknown character when using byte-level BPE), but this could happen here because we did not include all the possible bytes in the initial vocabulary. This aspect of BPE is beyond the scope of this section, so we've left the details out.
+
+That's it for the BPE algorithm! Next, we'll have a look at WordPiece.

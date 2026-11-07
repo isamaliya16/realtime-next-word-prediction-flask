@@ -1,0 +1,23 @@
+Learn the Basics || Quickstart || Tensors || Datasets & DataLoaders || Transforms || Build Model || Autograd || Optimization || Save & Load Model.
+
+Save and Load the Model.
+
+In this section we will look at how to persist model state with saving, loading and running model predictions.
+
+Saving and Loading Model Weights PyTorch models store the learned parameters in an internal state dictionary, called <code>. These can be persisted via the <code> method:
+
+To load model weights, you need to create an instance of the same model first, and then load the parameters using <code> method.
+
+In the code below, we set <code> to limit the functions executed during unpickling to only those necessary for loading weights. Using <code> is considered a best practice when loading weights.
+
+Saving and Loading Models with Shapes When loading model weights, we needed to instantiate the model class first, because the class defines the structure of a network. We might want to save the structure of this class together with the model, in which case we can pass <code> (and not <code>) to the saving function:
+
+We can then load the model as demonstrated below.
+
+As described in Saving and loading torch.nn.Modules, saving <code> is considered the best practice. However, below we use <code> because this involves loading the model, which is a legacy use case for <code>.
+
+Related Tutorials.
+
+Saving and Loading a General Checkpoint in PyTorch.
+
+Tips for loading an nn.Module from a checkpoint.

@@ -1,0 +1,29 @@
+Putting it all together.
+
+In the last few sections, we've been trying our best to do most of the work by hand. We've explored how tokenizers work and looked at tokenization, conversion to input IDs, padding, truncation, and attention masks.
+
+However, as we saw in section 2, the 🤗 Transformers API can handle all of this for us with a high-level function that we'll dive into here. When you call your <code> directly on the sentence, you get back inputs that are ready to pass through your model:
+
+Here, the <code> variable contains everything that's necessary for a model to operate well. For DistilBERT, that includes the input IDs as well as the attention mask. Other models that accept additional inputs will also have those output by the <code> object.
+
+As we'll see in some examples below, this method is very powerful. First, it can tokenize a single sequence:
+
+It also handles multiple sequences at a time, with no change in the API:
+
+It can pad according to several objectives:
+
+It can also truncate sequences:
+
+The <code> object can handle the conversion to specific framework tensors, which can then be directly sent to the model. For example, in the following code sample we are prompting the tokenizer to return tensors from the different frameworks — <code> returns PyTorch tensors and <code> returns NumPy arrays:
+
+Special tokens.
+
+If we take a look at the input IDs returned by the tokenizer, we will see they are a tiny bit different from what we had earlier:
+
+One token ID was added at the beginning, and one at the end. Let's decode the two sequences of IDs above to see what this is about:
+
+The tokenizer added the special word <code> at the beginning and the special word <code> at the end. This is because the model was pretrained with those, so to get the same results for inference we need to add them as well. Note that some models don't add special words, or add different ones; models may also add these special words only at the beginning, or only at the end. In any case, the tokenizer knows which ones are expected and will deal with this for you.
+
+Wrapping up: From tokenizer to model.
+
+Now that we've seen all the individual steps the <code> object uses when applied on texts, let's see one final time how it can handle multiple sequences (padding!), very long sequences (truncation!), and multiple types of tensors with its main API:

@@ -1,0 +1,69 @@
+Deep Convolutional Generative Adversarial Networks.
+
+In section <num>, we introduced the basic ideas behind how GANs work. We showed that they can draw samples from some simple, easy-to-sample distribution, like a uniform or normal distribution, and transform them into samples that appear to match the distribution of some dataset. And while our example of matching a 2D Gaussian distribution got the point across, it is not especially exciting.
+
+In this section, we will demonstrate how you can use GANs to generate photorealistic images. We will be basing our models on the deep convolutional GANs (DCGAN) introduced in . We will borrow the convolutional architecture that have proven so successful for discriminative computer vision problems and show how via GANs, they can be leveraged to generate photorealistic images.
+
+The Pokemon Dataset.
+
+The dataset we will use is a collection of Pokemon sprites obtained from pokemondb. First download, extract and load this dataset.
+
+We resize each image into <math>. The <code> transformation will project the pixel value into <math>, while our generator will use the tanh function to obtain outputs in <math>. Therefore we normalize the data with <math> mean and <math> standard deviation to match the value range.
+
+Let's visualize the first 20 images.
+
+The Generator.
+
+The generator needs to map the noise variable <math>, a length-<math> vector, to a RGB image with width and height to be <math> . In section <num> we introduced the fully convolutional network that uses transposed convolution layer (refer to section <num>) to enlarge input size. The basic block of the generator contains a transposed convolution layer followed by the batch normalization and ReLU activation.
+
+In default, the transposed convolution layer uses a <math> kernel, a <math> strides, and a <math> padding. With a input shape of <math>, the generator block will double input's width and height.
+
+<math>.
+
+If changing the transposed convolution layer to a <math> kernel, <math> strides and zero padding. With a input size of <math>, the output will have its width and height increased by 3 respectively.
+
+The generator consists of four basic blocks that increase input's both width and height from 1 to 32. At the same time, it first projects the latent variable into <math> channels, and then halve the channels each time. At last, a transposed convolution layer is used to generate the output. It further doubles the width and height to match the desired <math> shape, and reduces the channel size to <math>. The tanh activation function is applied to project output values into the <math> range.
+
+Generate a 100 dimensional latent variable to verify the generator's output shape.
+
+Discriminator.
+
+The discriminator is a normal convolutional network network except that it uses a leaky ReLU as its activation function. Given <math>, its definition is.
+
+<math>.
+
+As it can be seen, it is normal ReLU if <math>, and an identity function if <math>. For <math>, leaky ReLU is a nonlinear function that give a non-zero output for a negative input. It aims to fix the "dying ReLU" problem that a neuron might always output a negative value and therefore cannot make any progress since the gradient of ReLU is 0.
+
+The basic block of the discriminator is a convolution layer followed by a batch normalization layer and a leaky ReLU activation. The hyperparameters of the convolution layer are similar to the transpose convolution layer in the generator block.
+
+A basic block with default settings will halve the width and height of the inputs, as we demonstrated in section <num>. For example, given a input shape <math>, with a kernel shape <math>, a stride shape <math>, and a padding shape <math>, the output shape will be:
+
+<math>.
+
+The discriminator is a mirror of the generator.
+
+It uses a convolution layer with output channel <math> as the last layer to obtain a single prediction value.
+
+Training.
+
+Compared to the basic GAN in section <num>, we use the same learning rate for both generator and discriminator since they are similar to each other. In addition, we change <math> in Adam (section <num>) from <math> to <math>. It decreases the smoothness of the momentum, the exponentially weighted moving average of past gradients, to take care of the rapid changing gradients because the generator and the discriminator fight with each other. Besides, the random generated noise <code>, is a 4-D tensor and we are using GPU to accelerate the computation.
+
+We train the model with a small number of epochs just for demonstration. For better performance, the variable <code> can be set to a larger number.
+
+Summary.
+
+DCGAN architecture has four convolutional layers for the Discriminator and four "fractionally-strided" convolutional layers for the Generator.
+
+The Discriminator is a 4-layer strided convolutions with batch normalization (except its input layer) and leaky ReLU activations.
+
+Leaky ReLU is a nonlinear function that give a non-zero output for a negative input. It aims to fix the “dying ReLU” problem and helps the gradients flow easier through the architecture.
+
+Exercises.
+
+What will happen if we use standard ReLU activation rather than leaky ReLU?
+
+Apply DCGAN on Fashion-MNIST and see which category works well and which does not.
+
+Discussions.
+
+Discussions.

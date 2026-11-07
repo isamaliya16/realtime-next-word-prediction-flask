@@ -1,0 +1,89 @@
+Multiple Input and Multiple Output Channels.
+
+While we described the multiple channels that comprise each image (e.g., color images have the standard RGB channels to indicate the amount of red, green and blue) and convolutional layers for multiple channels in section <num>, until now, we simplified all of our numerical examples by working with just a single input and a single output channel. This allowed us to think of our inputs, convolution kernels, and outputs each as two-dimensional tensors.
+
+When we add channels into the mix, our inputs and hidden representations both become three-dimensional tensors. For example, each RGB input image has shape <math>. We refer to this axis, with a size of 3, as the channel dimension. The notion of channels is as old as CNNs themselves: for instance LeNet-5 uses them. In this section, we will take a deeper look at convolution kernels with multiple input and multiple output channels.
+
+Multiple Input Channels.
+
+When the input data contains multiple channels, we need to construct a convolution kernel with the same number of input channels as the input data, so that it can perform cross-correlation with the input data. Assuming that the number of channels for the input data is <math>, the number of input channels of the convolution kernel also needs to be <math>. If our convolution kernel's window shape is <math>, then, when <math>, we can think of our convolution kernel as just a two-dimensional tensor of shape <math>.
+
+However, when <math>, we need a kernel that contains a tensor of shape <math> for every input channel. Concatenating these <math> tensors together yields a convolution kernel of shape <math>. Since the input and convolution kernel each have <math> channels, we can perform a cross-correlation operation on the two-dimensional tensor of the input and the two-dimensional tensor of the convolution kernel for each channel, adding the <math> results together (summing over the channels) to yield a two-dimensional tensor. This is the result of a two-dimensional cross-correlation between a multi-channel input and a multi-input-channel convolution kernel.
+
+section <num> provides an example of a two-dimensional cross-correlation with two input channels. The shaded portions are the first output element as well as the input and kernel tensor elements used for the output computation: <math>.
+
+To make sure we really understand what is going on here, we can (implement cross-correlation operations with multiple input channels) ourselves. Notice that all we are doing is performing a cross-correlation operation per channel and then adding up the results.
+
+We can construct the input tensor <code> and the kernel tensor <code> corresponding to the values in section <num> to (validate the output) of the cross-correlation operation.
+
+Multiple Output Channels.
+
+Regardless of the number of input channels, so far we always ended up with one output channel. However, as we discussed in section <num>, it turns out to be essential to have multiple channels at each layer. In the most popular neural network architectures, we actually increase the channel dimension as we go deeper in the neural network, typically downsampling to trade off spatial resolution for greater channel depth. Intuitively, you could think of each channel as responding to a different set of features. The reality is a bit more complicated than this. A naive interpretation would suggest that representations are learned independently per pixel or per channel. Instead, channels are optimized to be jointly useful. This means that rather than mapping a single channel to an edge detector, it may simply mean that some direction in channel space corresponds to detecting edges.
+
+Denote by <math> and <math> the number of input and output channels, respectively, and by <math> and <math> the height and width of the kernel. To get an output with multiple channels, we can create a kernel tensor of shape <math> for every output channel. We concatenate them on the output channel dimension, so that the shape of the convolution kernel is <math>. In cross-correlation operations, the result on each output channel is calculated from the convolution kernel corresponding to that output channel and takes input from all channels in the input tensor.
+
+We implement a cross-correlation function to [calculate the output of multiple channels] as shown below.
+
+We construct a trivial convolution kernel with three output channels by concatenating the kernel tensor for <code> with <code> and <code>.
+
+Below, we perform cross-correlation operations on the input tensor <code> with the kernel tensor <code>. Now the output contains three channels. The result of the first channel is consistent with the result of the previous input tensor <code> and the multi-input channel, single-output channel kernel.
+
+<math> Convolutional Layer.
+
+At first, a [<math> convolution], i.e., <math>, does not seem to make much sense. After all, a convolution correlates adjacent pixels. A <math> convolution obviously does not. Nonetheless, they are popular operations that are sometimes included in the designs of complex deep networks . Let's see in some detail what it actually does.
+
+Because the minimum window is used, the <math> convolution loses the ability of larger convolutional layers to recognize patterns consisting of interactions among adjacent elements in the height and width dimensions. The only computation of the <math> convolution occurs on the channel dimension.
+
+section <num> shows the cross-correlation computation using the <math> convolution kernel with 3 input channels and 2 output channels. Note that the inputs and outputs have the same height and width. Each element in the output is derived from a linear combination of elements at the same position in the input image. You could think of the <math> convolutional layer as constituting a fully connected layer applied at every single pixel location to transform the <math> corresponding input values into <math> output values. Because this is still a convolutional layer, the weights are tied across pixel location. Thus the <math> convolutional layer requires <math> weights (plus the bias). Also note that convolutional layers are typically followed by nonlinearities. This ensures that <math> convolutions cannot simply be folded into other convolutions.
+
+Let's check whether this works in practice: we implement a <math> convolution using a fully connected layer. The only thing is that we need to make some adjustments to the data shape before and after the matrix multiplication.
+
+When performing <math> convolutions, the above function is equivalent to the previously implemented cross-correlation function <code>. Let's check this with some sample data.
+
+Discussion.
+
+Channels allow us to combine the best of both worlds: MLPs that allow for significant nonlinearities and convolutions that allow for localized analysis of features. In particular, channels allow the CNN to reason with multiple features, such as edge and shape detectors at the same time. They also offer a practical trade-off between the drastic parameter reduction arising from translation invariance and locality, and the need for expressive and diverse models in computer vision.
+
+Note, though, that this flexibility comes at a price. Given an image of size <math>, the cost for computing a <math> convolution is <math>. For <math> and <math> input and output channels respectively this increases to <math>. For a <math> pixel image with a <math> kernel and <math> input and output channels respectively this amounts to over 53 billion operations (we count multiplications and additions separately). Later on we will encounter effective strategies to cut down on the cost, e.g., by requiring the channel-wise operations to be block-diagonal, leading to architectures such as ResNeXt .
+
+Exercises.
+
+Assume that we have two convolution kernels of size <math> and <math>, respectively (with no nonlinearity in between).
+
+Prove that the result of the operation can be expressed by a single convolution.
+
+What is the dimensionality of the equivalent single convolution?
+
+Is the converse true, i.e., can you always decompose a convolution into two smaller ones?
+
+Assume an input of shape <math> and a convolution kernel of shape <math>, padding of <math>, and stride of <math>.
+
+What is the computational cost (multiplications and additions) for the forward propagation?
+
+What is the memory footprint?
+
+What is the memory footprint for the backward computation?
+
+What is the computational cost for the backpropagation?
+
+By what factor does the number of calculations increase if we double both the number of input channels <math> and the number of output channels <math>? What happens if we double the padding?
+
+Are the variables <code> and <code> in the final example of this section exactly the same? Why?
+
+Express convolutions as a matrix multiplication, even when the convolution window is not <math>.
+
+Your task is to implement fast convolutions with a <math> kernel. One of the algorithm candidates is to scan horizontally across the source, reading a <math>-wide strip and computing the <math>-wide output strip one value at a time. The alternative is to read a <math> wide strip and compute a <math>-wide output strip. Why is the latter preferable? Is there a limit to how large you should choose <math>?
+
+Assume that we have a <math> matrix.
+
+How much faster is it to multiply with a block-diagonal matrix if the matrix is broken up into <math> blocks?
+
+What is the downside of having <math> blocks? How could you fix it, at least partly?
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

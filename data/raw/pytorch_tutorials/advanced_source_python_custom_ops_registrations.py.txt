@@ -1,0 +1,33 @@
+Adding Training and Other Registrations to Python Custom Operators.
+
+Start here after a base operator passes <code>:
+
+python-custom-ops-functional.
+
+python-custom-ops-mutable.
+
+Registrations do not change the base contract. After adding one, rerun <code> on representative inputs for that subsystem.
+
+Adding training support for NumPy sin Use <code> to add training support for an operator. Prefer this over directly using <code>; some compositions of <code> with PyTorch operator registration APIs can lead to (and has led to) silent incorrectness when composed with <code>.
+
+If you don't need training support, there is no need to use <code>. If you end up training with a <code> that doesn't have an autograd registration, we'll raise an error message.
+
+This page uses the same <code> operation as the functional and mutable pages so the only new concept is the autograd registration.
+
+The fake kernel must describe the same output metadata as the real kernel, including shape, strides, dtype, device, layout, and storage offset when relevant. Here the real kernel returns <code>, so the fake kernel does the same.
+
+The gradient formula for <code> is <code>. The backward formula must be written in terms of PyTorch-understood operations or other custom operators. Do not directly use non-traceable Python or NumPy code from the backward formula.
+
+Register the backward formula and the context setup function:
+
+Testing autograd registration <code> verifies that autograd was registered in a supported way, but it does not prove that the gradient formula is mathematically correct. Use separate numerical tests for that, either manual ones or <code>.
+
+Other registrations Add these only when users need them.
+
+Multiple device kernels: pass <code> or <code> if the implementation only works on one device. Register device-specific kernels when devices need different code.
+
+<code>: register a vmap rule with <code> when batching over the operator should do something different from a Python loop over the batch dimension.
+
+Tensor subclasses or modes: use <code> when a Tensor subclass or <code> needs special behavior.
+
+Autocast: for C++/CUDA operators that should participate in autocast, add an autocast registration as described in the C++ custom operator guide.

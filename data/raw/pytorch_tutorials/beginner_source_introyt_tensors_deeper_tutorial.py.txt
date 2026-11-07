@@ -1,0 +1,239 @@
+Introduction || Tensors || Autograd || Building Models || TensorBoard Support || Training Models || Model Understanding.
+
+Introduction to PyTorch Tensors.
+
+Follow along with the video below or on youtube.
+
+Tensors are the central data abstraction in PyTorch. This interactive notebook provides an in-depth introduction to the <code> class.
+
+First things first, let’s import the PyTorch module. We’ll also add Python’s math module to facilitate some of the examples.
+
+Creating Tensors.
+
+The simplest way to create a tensor is with the <code> call:
+
+Let’s upack what we just did:
+
+We created a tensor using one of the numerous factory methods attached to the <code> module.
+
+The tensor itself is 2-dimensional, having 3 rows and 4 columns.
+
+The type of the object returned is <code>, which is an alias for <code>; by default, PyTorch tensors are populated with 32-bit floating point numbers. (More on data types below.).
+
+You will probably see some random-looking values when printing your tensor. The <code> call allocates memory for the tensor, but does not initialize it with any values - so what you’re seeing is whatever was in memory at the time of allocation.
+
+A brief note about tensors and their number of dimensions, and terminology:
+
+You will sometimes see a 1-dimensional tensor called a vector.
+
+Likewise, a 2-dimensional tensor is often referred to as a matrix.
+
+Anything with more than two dimensions is generally just called a tensor.
+
+More often than not, you’ll want to initialize your tensor with some value. Common cases are all zeros, all ones, or random values, and the <code> module provides factory methods for all of these:
+
+The factory methods all do just what you’d expect - we have a tensor full of zeros, another full of ones, and another with random values between 0 and 1.
+
+Random Tensors and Seeding.
+
+Speaking of the random tensor, did you notice the call to <code> immediately preceding it? Initializing tensors, such as a model’s learning weights, with random values is common but there are times - especially in research settings - where you’ll want some assurance of the reproducibility of your results. Manually setting your random number generator’s seed is the way to do this. Let’s look more closely:
+
+What you should see above is that <code> and <code> carry identical values, as do <code> and <code>. Manually setting the RNG’s seed resets it, so that identical computations depending on random number should, in most settings, provide identical results.
+
+For more information, see the PyTorch documentation on reproducibility.
+
+Tensor Shapes.
+
+Often, when you’re performing operations on two or more tensors, they will need to be of the same shape - that is, having the same number of dimensions and the same number of cells in each dimension. For that, we have the <code> methods:
+
+The first new thing in the code cell above is the use of the <code> property on a tensor. This property contains a list of the extent of each dimension of a tensor - in our case, <code> is a three-dimensional tensor with shape 2 x 2 x 3.
+
+Below that, we call the <code>, <code>, <code>, and <code> methods. Using the <code> property, we can verify that each of these methods returns a tensor of identical dimensionality and extent.
+
+The last way to create a tensor that will cover is to specify its data directly from a PyTorch collection:
+
+Using <code> is the most straightforward way to create a tensor if you already have data in a Python tuple or list. As shown above, nesting the collections will result in a multi-dimensional tensor.
+
+Tensor Data Types.
+
+Setting the datatype of a tensor is possible a couple of ways:
+
+The simplest way to set the underlying data type of a tensor is with an optional argument at creation time. In the first line of the cell above, we set <code> for the tensor <code>. When we print <code>, we can see that it’s full of <code> rather than <code> - Python’s subtle cue that this is an integer type rather than floating point.
+
+Another thing to notice about printing <code> is that, unlike when we left <code> as the default (32-bit floating point), printing the tensor also specifies its <code>.
+
+You may have also spotted that we went from specifying the tensor’s shape as a series of integer arguments, to grouping those arguments in a tuple. This is not strictly necessary - PyTorch will take a series of initial, unlabeled integer arguments as a tensor shape - but when adding the optional arguments, it can make your intent more readable.
+
+The other way to set the datatype is with the <code> method. In the cell above, we create a random floating point tensor <code> in the usual way. Following that, we create <code> by converting <code> to a 32-bit integer with the <code> method. Note that <code> contains all the same values as <code>, but truncated to integers.
+
+For more information, see the data types documentation.
+
+Math & Logic with PyTorch Tensors.
+
+Now that you know some of the ways to create a tensor… what can you do with them?
+
+Let’s look at basic arithmetic first, and how tensors interact with simple scalars:
+
+As you can see above, arithmetic operations between tensors and scalars, such as addition, subtraction, multiplication, division, and exponentiation are distributed over every element of the tensor. Because the output of such an operation will be a tensor, you can chain them together with the usual operator precedence rules, as in the line where we create <code>.
+
+Similar operations between two tensors also behave like you’d intuitively expect:
+
+It’s important to note here that all of the tensors in the previous code cell were of identical shape. What happens when we try to perform a binary operation on tensors if dissimilar shape?
+
+In the general case, you cannot operate on tensors of different shape this way, even in a case like the cell above, where the tensors have an identical number of elements.
+
+In Brief: Tensor Broadcasting.
+
+The exception to the same-shapes rule is tensor broadcasting. Here’s an example:
+
+What’s the trick here? How is it we got to multiply a 2x4 tensor by a 1x4 tensor?
+
+Broadcasting is a way to perform an operation between tensors that have similarities in their shapes. In the example above, the one-row, four-column tensor is multiplied by both rows of the two-row, four-column tensor.
+
+This is an important operation in Deep Learning. The common example is multiplying a tensor of learning weights by a batch of input tensors, applying the operation to each instance in the batch separately, and returning a tensor of identical shape - just like our (2, 4) \ (1, 4) example above returned a tensor of shape (2, 4).
+
+The rules for broadcasting are:
+
+Each tensor must have at least one dimension - no empty tensors.
+
+Comparing the dimension sizes of the two tensors, going from last to first:
+
+Each dimension must be equal, or.
+
+One of the dimensions must be of size 1, or.
+
+The dimension does not exist in one of the tensors.
+
+Tensors of identical shape, of course, are trivially “broadcastable”, as you saw earlier.
+
+Here are some examples of situations that honor the above rules and allow broadcasting:
+
+Look closely at the values of each tensor above:
+
+The multiplication operation that created <code> was broadcast over every “layer” of <code>.
+
+For <code>, the operation was broadcast over every layer and row of <code> - every 3-element column is identical.
+
+For <code>, we switched it around - now every row is identical, across layers and columns.
+
+For more information on broadcasting, see the PyTorch documentation on the topic.
+
+Here are some examples of attempts at broadcasting that will fail:
+
+More Math with Tensors.
+
+PyTorch tensors have over three hundred operations that can be performed on them.
+
+Here is a small sample from some of the major categories of operations:
+
+This is a small sample of operations. For more details and the full inventory of math functions, have a look at the documentation. For more details and the full inventory of linear algebra operations, have a look at this documentation.
+
+Altering Tensors in Place.
+
+Most binary operations on tensors will return a third, new tensor. When we say <code> (where <code> and <code> are tensors), the new tensor <code> will occupy a region of memory distinct from the other tensors.
+
+There are times, though, that you may wish to alter a tensor in place - for example, if you’re doing an element-wise computation where you can discard intermediate values. For this, most of the math functions have a version with an appended underscore (<code>) that will alter a tensor in place.
+
+For example:
+
+For arithmetic operations, there are functions that behave similarly:
+
+Note that these in-place arithmetic functions are methods on the <code> object. As you can see from <code>, the calling tensor is the one that gets changed in place. Similarly, the in-place trigonometric functions like <code> are also tensor methods rather than module-level functions.
+
+There is another option for placing the result of a computation in an existing, allocated tensor. Many of the methods and functions we’ve seen so far - including creation methods! - have an <code> argument that lets you specify a tensor to receive the output. If the <code> tensor is the correct shape and <code>, this can happen without a new memory allocation:
+
+Copying Tensors.
+
+As with any object in Python, assigning a tensor to a variable makes the variable a label of the tensor, and does not copy it. For example:
+
+But what if you want a separate copy of the data to work on? The <code> method is there for you:
+
+There is an important thing to be aware of when using <code>. If your source tensor has autograd, enabled then so will the clone. This will be covered more deeply in the video on autograd, but if you want the light version of the details, continue on.
+
+In many cases, this will be what you want. For example, if your model has multiple computation paths in its <code> method, and both the original tensor and its clone contribute to the model’s output, then to enable model learning you want autograd turned on for both tensors. If your source tensor has autograd enabled (which it generally will if it’s a set of learning weights or derived from a computation involving the weights), then you’ll get the result you want.
+
+On the other hand, if you’re doing a computation where neither the original tensor nor its clone need to track gradients, then as long as the source tensor has autograd turned off, you’re good to go.
+
+There is a third case, though: Imagine you’re performing a computation in your model’s <code> function, where gradients are turned on for everything by default, but you want to pull out some values mid-stream to generate some metrics. In this case, you don’t want the cloned copy of your source tensor to track gradients - performance is improved with autograd’s history tracking turned off. For this, you can use the <code> method on the source tensor:
+
+What’s happening here?
+
+We create <code> with <code> turned on. We haven’t covered this optional argument yet, but will during the unit on autograd.
+
+When we print <code>, it informs us that the property <code> - this means that autograd and computation history tracking are turned on.
+
+We clone <code> and label it <code>. When we print <code>, we can see that it’s tracking its computation history - it has inherited <code>\ ’s autograd settings, and added to the computation history.
+
+We clone <code> into <code>, but we call <code> first.
+
+Printing <code>, we see no computation history, and no <code>.
+
+The <code> method detaches the tensor from its computation history. It says, “do whatever comes next as if autograd was off.” It does this without changing <code> - you can see that when we print <code> again at the end, it retains its <code> property.
+
+Moving to Accelerator.
+
+One of the major advantages of PyTorch is its robust acceleration on an accelerator such as CUDA, MPS, MTIA, or XPU. So far, everything we’ve done has been on CPU. How do we move to the faster hardware?
+
+First, we should check whether an accelerator is available, with the <code> method.
+
+Once we’ve determined that one or more accelerators is available, we need to put our data someplace where the accelerator can see it. Your CPU does computation on data in your computer’s RAM. Your accelerator has dedicated memory attached to it. Whenever you want to perform a computation on a device, you must move all the data needed for that computation to memory accessible by that device. (Colloquially, “moving the data to memory accessible by the GPU” is shorted to, “moving the data to the GPU”.).
+
+There are multiple ways to get your data onto your target device. You may do it at creation time:
+
+By default, new tensors are created on the CPU, so we have to specify when we want to create our tensor on the accelerator with the optional <code> argument. You can see when we print the new tensor, PyTorch informs us which device it’s on (if it’s not on CPU).
+
+You can query the number of accelerators with <code>. If you have more than one accelerator, you can specify them by index, take CUDA for example: <code>, <code>, etc.
+
+As a coding practice, specifying our devices everywhere with string constants is pretty fragile. In an ideal world, your code would perform robustly whether you’re on CPU or accelerator hardware. You can do this by creating a device handle that can be passed to your tensors instead of a string:
+
+If you have an existing tensor living on one device, you can move it to another with the <code> method. The following line of code creates a tensor on CPU, and moves it to whichever device handle you acquired in the previous cell.
+
+It is important to know that in order to do computation involving two or more tensors, all of the tensors must be on the same device. The following code will throw a runtime error, regardless of whether you have an accelerator device available, take CUDA for example:
+
+Manipulating Tensor Shapes.
+
+Sometimes, you’ll need to change the shape of your tensor. Below, we’ll look at a few common cases, and how to handle them.
+
+Changing the Number of Dimensions.
+
+One case where you might need to change the number of dimensions is passing a single instance of input to your model. PyTorch models generally expect batches of input.
+
+For example, imagine having a model that works on 3 x 226 x 226 images - a 226-pixel square with 3 color channels. When you load and transform it, you’ll get a tensor of shape <code>. Your model, though, is expecting input of shape <code>, where <code> is the number of images in the batch. So how do you make a batch of one?
+
+The <code> method adds a dimension of extent 1. <code> adds it as a new zeroth dimension - now you have a batch of one!
+
+So if that’s un\ squeezing? What do we mean by squeezing? We’re taking advantage of the fact that any dimension of extent 1 does not change the number of elements in the tensor.
+
+Continuing the example above, let’s say the model’s output is a 20-element vector for each input. You would then expect the output to have shape <code>, where <code> is the number of instances in the input batch. That means that for our single-input batch, we’ll get an output of shape <code>.
+
+What if you want to do some non-batched computation with that output - something that’s just expecting a 20-element vector?
+
+You can see from the shapes that our 2-dimensional tensor is now 1-dimensional, and if you look closely at the output of the cell above you’ll see that printing <code> shows an “extra” set of square brackets <code> due to having an extra dimension.
+
+You may only <code> dimensions of extent 1. See above where we try to squeeze a dimension of size 2 in <code>, and get back the same shape we started with. Calls to <code> and <code> can only act on dimensions of extent 1 because to do otherwise would change the number of elements in the tensor.
+
+Another place you might use <code> is to ease broadcasting. Recall the example above where we had the following code:
+
+The net effect of that was to broadcast the operation over dimensions 0 and 2, causing the random, 3 x 1 tensor to be multiplied element-wise by every 3-element column in <code>.
+
+What if the random vector had just been 3-element vector? We’d lose the ability to do the broadcast, because the final dimensions would not match up according to the broadcasting rules. <code> comes to the rescue:
+
+The <code> and <code> methods also have in-place versions, <code> and <code>:
+
+Sometimes you’ll want to change the shape of a tensor more radically, while still preserving the number of elements and their contents. One case where this happens is at the interface between a convolutional layer of a model and a linear layer of the model - this is common in image classification models. A convolution kernel will yield an output tensor of shape features x width x height, but the following linear layer expects a 1-dimensional input. <code> will do this for you, provided that the dimensions you request yield the same number of elements as the input tensor has:
+
+When it can, <code> will return a view on the tensor to be changed - that is, a separate tensor object looking at the same underlying region of memory. This is important: That means any change made to the source tensor will be reflected in the view on that tensor, unless you <code> it.
+
+There are conditions, beyond the scope of this introduction, where <code> has to return a tensor carrying a copy of the data. For more information, see the docs.
+
+NumPy Bridge.
+
+In the section above on broadcasting, it was mentioned that PyTorch’s broadcast semantics are compatible with NumPy’s - but the kinship between PyTorch and NumPy goes even deeper than that.
+
+If you have existing ML or scientific code with data stored in NumPy ndarrays, you may wish to express that same data as PyTorch tensors, whether to take advantage of PyTorch’s GPU acceleration, or its efficient abstractions for building ML models. It’s easy to switch between ndarrays and PyTorch tensors:
+
+PyTorch creates a tensor of the same shape and containing the same data as the NumPy array, going so far as to keep NumPy’s default 64-bit float data type.
+
+The conversion can just as easily go the other way:
+
+It is important to know that these converted objects are using the same underlying memory as their source objects, meaning that changes to one are reflected in the other:

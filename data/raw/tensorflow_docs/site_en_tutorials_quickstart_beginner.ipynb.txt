@@ -1,0 +1,73 @@
+TensorFlow 2 quickstart for beginners.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This short introduction uses Keras to:
+
+Load a prebuilt dataset.
+
+Build a neural network machine learning model that classifies images.
+
+Train this neural network.
+
+Evaluate the accuracy of the model.
+
+This tutorial is a Google Colaboratory notebook. Python programs are run directly in the browser—a great way to learn and use TensorFlow. To follow this tutorial, run the notebook in Google Colab by clicking the button at the top of this page.
+
+In Colab, connect to a Python runtime: At the top-right of the menu bar, select CONNECT.
+
+To run all the code in the notebook, select Runtime > Run all. To run the code cells one at a time, hover over each cell and select the Run cell icon.
+
+Set up TensorFlow.
+
+Import TensorFlow into your program to get started:
+
+If you are following along in your own development environment, rather than Colab, see the install guide for setting up TensorFlow for development.
+
+Note: Make sure you have upgraded to the latest <code> to install the TensorFlow 2 package if you are using your own development environment. See the install guide for details.
+
+Load a dataset.
+
+Load and prepare the MNIST dataset. The pixel values of the images range from 0 through 255. Scale these values to a range of 0 to 1 by dividing the values by <code>. This also converts the sample data from integers to floating-point numbers:
+
+Build a machine learning model.
+
+Build a <code> model:
+
+<code> is useful for stacking layers where each layer has one input tensor and one output tensor. Layers are functions with a known mathematical structure that can be reused and have trainable variables. Most TensorFlow models are composed of layers. This model uses the <code>, <code>, and <code> layers.
+
+For each example, the model returns a vector of logits or log-odds scores, one for each class.
+
+The <code> function converts these logits to probabilities for each class:
+
+Note: It is possible to bake the <code> function into the activation function for the last layer of the network. While this can make the model output more directly interpretable, this approach is discouraged as it's impossible to provide an exact and numerically stable loss calculation for all models when using a softmax output.
+
+Define a loss function for training using <code>:
+
+The loss function takes a vector of ground truth values and a vector of logits and returns a scalar loss for each example. This loss is equal to the negative log probability of the true class: The loss is zero if the model is sure of the correct class.
+
+This untrained model gives probabilities close to random (1/10 for each class), so the initial loss should be close to <code>.
+
+Before you start training, configure and compile the model using Keras <code>. Set the <code> class to <code>, set the <code> to the <code> function you defined earlier, and specify a metric to be evaluated for the model by setting the <code> parameter to <code>.
+
+Train and evaluate your model.
+
+Use the <code> method to adjust your model parameters and minimize the loss:
+
+The <code> method checks the model's performance, usually on a validation set or test set.
+
+The image classifier is now trained to ~98% accuracy on this dataset. To learn more, read the TensorFlow tutorials.
+
+If you want your model to return a probability, you can wrap the trained model, and attach the softmax to it:
+
+Conclusion.
+
+Congratulations! You have trained a machine learning model using a prebuilt dataset using the Keras API.
+
+For more examples of using Keras, check out the tutorials. To learn more about building models with Keras, read the guides. If you want learn more about loading and preparing data, see the tutorials on image data loading or CSV data loading.

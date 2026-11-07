@@ -1,0 +1,43 @@
+What is a state_dict in PyTorch In PyTorch, the learnable parameters (i.e. weights and biases) of a <code> model are contained in the model’s parameters (accessed with <code>). A <code> is simply a Python dictionary object that maps each layer to its parameter tensor.
+
+Introduction A <code> is an integral entity if you are interested in saving or loading models from PyTorch. Because <code> objects are Python dictionaries, they can be easily saved, updated, altered, and restored, adding a great deal of modularity to PyTorch models and optimizers. Note that only layers with learnable parameters (convolutional layers, linear layers, etc.) and registered buffers (batchnorm’s running_mean) have entries in the model’s <code>. Optimizer objects (<code>) also have a <code>, which contains information about the optimizer’s state, as well as the hyperparameters used. In this recipe, we will see how <code> is used with a simple model.
+
+Setup Before we begin, we need to install <code> if it isn’t already available.
+
+Steps.
+
+Import all necessary libraries for loading our data.
+
+Define and initialize the neural network.
+
+Initialize the optimizer.
+
+Access the model and optimizer <code>.
+
+Import necessary libraries for loading our data.
+
+For this recipe, we will use <code> and its subsidiaries <code> and <code>.
+
+Define and initialize the neural network.
+
+For sake of example, we will create a neural network for training images. To learn more see the Defining a Neural Network recipe.
+
+Initialize the optimizer.
+
+We will use SGD with momentum.
+
+Access the model and optimizer <code>.
+
+Now that we have constructed our model and optimizer, we can understand what is preserved in their respective <code> properties.
+
+This information is relevant for saving and loading the model and optimizers for future use.
+
+Congratulations! You have successfully used <code> in PyTorch.
+
+Learn More.
+
+Take a look at these other recipes to continue your learning:
+
+Saving and loading models for inference in PyTorch.
+
+Saving and loading a general checkpoint in PyTorch.

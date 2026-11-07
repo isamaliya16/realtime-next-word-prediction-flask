@@ -1,0 +1,121 @@
+Calculus.
+
+For a long time, how to calculate the area of a circle remained a mystery. Then, in Ancient Greece, the mathematician Archimedes came up with the clever idea to inscribe a series of polygons with increasing numbers of vertices on the inside of a circle (section <num>). For a polygon with <math> vertices, we obtain <math> triangles. The height of each triangle approaches the radius <math> as we partition the circle more finely. At the same time, its base approaches <math>, since the ratio between arc and secant approaches 1 for a large number of vertices. Thus, the area of the polygon approaches <math>.
+
+This limiting procedure is at the root of both differential calculus and integral calculus. The former can tell us how to increase or decrease a function's value by manipulating its arguments. This comes in handy for the optimization problems that we face in deep learning, where we repeatedly update our parameters in order to decrease the loss function. Optimization addresses how to fit our models to training data, and calculus is its key prerequisite. However, do not forget that our ultimate goal is to perform well on previously unseen data. That problem is called generalization and will be a key focus of other chapters.
+
+Derivatives and Differentiation.
+
+Put simply, a derivative is the rate of change in a function with respect to changes in its arguments. Derivatives can tell us how rapidly a loss function would increase or decrease were we to increase or decrease each parameter by an infinitesimally small amount. Formally, for functions <math>, that map from scalars to scalars, [the derivative of <math> at a point <math> is defined as].
+
+( <math> ).
+
+This term on the right hand side is called a limit and it tells us what happens to the value of an expression as a specified variable approaches a particular value. This limit tells us what the ratio between a perturbation <math> and the change in the function value <math> converges to as we shrink its size to zero.
+
+When <math> exists, <math> is said to be differentiable at <math>; and when <math> exists for all <math> on a set, e.g., the interval <math>, we say that <math> is differentiable on this set. Not all functions are differentiable, including many that we wish to optimize, such as accuracy and the area under the receiving operating characteristic (AUC). However, because computing the derivative of the loss is a crucial step in nearly all algorithms for training deep neural networks, we often optimize a differentiable surrogate instead.
+
+We can interpret the derivative <math> as the instantaneous rate of change of <math> with respect to <math>. Let's develop some intuition with an example. (Define <math>.).
+
+[Setting <math>, we see that <math>] (approaches <math> as <math> approaches <math>.) While this experiment lacks the rigor of a mathematical proof, we can quickly see that indeed <math>.
+
+There are several equivalent notational conventions for derivatives. Given <math>, the following expressions are equivalent:
+
+<math>.
+
+where the symbols <math> and <math> are differentiation operators. Below, we present the derivatives of some common functions:
+
+<math>.
+
+Functions composed from differentiable functions are often themselves differentiable. The following rules come in handy for working with compositions of any differentiable functions <math> and <math>, and constant <math>.
+
+<math>.
+
+Using this, we can apply the rules to find the derivative of <math> via.
+
+<math>.
+
+Plugging in <math> shows that, indeed, the derivative equals <math> at this location. Note that derivatives tell us the slope of a function at a particular location.
+
+Visualization Utilities.
+
+[We can visualize the slopes of functions using the <code> library]. We need to define a few functions. As its name indicates, <code> tells <code> to output graphics in SVG format for crisper images. The comment <code> is a special modifier that allows us to save any function, class, or other code block to the <code> package so that we can invoke it later without repeating the code, e.g., via <code>.
+
+Conveniently, we can set figure sizes with <code>. Since the import statement <code> was marked via <code> in the <code> package, we can call <code>.
+
+The <code> function can associate axes with properties, including labels, ranges, and scales.
+
+With these three functions, we can define a <code> function to overlay multiple curves. Much of the code here is just ensuring that the sizes and shapes of inputs match.
+
+Now we can [plot the function <math> and its tangent line <math> at <math>], where the coefficient <math> is the slope of the tangent line.
+
+Partial Derivatives and Gradients.
+
+Thus far, we have been differentiating functions of just one variable. In deep learning, we also need to work with functions of many variables. We briefly introduce notions of the derivative that apply to such multivariate functions.
+
+Let <math> be a function with <math> variables. The partial derivative of <math> with respect to its <math> parameter <math> is.
+
+<math>.
+
+To calculate <math>, we can treat <math> as constants and calculate the derivative of <math> with respect to <math>. The following notational conventions for partial derivatives are all common and all mean the same thing:
+
+<math>.
+
+We can concatenate partial derivatives of a multivariate function with respect to all its variables to obtain a vector that is called the gradient of the function. Suppose that the input of function <math> is an <math>-dimensional vector <math> and the output is a scalar. The gradient of the function <math> with respect to <math> is a vector of <math> partial derivatives:
+
+<math>.
+
+When there is no ambiguity, <math> is typically replaced by <math>. The following rules come in handy for differentiating multivariate functions:
+
+For all <math> we have <math> and <math>.
+
+For square matrices <math> we have that <math> and in particular <math>.
+
+Similarly, for any matrix <math>, we have <math>.
+
+Chain Rule.
+
+In deep learning, the gradients of concern are often difficult to calculate because we are working with deeply nested functions (of functions (of functions...)). Fortunately, the chain rule takes care of this. Returning to functions of a single variable, suppose that <math> and that the underlying functions <math> and <math> are both differentiable. The chain rule states that.
+
+<math>.
+
+Turning back to multivariate functions, suppose that <math> has variables <math>, where each <math> has variables <math>, i.e., <math>. Then the chain rule states that.
+
+<math>.
+
+where <math> is a matrix that contains the derivative of vector <math> with respect to vector <math>. Thus, evaluating the gradient requires computing a vector--matrix product. This is one of the key reasons why linear algebra is such an integral building block in building deep learning systems.
+
+Discussion.
+
+While we have just scratched the surface of a deep topic, a number of concepts already come into focus: first, the composition rules for differentiation can be applied routinely, enabling us to compute gradients automatically. This task requires no creativity and thus we can focus our cognitive powers elsewhere. Second, computing the derivatives of vector-valued functions requires us to multiply matrices as we trace the dependency graph of variables from output to input. In particular, this graph is traversed in a forward direction when we evaluate a function and in a backwards direction when we compute gradients. Later chapters will formally introduce backpropagation, a computational procedure for applying the chain rule.
+
+From the viewpoint of optimization, gradients allow us to determine how to move the parameters of a model in order to lower the loss, and each step of the optimization algorithms used throughout this book will require calculating the gradient.
+
+Exercises.
+
+So far we took the rules for derivatives for granted. Using the definition and limits prove the properties for (i) <math>, (ii) <math>, (iii) <math> and (iv) <math>.
+
+In the same vein, prove the product, sum, and quotient rule from first principles.
+
+Prove that the constant multiple rule follows as a special case of the product rule.
+
+Calculate the derivative of <math>.
+
+What does it mean that <math> for some <math>? Give an example of a function <math> and a location <math> for which this might hold.
+
+Plot the function <math> and plot its tangent line at <math>.
+
+Find the gradient of the function <math>.
+
+What is the gradient of the function <math>? What happens for <math>?
+
+Can you write out the chain rule for the case where <math> and <math>, <math>, and <math>?
+
+Given a function <math> that is invertible, compute the derivative of its inverse <math>. Here we have that <math> and conversely <math>. Hint: use these properties in your derivation.
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

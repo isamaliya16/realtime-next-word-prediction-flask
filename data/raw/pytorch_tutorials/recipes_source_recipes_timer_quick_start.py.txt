@@ -1,0 +1,73 @@
+Timer quick start.
+
+In this tutorial, we're going to cover the primary APIs of <code>. The PyTorch Timer is based on the timeit.Timer API, with several PyTorch specific modifications. Familiarity with the builtin <code> class is not required for this tutorial, however we assume that the reader is familiar with the fundamentals of performance work.
+
+For a more comprehensive performance tuning tutorial, see PyTorch Benchmark.
+
+Contents:
+
+Defining a Timer.
+
+Wall time: Timer.blocked_autorange(...).
+
+C++ snippets.
+
+Instruction counts: Timer.collect_callgrind(...).
+
+Instruction counts: Delving deeper.
+
+A/B testing with Callgrind.
+
+Wrapping up.
+
+Footnotes.
+
+Defining a Timer.
+
+A <code> serves as a task definition.
+
+Wall time: <code>.
+
+This method will handle details such as picking a suitable number if repeats, fixing the number of threads, and providing a convenient representation of the results.
+
+C++ snippets.
+
+Unsurprisingly, the C++ snippet is both faster and has lower variation.
+
+Instruction counts: <code>.
+
+For deep dive investigations, <code> wraps Callgrind in order to collect instruction counts. These are useful as they offer fine grained and deterministic (or very low noise in the case of Python) insights into how a snippet is run.
+
+Instruction counts: Delving deeper.
+
+The string representation of <code> is similar to that of Measurement. <code> are a Python concept (removing calls in the CPython interpreter which are known to be noisy).
+
+For more detailed analysis, however, we will want to look at specific calls. <code> returns a <code> object to make this easier. Conceptually, <code> can be thought of as a tuple of pairs with some utility methods, where each pair is `(number of instructions, file path and function name)`.
+
+A note on paths: One generally doesn't care about absolute path. For instance, the full path and function name for a multiply call is something like:
+
+That's still quite a lot to digest. Let's use the <code> method to trim some of the function path, and discard the function called. When we do, the counts of any collisions (e.g. <code> and <code> will both map to <code>) will be added together.
+
+A/B testing with <code>.
+
+One of the most useful features of instruction counts is they allow fine grained comparison of computation, which is critical when analyzing performance.
+
+To see this in action, lets compare our multiplication of two size 128 Tensors with a {128} x {1} multiplication, which will broadcast the second Tensor: result = {a0 b0, a1 b0, ..., a127 b0}.
+
+Often we want to A/B test two different environments. (e.g. testing a PR, or experimenting with compile flags.) This is quite simple, as <code>, <code>, and Measurement are all pickleable. Simply save measurements from each environment, and load them in a single process for analysis.
+
+So the broadcasting version takes an extra 580 instructions per call (recall that we're collecting 100 runs per sample), or about 10%. There are quite a few <code> calls, so lets drill down to those. <code> makes this easy.
+
+This makes plain what is going on: there is a fast path in <code> setup, but in the {128} x {1} case we miss it and have to do a more general analysis which is more expensive. The most prominent call omitted by the filter is <code>, which is also part of the more general setup.
+
+Wrapping up.
+
+In summary, use <code> to collect wall times. If timing variation is too high, increase <code>, or move to C++ snippets if convenient.
+
+For fine grained analysis, use <code> to measure instruction counts and <code> to slice-and-dice them.
+
+Footnotes.
+
+Implied <code> If <code> does not contain "torch", Timer will automatically populate it. This means that <code> will work. (Though other imports should be placed in <code>, e.g. <code>).
+
+<code> In order to provide full information about the PyTorch internals which are executed, <code> needs access to C++ debug symbols. This is accomplished by setting <code> when building PyTorch. Otherwise function calls will be opaque. (The resultant <code> will warn if debug symbols are missing.).

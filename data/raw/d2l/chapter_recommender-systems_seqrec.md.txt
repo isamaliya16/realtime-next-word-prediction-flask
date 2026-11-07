@@ -1,0 +1,67 @@
+Sequence-Aware Recommender Systems.
+
+In previous sections, we abstract the recommendation task as a matrix completion problem without considering users' short-term behaviors. In this section, we will introduce a recommendation model that takes the sequentially-ordered user interaction logs into account. It is a sequence-aware recommender where the input is an ordered and often timestamped list of past user actions. A number of recent literatures have demonstrated the usefulness of incorporating such information in modeling users' temporal behavioral patterns and discovering their interest drift.
+
+The model we will introduce, Caser , short for convolutional sequence embedding recommendation model, adopts convolutional neural networks capture the dynamic pattern influences of users' recent activities. The main component of Caser consists of a horizontal convolutional network and a vertical convolutional network, aiming to uncover the union-level and point-level sequence patterns, respectively. Point-level pattern indicates the impact of single item in the historical sequence on the target item, while union level pattern implies the influences of several previous actions on the subsequent target. For example, buying both milk and butter together leads to higher probability of buying flour than just buying one of them. Moreover, users' general interests, or long term preferences are also modeled in the last fully connected layers, resulting in a more comprehensive modeling of user interests. Details of the model are described as follows.
+
+Model Architectures.
+
+In sequence-aware recommendation system, each user is associated with a sequence of some items from the item set. Let <math> denotes the ordered sequence. The goal of Caser is to recommend item by considering user general tastes as well as short-term intention. Suppose we take the previous <math> items into consideration, an embedding matrix that represents the former interactions for time step <math> can be constructed:
+
+<math>.
+
+where <math> represents item embeddings and <math> denotes the <math> row. <math> can be used to infer the transient interest of user <math> at time-step <math>. We can view the input matrix <math> as an image which is the input of the subsequent two convolutional components.
+
+The horizontal convolutional layer has <math> horizontal filters <math>, and the vertical convolutional layer has <math> vertical filters <math>. After a series of convolutional and pool operations, we get the two outputs:
+
+<math>.
+
+where <math> is the output of horizontal convolutional network and <math> is the output of vertical convolutional network. For simplicity, we omit the details of convolution and pool operations. They are concatenated and fed into a fully connected neural network layer to get more high-level representations.
+
+<math>.
+
+where <math> is the weight matrix and <math> is the bias. The learned vector <math> is the representation of user's short-term intent.
+
+At last, the prediction function combines users' short-term and general taste together, which is defined as:
+
+<math>.
+
+where <math> is another item embedding matrix. <math> is the item specific bias. <math> is the user embedding matrix for users' general tastes. <math> is the <math> row of <math> and <math> is the <math> row of <math>.
+
+The model can be learned with BPR or Hinge loss. The architecture of Caser is shown below:
+
+We first import the required libraries.
+
+Model Implementation.
+
+The following code implements the Caser model. It consists of a vertical convolutional layer, a horizontal convolutional layer, and a full-connected layer.
+
+Sequential Dataset with Negative Sampling.
+
+To process the sequential interaction data, we need to reimplement the <code> class. The following code creates a new dataset class named <code>. In each sample, it outputs the user identity, his previous <math> interacted items as a sequence and the next item he interacts as the target. The following figure demonstrates the data loading process for one user. Suppose that this user liked 9 movies, we organize these nine movies in chronological order. The latest movie is left out as the test item. For the remaining eight movies, we can get three training samples, with each sample containing a sequence of five (<math>) movies and its subsequent item as the target item. Negative samples are also included in the customized dataset.
+
+Load the MovieLens 100K dataset.
+
+Afterwards, we read and split the MovieLens 100K dataset in sequence-aware mode and load the training data with sequential dataloader implemented above.
+
+The training data structure is shown above. The first element is the user identity, the next list indicates the last five items this user liked, and the last element is the item this user liked after the five items.
+
+Train the Model.
+
+Now, let's train the model. We use the same setting as NeuMF, including learning rate, optimizer, and <math>, in the last section so that the results are comparable.
+
+Summary.
+
+Inferring a user's short-term and long-term interests can make prediction of the next item that he preferred more effectively.
+
+Convolutional neural networks can be utilized to capture users' short-term interests from sequential interactions.
+
+Exercises.
+
+Conduct an ablation study by removing one of the horizontal and vertical convolutional networks, which component is the more important ?
+
+Vary the hyperparameter <math>. Does longer historical interactions bring higher accuracy?
+
+Apart from the sequence-aware recommendation task we introduced above, there is another type of sequence-aware recommendation task called session-based recommendation . Can you explain the differences between these two tasks?
+
+Discussions.

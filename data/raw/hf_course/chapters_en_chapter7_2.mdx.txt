@@ -1,0 +1,261 @@
+Token classification.
+
+The first application we'll explore is token classification. This generic task encompasses any problem that can be formulated as "attributing a label to each token in a sentence," such as:
+
+Named entity recognition (NER): Find the entities (such as persons, locations, or organizations) in a sentence. This can be formulated as attributing a label to each token by having one class per entity and one class for "no entity.".
+
+Part-of-speech tagging (POS): Mark each word in a sentence as corresponding to a particular part of speech (such as noun, verb, adjective, etc.).
+
+Chunking: Find the tokens that belong to the same entity. This task (which can be combined with POS or NER) can be formulated as attributing one label (usually <code>) to any tokens that are at the beginning of a chunk, another label (usually <code>) to tokens that are inside a chunk, and a third label (usually <code>) to tokens that don't belong to any chunk.
+
+Of course, there are many other types of token classification problem; those are just a few representative examples. In this section, we will fine-tune a model (BERT) on a NER task, which will then be able to compute predictions like this one:
+
+You can find the model we'll train and upload to the Hub and double-check its predictions here.
+
+Preparing the data.
+
+First things first, we need a dataset suitable for token classification. In this section we will use the CoNLL-2003 dataset, which contains news stories from Reuters.
+
+💡 As long as your dataset consists of texts split into words with their corresponding labels, you will be able to adapt the data processing procedures described here to your own dataset. Refer back to Chapter 5 if you need a refresher on how to load your own custom data in a <code>.
+
+The CoNLL-2003 dataset.
+
+To load the CoNLL-2003 dataset, we use the <code> method from the 🤗 Datasets library:
+
+This will download and cache the dataset, like we saw in Chapter 3 for the GLUE MRPC dataset. Inspecting this object shows us the columns present and the split between the training, validation, and test sets:
+
+In particular, we can see the dataset contains labels for the three tasks we mentioned earlier: NER, POS, and chunking. A big difference from other datasets is that the input texts are not presented as sentences or documents, but lists of words (the last column is called <code>, but it contains words in the sense that these are pre-tokenized inputs that still need to go through the tokenizer for subword tokenization).
+
+Let's have a look at the first element of the training set:
+
+Since we want to perform named entity recognition, we will look at the NER tags:
+
+Those are the labels as integers ready for training, but they're not necessarily useful when we want to inspect the data. Like for text classification, we can access the correspondence between those integers and the label names by looking at the <code> attribute of our dataset:
+
+So this column contains elements that are sequences of <code>s. The type of the elements of the sequence is in the <code> attribute of this <code>, and we can access the list of names by looking at the <code> attribute of that <code>:
+
+We already saw these labels when digging into the <code> pipeline in Chapter 6, but for a quick refresher:
+
+<code> means the word doesn't correspond to any entity.
+
+<code>/<code> means the word corresponds to the beginning of/is inside a person entity.
+
+<code>/<code> means the word corresponds to the beginning of/is inside an organization entity.
+
+<code>/<code> means the word corresponds to the beginning of/is inside a location entity.
+
+<code>/<code> means the word corresponds to the beginning of/is inside a miscellaneous entity.
+
+Now decoding the labels we saw earlier gives us this:
+
+And for an example mixing <code> and <code> labels, here's what the same code gives us on the element of the training set at index 4:
+
+As we can see, entities spanning two words, like "European Union" and "Werner Zwingmann," are attributed a <code> label for the first word and an <code> label for the second.
+
+✏️ Your turn! Print the same two sentences with their POS or chunking labels.
+
+Processing the data.
+
+As usual, our texts need to be converted to token IDs before the model can make sense of them. As we saw in Chapter 6, a big difference in the case of token classification tasks is that we have pre-tokenized inputs. Fortunately, the tokenizer API can deal with that pretty easily; we just need to warn the <code> with a special flag.
+
+To begin, let's create our <code> object. As we said before, we will be using a BERT pretrained model, so we'll start by downloading and caching the associated tokenizer:
+
+You can replace the <code> with any other model you prefer from the Hub, or with a local folder in which you've saved a pretrained model and a tokenizer. The only constraint is that the tokenizer needs to be backed by the 🤗 Tokenizers library, so there's a "fast" version available. You can see all the architectures that come with a fast version in this big table, and to check that the <code> object you're using is indeed backed by 🤗 Tokenizers you can look at its <code> attribute:
+
+To tokenize a pre-tokenized input, we can use our <code> as usual and just add <code>:
+
+As we can see, the tokenizer added the special tokens used by the model (<code> at the beginning and <code> at the end) and left most of the words untouched. The word <code>, however, was tokenized into two subwords, <code> and <code>. This introduces a mismatch between our inputs and the labels: the list of labels has only 9 elements, whereas our input now has 12 tokens. Accounting for the special tokens is easy (we know they are at the beginning and the end), but we also need to make sure we align all the labels with the proper words.
+
+Fortunately, because we're using a fast tokenizer we have access to the 🤗 Tokenizers superpowers, which means we can easily map each token to its corresponding word (as seen in Chapter 6):
+
+With a tiny bit of work, we can then expand our label list to match the tokens. The first rule we'll apply is that special tokens get a label of <code>. This is because by default <code> is an index that is ignored in the loss function we will use (cross entropy). Then, each token gets the same label as the token that started the word it's inside, since they are part of the same entity. For tokens inside a word but not at the beginning, we replace the <code> with <code> (since the token does not begin the entity):
+
+Let's try it out on our first sentence:
+
+As we can see, our function added the <code> for the two special tokens at the beginning and the end, and a new <code> for our word that was split into two tokens.
+
+✏️ Your turn! Some researchers prefer to attribute only one label per word, and assign <code> to the other subtokens in a given word. This is to avoid long words that split into lots of subtokens contributing heavily to the loss. Change the previous function to align labels with input IDs by following this rule.
+
+To preprocess our whole dataset, we need to tokenize all the inputs and apply <code> on all the labels. To take advantage of the speed of our fast tokenizer, it's best to tokenize lots of texts at the same time, so we'll write a function that processes a list of examples and use the <code> method with the option <code>. The only thing that is different from our previous example is that the <code> function needs to get the index of the example we want the word IDs of when the inputs to the tokenizer are lists of texts (or in our case, list of lists of words), so we add that too:
+
+Note that we haven't padded our inputs yet; we'll do that later, when creating the batches with a data collator.
+
+We can now apply all that preprocessing in one go on the other splits of our dataset:
+
+We've done the hardest part! Now that the data has been preprocessed, the actual training will look a lot like what we did in Chapter 3.
+
+Fine-tuning the model with the <code> API.
+
+The actual code using the <code> will be the same as before; the only changes are the way the data is collated into a batch and the metric computation function.
+
+Fine-tuning the model with Keras.
+
+The actual code using Keras will be very similar to before; the only changes are the way the data is collated into a batch and the metric computation function.
+
+Data collation.
+
+We can't just use a <code> like in Chapter 3 because that only pads the inputs (input IDs, attention mask, and token type IDs). Here our labels should be padded the exact same way as the inputs so that they stay the same size, using <code> as a value so that the corresponding predictions are ignored in the loss computation.
+
+This is all done by a <code>. Like the <code>, it takes the <code> used to preprocess the inputs:
+
+To test this on a few samples, we can just call it on a list of examples from our tokenized training set:
+
+Let's compare this to the labels for the first and second elements in our dataset:
+
+As we can see, the second set of labels has been padded to the length of the first one using <code>s.
+
+Our data collator is ready to go! Now let's use it to make a <code> with the <code> method. You can also use <code> to do this with a bit less boilerplate code - you'll see this in some of the other sections of this chapter.
+
+Next stop: the model itself.
+
+Defining the model.
+
+Since we are working on a token classification problem, we will use the <code> class. The main thing to remember when defining this model is to pass along some information on the number of labels we have. The easiest way to do this is to pass that number with the <code> argument, but if we want a nice inference widget working like the one we saw at the beginning of this section, it's better to set the correct label correspondences instead.
+
+They should be set by two dictionaries, <code> and <code>, which contain the mapping from ID to label and vice versa:
+
+Now we can just pass them to the <code> method, and they will be set in the model's configuration, then properly saved and uploaded to the Hub:
+
+Like when we defined our <code> in Chapter 3, creating the model issues a warning that some weights were not used (the ones from the pretraining head) and some other weights are randomly initialized (the ones from the new token classification head), and that this model should be trained. We will do that in a minute, but first let's double-check that our model has the right number of labels:
+
+⚠️ If you have a model with the wrong number of labels, you will get an obscure error when calling <code> later. This can be annoying to debug, so make sure you do this check to confirm you have the expected number of labels.
+
+Fine-tuning the model.
+
+We are now ready to train our model! We have just a little more housekeeping to do first, though: we should log in to Hugging Face and define our training hyperparameters. If you're working in a notebook, there's a convenience function to help you with this:
+
+This will display a widget where you can enter your Hugging Face login credentials.
+
+If you aren't working in a notebook, just type the following line in your terminal:
+
+After logging in, we can prepare everything we need to compile our model. 🤗 Transformers provides a convenient <code> function that will give you an <code> optimizer with appropriate settings for the weight decay and learning rate decay, both of which will improve your model's performance compared to the built-in <code> optimizer:
+
+Note also that we don't supply a <code> argument to <code>. This is because the models can actually compute loss internally -- if you compile without a loss and supply your labels in the input dictionary (as we do in our datasets), then the model will train using that internal loss, which will be appropriate for the task and model type you have chosen.
+
+Next, we define a <code> to upload our model to the Hub during training, and fit the model with that callback:
+
+You can specify the full name of the repository you want to push to with the <code> argument (in particular, you will have to use this argument to push to an organization). For instance, when we pushed the model to the <code> organization, we added <code>. By default, the repository used will be in your namespace and named after the output directory you set, for example <code>.
+
+💡 If the output directory you are using already exists, it needs to be a local clone of the repository you want to push to. If it isn't, you'll get an error when calling <code> and will need to set a new name.
+
+Note that while the training happens, each time the model is saved (here, every epoch) it is uploaded to the Hub in the background. This way, you will be able to to resume your training on another machine if necessary.
+
+At this stage, you can use the inference widget on the Model Hub to test your model and share it with your friends. You have successfully fine-tuned a model on a token classification task -- congratulations! But how good is our model, really? We should evaluate some metrics to find out.
+
+Metrics.
+
+To have the <code> compute a metric every epoch, we will need to define a <code> function that takes the arrays of predictions and labels, and returns a dictionary with the metric names and values.
+
+The traditional framework used to evaluate token classification prediction is seqeval. To use this metric, we first need to install the seqeval library:
+
+We can then load it via the <code> function like we did in Chapter 3:
+
+The traditional framework used to evaluate token classification prediction is seqeval. To use this metric, we first need to install the seqeval library:
+
+We can then load it via the <code> function like we did in Chapter 3:
+
+This metric does not behave like the standard accuracy: it will actually take the lists of labels as strings, not integers, so we will need to fully decode the predictions and labels before passing them to the metric. Let's see how it works. First, we'll get the labels for our first training example:
+
+We can then create fake predictions for those by just changing the value at index 2:
+
+Note that the metric takes a list of predictions (not just one) and a list of labels. Here's the output:
+
+This is sending back a lot of information! We get the precision, recall, and F1 score for each separate entity, as well as overall. For our metric computation we will only keep the overall score, but feel free to tweak the <code> function to return all the metrics you would like reported.
+
+This <code> function first takes the argmax of the logits to convert them to predictions (as usual, the logits and the probabilities are in the same order, so we don't need to apply the softmax). Then we have to convert both labels and predictions from integers to strings. We remove all the values where the label is <code>, then pass the results to the <code> method:
+
+Now that this is done, we are almost ready to define our <code>. We just need a <code> to fine-tune!
+
+This is sending back a lot of information! We get the precision, recall, and F1 score for each separate entity, as well as overall. Now let's see what happens if we try using our actual model predictions to compute some real scores.
+
+TensorFlow doesn't like concatenating our predictions together, because they have variable sequence lengths. This means we can't just use <code> -- but that's not going to stop us. We'll get some predictions a batch at a time and concatenate them into one big long list as we go, dropping the <code> tokens that indicate masking/padding, then compute metrics on the list at the end:
+
+How did your model do, compared to ours? If you got similar numbers, your training was a success!
+
+Defining the model.
+
+Since we are working on a token classification problem, we will use the <code> class. The main thing to remember when defining this model is to pass along some information on the number of labels we have. The easiest way to do this is to pass that number with the <code> argument, but if we want a nice inference widget working like the one we saw at the beginning of this section, it's better to set the correct label correspondences instead.
+
+They should be set by two dictionaries, <code> and <code>, which contain the mappings from ID to label and vice versa:
+
+Now we can just pass them to the <code> method, and they will be set in the model's configuration and then properly saved and uploaded to the Hub:
+
+Like when we defined our <code> in Chapter 3, creating the model issues a warning that some weights were not used (the ones from the pretraining head) and some other weights are randomly initialized (the ones from the new token classification head), and that this model should be trained. We will do that in a minute, but first let's double-check that our model has the right number of labels:
+
+⚠️ If you have a model with the wrong number of labels, you will get an obscure error when calling the <code> method later on (something like "CUDA error: device-side assert triggered"). This is the number one cause of bugs reported by users for such errors, so make sure you do this check to confirm that you have the expected number of labels.
+
+Fine-tuning the model.
+
+We are now ready to train our model! We just need to do two last things before we define our <code>: log in to Hugging Face and define our training arguments. If you're working in a notebook, there's a convenience function to help you with this:
+
+This will display a widget where you can enter your Hugging Face login credentials.
+
+If you aren't working in a notebook, just type the following line in your terminal:
+
+Once this is done, we can define our <code>:
+
+You've seen most of those before: we set some hyperparameters (like the learning rate, the number of epochs to train for, and the weight decay), and we specify <code> to indicate that we want to save the model and evaluate it at the end of every epoch, and that we want to upload our results to the Model Hub. Note that you can specify the name of the repository you want to push to with the <code> argument (in particular, you will have to use this argument to push to an organization). For instance, when we pushed the model to the <code> organization, we added <code> to <code>. By default, the repository used will be in your namespace and named after the output directory you set, so in our case it will be <code>.
+
+💡 If the output directory you are using already exists, it needs to be a local clone of the repository you want to push to. If it isn't, you'll get an error when defining your <code> and will need to set a new name.
+
+Finally, we just pass everything to the <code> and launch the training:
+
+Note that while the training happens, each time the model is saved (here, every epoch) it is uploaded to the Hub in the background. This way, you will be able to to resume your training on another machine if necessary.
+
+Once the training is complete, we use the <code> method to make sure we upload the most recent version of the model:
+
+This command returns the URL of the commit it just did, if you want to inspect it:
+
+The <code> also drafts a model card with all the evaluation results and uploads it. At this stage, you can use the inference widget on the Model Hub to test your model and share it with your friends. You have successfully fine-tuned a model on a token classification task -- congratulations!
+
+If you want to dive a bit more deeply into the training loop, we will now show you how to do the same thing using 🤗 Accelerate.
+
+A custom training loop.
+
+Let's now take a look at the full training loop, so you can easily customize the parts you need. It will look a lot like what we did in Chapter 3, with a few changes for the evaluation.
+
+Preparing everything for training.
+
+First we need to build the <code>s from our datasets. We'll reuse our <code> as a <code> and shuffle the training set, but not the validation set:
+
+Next we reinstantiate our model, to make sure we're not continuing the fine-tuning from before but starting from the BERT pretrained model again:
+
+Then we will need an optimizer. We'll use the classic <code>, which is like <code>, but with a fix in the way weight decay is applied:
+
+Once we have all those objects, we can send them to the <code> method:
+
+🚨 If you're training on a TPU, you'll need to move all the code starting from the cell above into a dedicated training function. See Chapter 3 for more details.
+
+Now that we have sent our <code> to <code>, we can use its length to compute the number of training steps. Remember that we should always do this after preparing the dataloader, as that method will change its length. We use a classic linear schedule from the learning rate to 0:
+
+Lastly, to push our model to the Hub, we will need to create a <code> object in a working folder. First log in to Hugging Face, if you're not logged in already. We'll determine the repository name from the model ID we want to give our model (feel free to replace the <code> with your own choice; it just needs to contain your username, which is what the function <code> does):
+
+Then we can clone that repository in a local folder. If it already exists, this local folder should be an existing clone of the repository we are working with:
+
+We can now upload anything we save in <code> by calling the <code> method. This will help us upload the intermediate models at the end of each epoch.
+
+Training loop.
+
+We are now ready to write the full training loop. To simplify its evaluation part, we define this <code> function that takes predictions and labels and converts them to lists of strings, like our <code> object expects:
+
+Then we can write the training loop. After defining a progress bar to follow how training goes, the loop has three parts:
+
+The training in itself, which is the classic iteration over the <code>, forward pass through the model, then backward pass and optimizer step.
+
+The evaluation, in which there is a novelty after getting the outputs of our model on a batch: since two processes may have padded the inputs and labels to different shapes, we need to use <code> to make the predictions and labels the same shape before calling the <code> method. If we don't do this, the evaluation will either error out or hang forever. Then we send the results to <code> and call <code> once the evaluation loop is over.
+
+Saving and uploading, where we first save the model and the tokenizer, then call <code>. Notice that we use the argument <code> to tell the 🤗 Hub library to push in an asynchronous process. This way, training continues normally and this (long) instruction is executed in the background.
+
+Here's the complete code for the training loop:
+
+In case this is the first time you're seeing a model saved with 🤗 Accelerate, let's take a moment to inspect the three lines of code that go with it:
+
+The first line is self-explanatory: it tells all the processes to wait until everyone is at that stage before continuing. This is to make sure we have the same model in every process before saving. Then we grab the <code>, which is the base model we defined. The <code> method changes the model to work in distributed training, so it won't have the <code> method anymore; the <code> method undoes that step. Lastly, we call <code> but tell that method to use <code> instead of <code>.
+
+Once this is done, you should have a model that produces results pretty similar to the one trained with the <code>. You can check the model we trained using this code at huggingface-course/bert-finetuned-ner-accelerate. And if you want to test out any tweaks to the training loop, you can directly implement them by editing the code shown above!
+
+Using the fine-tuned model.
+
+We've already shown you how you can use the model we fine-tuned on the Model Hub with the inference widget. To use it locally in a <code>, you just have to specify the proper model identifier:
+
+Great! Our model is working as well as the default one for this pipeline!

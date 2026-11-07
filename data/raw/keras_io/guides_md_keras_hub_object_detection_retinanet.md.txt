@@ -1,0 +1,155 @@
+Object Detection with KerasHub.
+
+Introduction.
+
+Object detection is a crucial computer vision task that goes beyond simple image classification. It requires models to not only identify the types of objects present in an image but also pinpoint their locations using bounding boxes. This dual requirement of classification and localization makes object detection a more complex and powerful tool. Object detection models are broadly classified into two categories: "two-stage" and "single-stage" detectors. Two-stage detectors often achieve higher accuracy by first proposing regions of interest and then classifying them. However, this approach can be computationally expensive. Single-stage detectors, on the other hand, aim for speed by directly predicting object classes and bounding boxes in a single pass.
+
+In this tutorial, we'll be diving into <code>, a powerful object detection model known for its speed and precision. <code> is a single-stage detector, a design choice that allows it to be remarkably efficient. Its impressive performance stems from two key architectural innovations:
+
+Feature Pyramid Network (FPN): FPN equips <code> with the ability to seamlessly detect objects of all scales, from distant, tiny instances to large, prominent ones.
+
+Focal Loss: This ingenious loss function tackles the common challenge of imbalanced data by focusing the model's learning on the most crucial and challenging object examples, leading to enhanced accuracy without compromising speed.
+
+References.
+
+Focal Loss for Dense Object Detection.
+
+Feature Pyramid Networks for Object Detection.
+
+Setup and Imports.
+
+Let's install the dependencies and import the necessary modules.
+
+To run this tutorial, you will need to install the following packages:
+
+<code>.
+
+<code>.
+
+<code>.
+
+Helper functions.
+
+We download the Pascal VOC 2012 and 2007 datasets using these helper functions, prepare them for the object detection task, and split them into training and validation datasets.
+
+Load the dataset.
+
+Let's load the training data. Here, we load both the VOC 2007 and 2012 datasets and split them into training and validation sets.
+
+Inference using a pre-trained object detector.
+
+Let's begin with the simplest <code> API: a pre-trained object detector. In this example, we will construct an object detector that was pre-trained on the <code> dataset. We'll use this model to detect objects in a sample image.
+
+The highest-level module in KerasHub is a <code>. A <code> is a <code> consisting of a (generally pre-trained) backbone model and task-specific layers. Here's an example using <code> with the <code> model architecture and <code> as the backbone.
+
+<code> is a great starting model when constructing an image classification pipeline. This architecture manages to achieve high accuracy while using a relatively small number of parameters. If a ResNet isn't powerful enough for the task you are hoping to solve, be sure to check out KerasHub's other available backbones here.
+
+Preprocessor: "retinanetobjectdetectorpreprocessor".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Config ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │ retinanetimage_converter ( RetinaNetImageConverter ) │ Image size: ( 800 , 800 ) │ └───────────────────────────────────────────────────────────────┴──────────────────────────────────────────┘.
+
+Model: "retinanetobject_detector".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ Connected to ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩ │ images ( InputLayer ) │ ( None , None , None , 3 ) │ 0 │ - │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ retinanetbackbone │ ( None , None , None , 256 ), │ 27,429,824 │ images[ 0 │ │ ( RetinaNetBackbone ) │ ( None , None , None , 256 ), │ │ │ │ │ ( None , None , None , 256 ), │ │ │ │ │ ( None , None , None , 256 ), │ │ │ │ │ ( None , None , None , 256 )] │ │ │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ boxhead ( PredictionHead ) │ ( None , None , None , 36 ) │ 2,443,300 │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ classificationhead │ ( None , None , None , 819 ) │ 4,248,115 │ retinanetbackbone 0 , │ │ ( PredictionHead ) │ │ │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 , │ │ │ │ │ retinanetbackbone 0 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ boxpredP3 ( Reshape ) │ ( None , None , 4 ) │ 0 │ boxhead 0 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ boxpredP4 ( Reshape ) │ ( None , None , 4 ) │ 0 │ boxhead 1 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ boxpredP5 ( Reshape ) │ ( None , None , 4 ) │ 0 │ boxhead 2 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ boxpredP6 ( Reshape ) │ ( None , None , 4 ) │ 0 │ boxhead 3 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ boxpredP7 ( Reshape ) │ ( None , None , 4 ) │ 0 │ boxhead 4 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ clspredP3 ( Reshape ) │ ( None , None , 91 ) │ 0 │ classificationhead 0 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ clspredP4 ( Reshape ) │ ( None , None , 91 ) │ 0 │ classificationhead 1 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ clspredP5 ( Reshape ) │ ( None , None , 91 ) │ 0 │ classificationhead 2 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ clspredP6 ( Reshape ) │ ( None , None , 91 ) │ 0 │ classificationhead 3 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ clspredP7 ( Reshape ) │ ( None , None , 91 ) │ 0 │ classificationhead 4 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ bboxregression ( Concatenate ) │ ( None , None , 4 ) │ 0 │ boxpredP3 0 , │ │ │ │ │ boxpredP4 0 , │ │ │ │ │ boxpredP5 0 , │ │ │ │ │ boxpredP6 0 , │ │ │ │ │ boxpredP7 0 │ ├───────────────────────────────┼───────────────────────────┼─────────────────┼────────────────────────────┤ │ clslogits ( Concatenate ) │ ( None , None , 91 ) │ 0 │ clspredP3 0 , │ │ │ │ │ clspredP4 0 , │ │ │ │ │ clspredP5 0 , │ │ │ │ │ clspredP6 0 , │ │ │ │ │ clspredP7 0 │ └───────────────────────────────┴───────────────────────────┴─────────────────┴────────────────────────────┘.
+
+Total params: 34,121,239 (130.16 MB).
+
+Trainable params: 34,068,119 (129.96 MB).
+
+Non-trainable params: 53,120 (207.50 KB).
+
+Preprocessing Layers.
+
+Let's define the below preprocessing layers:
+
+Resizing Layer: Resizes the image and maintains the aspect ratio by applying padding when <code>. Also, sets the default bounding box format for representing the data.
+
+Max Bounding Box Layer: Limits the maximum number of bounding boxes per image.
+
+Predict and Visualize.
+
+Next, let's obtain predictions from our object detector by loading the image and visualizing them. We'll apply the preprocessing pipeline defined in the preprocessing layers step.
+
+Fine tuning a pretrained object detector.
+
+In this guide, we'll assemble a full training pipeline for a KerasHub <code> object detection model. This includes data loading, augmentation, training, and inference using Pascal VOC 2007 & 2012 dataset!
+
+TFDS Preprocessing.
+
+This preprocessing step prepares the TFDS dataset for object detection. It includes:
+
+Merging the Pascal VOC 2007 and 2012 datasets.
+
+Resizing all images to a resolution of 800x800 pixels.
+
+Limiting the number of bounding boxes per image to a maximum of 100.
+
+Finally, the resulting dataset is batched into sets of 4 images and bounding box annotations.
+
+Now concatenate both 2007 and 2012 VOC data.
+
+Load the eval data.
+
+Let's visualize a batch of training data.
+
+Decode TFDS records to a tuple for KerasHub.
+
+Configure RetinaNet Model.
+
+Configure the model with <code>, <code> and <code>. Use callbacks for recording logs and saving checkpoints.
+
+Load backbone weights and preprocessor config.
+
+Let's use the "retinanetresnet50fpncoco" pretrained weights as the backbone model, applying its predefined configuration from the preprocessor of the "retinanetresnet50fpncoco" preset. Define a RetinaNet object detector model with the backbone and preprocessor specified above, and set <code> to 20 to represent the object categories from Pascal VOC. Finally, compile the model using Mean Absolute Error (MAE) as the box loss.
+
+Train the model.
+
+Now that the object detector model is compiled, let's train it using the training and validation data we created earlier. For demonstration purposes, we have used a small number of epochs. You can increase the number of epochs to achieve better results.
+
+Note: The model is trained on an L4 GPU. Training for 5 epochs on a T4 GPU takes approximately 7 hours.
+
+Prediction on evaluation data.
+
+Let's make predictions using our model on the evaluation dataset.
+
+Plot the predictions.
+
+Custom training object detector.
+
+Additionally, you can customize the object detector by modifying the image converter, selecting a different image encoder, etc.
+
+Image Converter.
+
+The <code> class prepares images for use with the <code> object detection model. Here's what it does:
+
+Scaling and Offsetting.
+
+ImageNet Normalization.
+
+Resizing.
+
+Image Encoder and RetinaNet Backbone.
+
+The image encoder, while typically initialized with pre-trained weights (e.g., from ImageNet), can also be instantiated without them. This results in the image encoder (and, consequently, the entire object detection network built upon it) having randomly initialized weights.
+
+Here we load pre-trained ResNet50 model. This will serve as the base for extracting image features.
+
+And then build the RetinaNet Feature Pyramid Network (FPN) on top of the ResNet50 backbone. The FPN creates multi-scale feature maps for better object detection at different sizes.
+
+Note: <code>: If True, the output of the last backbone layer (typically <code> in an <code>) is used as input to create higher-level feature maps (e.g., <code>, <code>) through additional convolutional layers. If <code>, the original <code> feature map from the backbone is directly used as input for creating the coarser levels, bypassing any further processing of <code> within the feature pyramid. Defaults to <code>.
+
+Train and visualize RetinaNet model.
+
+Note: Training the model (for demonstration purposes only 5 epochs). In a real scenario, you would train for many more epochs (often hundreds) to achieve good results.
+
+Conclusion.
+
+In this tutorial, you learned how to custom train and fine-tune the RetinaNet object detector.
+
+You can experiment with different existing backbones trained on ImageNet as the image encoder, or you can fine-tune your own backbone.
+
+This configuration is equivalent to training the model from scratch, as opposed to fine-tuning a pre-trained model.
+
+Training from scratch generally requires significantly more data and computational resources to achieve performance comparable to fine-tuning.
+
+To achieve better results when fine-tuning the model, you can increase the number of epochs and experiment with different hyperparameter values. In addition to the training data used here, you can also use other object detection datasets, but keep in mind that custom training these requires high GPU memory.

@@ -1,0 +1,89 @@
+LoRA (Low-Rank Adaptation).
+
+Fine-tuning large language models is a resource intensive process. LoRA is a technique that allows us to fine-tune large language models with a small number of parameters. It works by adding and optimizing smaller matrices to the attention weights, typically reducing trainable parameters by about 90%.
+
+Understanding LoRA.
+
+LoRA (Low-Rank Adaptation) is a parameter-efficient fine-tuning technique that freezes the pre-trained model weights and injects trainable rank decomposition matrices into the model's layers. Instead of training all model parameters during fine-tuning, LoRA decomposes the weight updates into smaller matrices through low-rank decomposition, significantly reducing the number of trainable parameters while maintaining model performance. For example, when applied to GPT-3 175B, LoRA reduced trainable parameters by 10,000x and GPU memory requirements by 3x compared to full fine-tuning. You can read more about LoRA in the LoRA paper.
+
+LoRA works by adding pairs of rank decomposition matrices to transformer layers, typically focusing on attention weights. During inference, these adapter weights can be merged with the base model, resulting in no additional latency overhead. LoRA is particularly useful for adapting large language models to specific tasks or domains while keeping resource requirements manageable.
+
+Key advantages of LoRA.
+
+Memory Efficiency:
+
+Only adapter parameters are stored in GPU memory.
+
+Base model weights remain frozen and can be loaded in lower precision.
+
+Enables fine-tuning of large models on consumer GPUs.
+
+Training Features:
+
+Native PEFT/LoRA integration with minimal setup.
+
+Support for QLoRA (Quantized LoRA) for even better memory efficiency.
+
+Adapter Management:
+
+Adapter weight saving during checkpoints.
+
+Features to merge adapters back into base model.
+
+Loading LoRA Adapters with PEFT.
+
+PEFT is a library that provides a unified interface for loading and managing PEFT methods, including LoRA. It allows you to easily load and switch between different PEFT methods, making it easier to experiment with different fine-tuning techniques.
+
+Adapters can be loaded onto a pretrained model with <code>, which is useful for trying out different adapters whose weights aren't merged. Set the active adapter weights with the <code> function. To return the base model, you could use unload() to unload all of the LoRA modules. This makes it easy to switch between different task-specific weights.
+
+Fine-tune LLM using <code> and the <code> with LoRA.
+
+The SFTTrainer from <code> provides integration with LoRA adapters through the PEFT library. This means that we can fine-tune a model in the same way as we did with SFT, but use LoRA to reduce the number of parameters we need to train.
+
+We'll use the <code> class from PEFT in our example. The setup requires just a few configuration steps:
+
+Define the LoRA configuration (rank, alpha, dropout).
+
+Create the SFTTrainer with PEFT config.
+
+Train and save the adapter weights.
+
+LoRA Configuration.
+
+Let's walk through the LoRA configuration and key parameters.
+
+When implementing PEFT methods, start with small rank values (4-8) for LoRA and monitor training loss. Use validation sets to prevent overfitting and compare results with full fine-tuning baselines when possible. The effectiveness of different methods can vary by task, so experimentation is key.
+
+Using TRL with PEFT.
+
+PEFT methods can be combined with TRL for fine-tuning to reduce memory requirements. We can pass the <code> to the model when loading it.
+
+Above, we used <code> to automatically assign the model to the correct device. You can also manually assign the model to a specific device using <code>.
+
+We will also need to define the <code> with the LoRA configuration.
+
+✏️ Try it out! Build on your fine-tuned model from the previous section, but fine-tune it with LoRA. Use the <code> dataset to fine-tune a <code> model, using the LoRA configuration we defined above.
+
+Merging LoRA Adapters.
+
+After training with LoRA, you might want to merge the adapter weights back into the base model for easier deployment. This creates a single model with the combined weights, eliminating the need to load adapters separately during inference.
+
+The merging process requires attention to memory management and precision. Since you'll need to load both the base model and adapter weights simultaneously, ensure sufficient GPU/CPU memory is available. Using <code> in <code> will find the correct device for the model based on your hardware.
+
+Maintain consistent precision (e.g., float16) throughout the process, matching the precision used during training and saving the merged model in the same format for deployment.
+
+Merging Implementation.
+
+After training a LoRA adapter, you can merge the adapter weights back into the base model. Here's how to do it:
+
+If you encounter size discrepancies in the saved model, ensure you're also saving the tokenizer:
+
+✏️ Try it out! Merge the adapter weights back into the base model. Use the <code> dataset to fine-tune a <code> model, using the LoRA configuration we defined above.
+
+Resources.
+
+LoRA: Low-Rank Adaptation of Large Language Models.
+
+PEFT Documentation.
+
+Hugging Face blog post on PEFT.

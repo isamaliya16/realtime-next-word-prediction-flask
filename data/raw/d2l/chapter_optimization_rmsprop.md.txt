@@ -1,0 +1,57 @@
+RMSProp.
+
+One of the key issues in section <num> is that the learning rate decreases at a predefined schedule of effectively <math>. While this is generally appropriate for convex problems, it might not be ideal for nonconvex ones, such as those encountered in deep learning. Yet, the coordinate-wise adaptivity of Adagrad is highly desirable as a preconditioner.
+
+proposed the RMSProp algorithm as a simple fix to decouple rate scheduling from coordinate-adaptive learning rates. The issue is that Adagrad accumulates the squares of the gradient <math> into a state vector <math>. As a result <math> keeps on growing without bound due to the lack of normalization, essentially linearly as the algorithm converges.
+
+One way of fixing this problem would be to use <math>. For reasonable distributions of <math> this will converge. Unfortunately it might take a very long time until the limit behavior starts to matter since the procedure remembers the full trajectory of values. An alternative is to use a leaky average in the same way we used in the momentum method, i.e., <math> for some parameter <math>. Keeping all other parts unchanged yields RMSProp.
+
+The Algorithm.
+
+Let's write out the equations in detail.
+
+<math>.
+
+The constant <math> is typically set to <math> to ensure that we do not suffer from division by zero or overly large step sizes. Given this expansion we are now free to control the learning rate <math> independently of the scaling that is applied on a per-coordinate basis. In terms of leaky averages we can apply the same reasoning as previously applied in the case of the momentum method. Expanding the definition of <math> yields.
+
+<math>.
+
+As before in section <num> we use <math>. Hence the sum of weights is normalized to <math> with a half-life time of an observation of <math>. Let's visualize the weights for the past 40 time steps for various choices of <math>.
+
+Implementation from Scratch.
+
+As before we use the quadratic function <math> to observe the trajectory of RMSProp. Recall that in section <num>, when we used Adagrad with a learning rate of 0.4, the variables moved only very slowly in the later stages of the algorithm since the learning rate decreased too quickly. Since <math> is controlled separately this does not happen with RMSProp.
+
+Next, we implement RMSProp to be used in a deep network. This is equally straightforward.
+
+We set the initial learning rate to 0.01 and the weighting term <math> to 0.9. That is, <math> aggregates on average over the past <math> observations of the square gradient.
+
+Concise Implementation.
+
+Since RMSProp is a rather popular algorithm it is also available in the <code> instance. All we need to do is instantiate it using an algorithm named <code>, assigning <math> to the parameter <code>.
+
+Summary.
+
+RMSProp is very similar to Adagrad insofar as both use the square of the gradient to scale coefficients.
+
+RMSProp shares with momentum the leaky averaging. However, RMSProp uses the technique to adjust the coefficient-wise preconditioner.
+
+The learning rate needs to be scheduled by the experimenter in practice.
+
+The coefficient <math> determines how long the history is when adjusting the per-coordinate scale.
+
+Exercises.
+
+What happens experimentally if we set <math>? Why?
+
+Rotate the optimization problem to minimize <math>. What happens to the convergence?
+
+Try out what happens to RMSProp on a real machine learning problem, such as training on Fashion-MNIST. Experiment with different choices for adjusting the learning rate.
+
+Would you want to adjust <math> as optimization progresses? How sensitive is RMSProp to this?
+
+Discussions.
+
+Discussions.
+
+Discussions.

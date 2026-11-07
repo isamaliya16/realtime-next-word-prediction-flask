@@ -1,0 +1,191 @@
+Denoising Diffusion Implicit Models.
+
+Introduction.
+
+What are diffusion models?
+
+Recently, denoising diffusion models, including score-based generative models, gained popularity as a powerful class of generative models, that can rival even generative adversarial networks (GANs) in image synthesis quality. They tend to generate more diverse samples, while being stable to train and easy to scale. Recent large diffusion models, such as DALL-E 2 and Imagen, have shown incredible text-to-image generation capability. One of their drawbacks is however, that they are slower to sample from, because they require multiple forward passes for generating an image.
+
+Diffusion refers to the process of turning a structured signal (an image) into noise step-by-step. By simulating diffusion, we can generate noisy images from our training images, and can train a neural network to try to denoise them. Using the trained network we can simulate the opposite of diffusion, reverse diffusion, which is the process of an image emerging from noise.
+
+One-sentence summary: diffusion models are trained to denoise noisy images, and can generate images by iteratively denoising pure noise.
+
+Goal of this example.
+
+This code example intends to be a minimal but feature-complete (with a generation quality metric) implementation of diffusion models, with modest compute requirements and reasonable performance. My implementation choices and hyperparameter tuning were done with these goals in mind.
+
+Since currently the literature of diffusion models is mathematically quite complex with multiple theoretical frameworks (score matching, differential equations, Markov chains) and sometimes even conflicting notations (see Appendix C.2), it can be daunting trying to understand them. My view of these models in this example will be that they learn to separate a noisy image into its image and Gaussian noise components.
+
+In this example I made effort to break down all long mathematical expressions into digestible pieces and gave all variables explanatory names. I also included numerous links to relevant literature to help interested readers dive deeper into the topic, in the hope that this code example will become a good starting point for practitioners learning about diffusion models.
+
+In the following sections, we will implement a continuous time version of Denoising Diffusion Implicit Models (DDIMs) with deterministic sampling.
+
+Setup.
+
+Hyperparameters.
+
+Data pipeline.
+
+We will use the Oxford Flowers 102 dataset for generating images of flowers, which is a diverse natural dataset containing around 8,000 images. Unfortunately the official splits are imbalanced, as most of the images are contained in the test split. We create new splits (80% train, 20% validation) using the Tensorflow Datasets slicing API. We apply center crops as preprocessing, and repeat the dataset multiple times (reason given in the next section).
+
+Kernel inception distance.
+
+Kernel Inception Distance (KID) is an image quality metric which was proposed as a replacement for the popular Frechet Inception Distance (FID). I prefer KID to FID because it is simpler to implement, can be estimated per-batch, and is computationally lighter. More details here.
+
+In this example, the images are evaluated at the minimal possible resolution of the Inception network (75x75 instead of 299x299), and the metric is only measured on the validation set for computational efficiency. We also limit the number of sampling steps at evaluation to 5 for the same reason.
+
+Since the dataset is relatively small, we go over the train and validation splits multiple times per epoch, because the KID estimation is noisy and compute-intensive, so we want to evaluate only after many iterations, but for many iterations.
+
+Network architecture.
+
+Here we specify the architecture of the neural network that we will use for denoising. We build a U-Net with identical input and output dimensions. U-Net is a popular semantic segmentation architecture, whose main idea is that it progressively downsamples and then upsamples its input image, and adds skip connections between layers having the same resolution. These help with gradient flow and avoid introducing a representation bottleneck, unlike usual autoencoders. Based on this, one can view diffusion models as denoising autoencoders without a bottleneck.
+
+The network takes two inputs, the noisy images and the variances of their noise components. The latter is required since denoising a signal requires different operations at different levels of noise. We transform the noise variances using sinusoidal embeddings, similarly to positional encodings used both in transformers and NeRF. This helps the network to be highly sensitive to the noise level, which is crucial for good performance. We implement sinusoidal embeddings using a Lambda layer.
+
+Some other considerations:
+
+We build the network using the Keras Functional API, and use closures to build blocks of layers in a consistent style.
+
+Diffusion models embed the index of the timestep of the diffusion process instead of the noise variance, while score-based models (Table 1) usually use some function of the noise level. I prefer the latter so that we can change the sampling schedule at inference time, without retraining the network.
+
+Diffusion models input the embedding to each convolution block separately. We only input it at the start of the network for simplicity, which in my experience barely decreases performance, because the skip and residual connections help the information propagate through the network properly.
+
+In the literature it is common to use attention layers at lower resolutions for better global coherence. I omitted it for simplicity.
+
+We disable the learnable center and scale parameters of the batch normalization layers, since the following convolution layers make them redundant.
+
+We initialize the last convolution's kernel to all zeros as a good practice, making the network predict only zeros after initialization, which is the mean of its targets. This will improve behaviour at the start of training and make the mean squared error loss start at exactly 1.
+
+This showcases the power of the Functional API. Note how we built a relatively complex U-Net with skip connections, residual blocks, multiple inputs, and sinusoidal embeddings in 80 lines of code!
+
+Diffusion model.
+
+Diffusion schedule.
+
+Let us say, that a diffusion process starts at time = 0, and ends at time = 1. This variable will be called diffusion time, and can be either discrete (common in diffusion models) or continuous (common in score-based models). I choose the latter, so that the number of sampling steps can be changed at inference time.
+
+We need to have a function that tells us at each point in the diffusion process the noise levels and signal levels of the noisy image corresponding to the actual diffusion time. This will be called the diffusion schedule (see <code>).
+
+This schedule outputs two quantities: the <code> and the <code> (corresponding to sqrt(1 - alpha) and sqrt(alpha) in the DDIM paper, respectively). We generate the noisy image by weighting the random noise and the training image by their corresponding rates and adding them together.
+
+Since the (standard normal) random noises and the (normalized) images both have zero mean and unit variance, the noise rate and signal rate can be interpreted as the standard deviation of their components in the noisy image, while the squares of their rates can be interpreted as their variance (or their power in the signal processing sense). The rates will always be set so that their squared sum is 1, meaning that the noisy images will always have unit variance, just like its unscaled components.
+
+We will use a simplified, continuous version of the cosine schedule (Section 3.2), that is quite commonly used in the literature. This schedule is symmetric, slow towards the start and end of the diffusion process, and it also has a nice geometric interpretation, using the trigonometric properties of the unit circle:
+
+Training process.
+
+The training procedure (see <code> and <code>) of denoising diffusion models is the following: we sample random diffusion times uniformly, and mix the training images with random gaussian noises at rates corresponding to the diffusion times. Then, we train the model to separate the noisy image to its two components.
+
+Usually, the neural network is trained to predict the unscaled noise component, from which the predicted image component can be calculated using the signal and noise rates. Pixelwise mean squared error should be used theoretically, however I recommend using mean absolute error instead (similarly to this implementation), which produces better results on this dataset.
+
+Sampling (reverse diffusion).
+
+When sampling (see <code>), at each step we take the previous estimate of the noisy image and separate it into image and noise using our network. Then we recombine these components using the signal and noise rate of the following step.
+
+Though a similar view is shown in Equation 12 of DDIMs, I believe the above explanation of the sampling equation is not widely known.
+
+This example only implements the deterministic sampling procedure from DDIM, which corresponds to eta = 0 in the paper. One can also use stochastic sampling (in which case the model becomes a Denoising Diffusion Probabilistic Model (DDPM)), where a part of the predicted noise is replaced with the same or larger amount of random noise (see Equation 16 and below).
+
+Stochastic sampling can be used without retraining the network (since both models are trained the same way), and it can improve sample quality, while on the other hand requiring more sampling steps usually.
+
+Training.
+
+Inference.
+
+Results.
+
+By running the training for at least 50 epochs (takes 2 hours on a T4 GPU and 30 minutes on an A100 GPU), one can get high quality image generations using this code example.
+
+The evolution of a batch of images over a 80 epoch training (color artifacts are due to GIF compression):
+
+Images generated using between 1 and 20 sampling steps from the same initial noise:
+
+Interpolation (spherical) between initial noise samples:
+
+Deterministic sampling process (noisy images on top, predicted images on bottom, 40 steps):
+
+Stochastic sampling process (noisy images on top, predicted images on bottom, 80 steps):
+
+Lessons learned.
+
+During preparation for this code example I have run numerous experiments using this repository. In this section I list the lessons learned and my recommendations in my subjective order of importance.
+
+Algorithmic tips.
+
+min. and max. signal rates: I found the min. signal rate to be an important hyperparameter. Setting it too low will make the generated images oversaturated, while setting it too high will make them undersaturated. I recommend tuning it carefully. Also, setting it to 0 will lead to a division by zero error. The max. signal rate can be set to 1, but I found that setting it lower slightly improves generation quality.
+
+loss function: While large models tend to use mean squared error (MSE) loss, I recommend using mean absolute error (MAE) on this dataset. In my experience MSE loss generates more diverse samples (it also seems to hallucinate more Section 3), while MAE loss leads to smoother images. I recommend trying both.
+
+weight decay: I did occasionally run into diverged trainings when scaling up the model, and found that weight decay helps in avoiding instabilities at a low performance cost. This is why I use AdamW instead of Adam in this example.
+
+exponential moving average of weights: This helps to reduce the variance of the KID metric, and helps in averaging out short-term changes during training.
+
+image augmentations: Though I did not use image augmentations in this example, in my experience adding horizontal flips to the training increases generation performance, while random crops do not. Since we use a supervised denoising loss, overfitting can be an issue, so image augmentations might be important on small datasets. One should also be careful not to use leaky augmentations, which can be done following this method (end of Section 5) for instance.
+
+data normalization: In the literature the pixel values of images are usually converted to the -1 to 1 range. For theoretical correctness, I normalize the images to have zero mean and unit variance instead, exactly like the random noises.
+
+noise level input: I chose to input the noise variance to the network, as it is symmetrical under our sampling schedule. One could also input the noise rate (similar performance), the signal rate (lower performance), or even the log-signal-to-noise ratio (Appendix B.1) (did not try, as its range is highly dependent on the min. and max. signal rates, and would require adjusting the min. embedding frequency accordingly).
+
+gradient clipping: Using global gradient clipping with a value of 1 can help with training stability for large models, but decreased performance significantly in my experience.
+
+residual connection downscaling: For deeper models (Appendix B), scaling the residual connections with 1/sqrt(2) can be helpful, but did not help in my case.
+
+learning rate: For me, Adam optimizer's default learning rate of 1e-3 worked very well, but lower learning rates are more common in the literature (Tables 11-13).
+
+Architectural tips.
+
+sinusoidal embedding: Using sinusoidal embeddings on the noise level input of the network is crucial for good performance. I recommend setting the min. embedding frequency to the reciprocal of the range of this input, and since we use the noise variance in this example, it can be left always at 1. The max. embedding frequency controls the smallest change in the noise variance that the network will be sensitive to, and the embedding dimensions set the number of frequency components in the embedding. In my experience the performance is not too sensitive to these values.
+
+skip connections: Using skip connections in the network architecture is absolutely critical, without them the model will fail to learn to denoise at a good performance.
+
+residual connections: In my experience residual connections also significantly improve performance, but this might be due to the fact that we only input the noise level embeddings to the first layer of the network instead of to all of them.
+
+normalization: When scaling up the model, I did occasionally encounter diverged trainings, using normalization layers helped to mitigate this issue. In the literature it is common to use GroupNormalization (with 8 groups for example) or LayerNormalization in the network, I however chose to use BatchNormalization, as it gave similar benefits in my experiments but was computationally lighter.
+
+activations: The choice of activation functions had a larger effect on generation quality than I expected. In my experiments using non-monotonic activation functions outperformed monotonic ones (such as ReLU), with Swish performing the best (this is also what Imagen uses, page 41).
+
+attention: As mentioned earlier, it is common in the literature to use attention layers at low resolutions for better global coherence. I omitted them for simplicity.
+
+upsampling: Bilinear and nearest neighbour upsampling in the network performed similarly, however I did not try transposed convolutions.
+
+For a similar list about GANs check out this Keras tutorial.
+
+What to try next?
+
+If you would like to dive in deeper to the topic, I recommend checking out this repository that I created in preparation for this code example, which implements a wider range of features in a similar style, such as:
+
+stochastic sampling.
+
+second-order sampling based on the differential equation view of DDIMs (Equation 13).
+
+more diffusion schedules.
+
+more network output types: predicting image or velocity (Appendix D) instead of noise.
+
+more datasets.
+
+Related works.
+
+Score-based generative modeling (blogpost).
+
+What are diffusion models? (blogpost).
+
+Annotated diffusion model (blogpost).
+
+CVPR 2022 tutorial on diffusion models (slides available).
+
+Elucidating the Design Space of Diffusion-Based Generative Models: attempts unifying diffusion methods under a common framework.
+
+High-level video overviews: 1, 2.
+
+Detailed technical videos: 1, 2.
+
+Score-based generative models: NCSN, NCSN+, NCSN++.
+
+Denoising diffusion models: DDPM, DDIM, DDPM+, DDPM++.
+
+Large diffusion models: GLIDE, DALL-E 2, Imagen.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 17: Image generation.

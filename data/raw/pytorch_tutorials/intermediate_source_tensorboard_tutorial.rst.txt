@@ -1,0 +1,83 @@
+Visualizing Models, Data, and Training with TensorBoard.
+
+In the 60 Minute Blitz, we show you how to load in data, feed it through a model we define as a subclass of <code>, train this model on training data, and test it on test data. To see what's happening, we print out some statistics as the model is training to get a sense for whether training is progressing. However, we can do much better than that: PyTorch integrates with TensorBoard, a tool designed for visualizing the results of neural network training runs. This tutorial illustrates some of its functionality, using the Fashion-MNIST dataset which can be read into PyTorch using <code>.
+
+In this tutorial, we'll learn how to:
+
+Read in data and with appropriate transforms (nearly identical to the prior tutorial).
+
+Set up TensorBoard.
+
+Write to TensorBoard.
+
+Inspect a model architecture using TensorBoard.
+
+Use TensorBoard to create interactive versions of the visualizations we created in last tutorial, with less code.
+
+Specifically, on point #5, we'll see:
+
+A couple of ways to inspect our training data.
+
+How to track our model's performance as it trains.
+
+How to assess our model's performance once it is trained.
+
+We'll begin with similar boilerplate code as in the CIFAR-10 tutorial:
+
+We'll define a similar model architecture from that tutorial, making only minor modifications to account for the fact that the images are now one channel instead of three and 28x28 instead of 32x32:
+
+We'll define the same <code> and <code> from before:
+
+TensorBoard setup.
+
+Now we'll set up TensorBoard, importing <code> from <code> and defining a <code>, our key object for writing information to TensorBoard.
+
+Note that this line alone creates a <code> folder.
+
+Writing to TensorBoard.
+
+Now let's write an image to our TensorBoard - specifically, a grid - using make_grid.
+
+Now running.
+
+: from the command line and then navigating to should show the following.
+
+Now you know how to use TensorBoard! This example, however, could be done in a Jupyter Notebook - where TensorBoard really excels is in creating interactive visualizations. We'll cover one of those next, and several more by the end of the tutorial.
+
+Inspect the model using TensorBoard.
+
+One of TensorBoard's strengths is its ability to visualize complex model structures. Let's visualize the model we built.
+
+Now upon refreshing TensorBoard you should see a "Graphs" tab that looks like this:
+
+Go ahead and double click on "Net" to see it expand, seeing a detailed view of the individual operations that make up the model.
+
+TensorBoard has a very handy feature for visualizing high dimensional data such as image data in a lower dimensional space; we'll cover this next.
+
+Adding a "Projector" to TensorBoard.
+
+We can visualize the lower dimensional representation of higher dimensional data via the add_embedding method.
+
+Now in the "Projector" tab of TensorBoard, you can see these 100 images - each of which is 784 dimensional - projected down into three dimensional space. Furthermore, this is interactive: you can click and drag to rotate the three dimensional projection. Finally, a couple of tips to make the visualization easier to see: select "color: label" on the top left, as well as enabling "night mode", which will make the images easier to see since their background is white:
+
+Now we've thoroughly inspected our data, let's show how TensorBoard can make tracking model training and evaluation clearer, starting with training.
+
+Tracking model training with TensorBoard.
+
+In the previous example, we simply printed the model's running loss every 2000 iterations. Now, we'll instead log the running loss to TensorBoard, along with a view into the predictions the model is making via the <code> function.
+
+Finally, let's train the model using the same model training code from the prior tutorial, but writing results to TensorBoard every 1000 batches instead of printing to console; this is done using the add_scalar function.
+
+In addition, as we train, we'll generate an image showing the model's predictions vs. the actual results on the four images included in that batch.
+
+You can now look at the scalars tab to see the running loss plotted over the 15,000 iterations of training:
+
+In addition, we can look at the predictions the model made on arbitrary batches throughout learning. See the "Images" tab and scroll down under the "predictions vs. actuals" visualization to see this; this shows us that, for example, after just 3000 training iterations, the model was already able to distinguish between visually distinct classes such as shirts, sneakers, and coats, though it isn't as confident as it becomes later on in training:
+
+In the prior tutorial, we looked at per-class accuracy once the model had been trained; here, we'll use TensorBoard to plot precision-recall curves (good explanation here) for each class.
+
+Assessing trained models with TensorBoard.
+
+You will now see a "PR Curves" tab that contains the precision-recall curves for each class. Go ahead and poke around; you'll see that on some classes the model has nearly 100% "area under the curve", whereas on others this area is lower:
+
+And that's an intro to TensorBoard and PyTorch's integration with it. Of course, you could do everything TensorBoard does in your Jupyter Notebook, but with TensorBoard, you gets visuals that are interactive by default.

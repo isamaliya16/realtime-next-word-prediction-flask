@@ -1,0 +1,89 @@
+{
+  "config": {
+    "seq_len": 12,
+    "vocab_size": 12000,
+    "min_count": 3,
+    "val_fraction": 0.1,
+    "seed": 42,
+    "min_paragraph_words": 4,
+    "min_doc_words": 100
+  },
+  "raw": {
+    "documents": 845,
+    "words": 1118059,
+    "characters": 7481601
+  },
+  "removed_paragraphs": {
+    "too_short": 9965,
+    "duplicate_paragraph": 5734,
+    "short_document": 27,
+    "repetitive": 11,
+    "boilerplate": 404,
+    "mostly_math_or_code": 2493
+  },
+  "clean": {
+    "documents": 818,
+    "words": 947374,
+    "tokens_incl_punctuation": 1061726,
+    "characters": 5972064,
+    "unique_tokens": 20190,
+    "unique_words": 20181
+  },
+  "vocabulary": {
+    "size": 9007,
+    "reserved_ids": 11,
+    "min_count": 3,
+    "train_word_coverage": 0.9842,
+    "val_word_coverage": 0.9719
+  },
+  "split": {
+    "method": "document-level, per source, before windowing; vocabulary built from train only",
+    "train_documents": 724,
+    "val_documents": 94,
+    "train_words": 849777,
+    "val_words": 97597
+  },
+  "sequences": {
+    "sequence_length": 12,
+    "train": 798391,
+    "validation": 91127,
+    "train_word_tokens": 799094
+  },
+  "by_source": {
+    "d2l": {
+      "documents": 168,
+      "words": 257464,
+      "val_documents": 17
+    },
+    "hf_course": {
+      "documents": 94,
+      "words": 109643,
+      "val_documents": 12
+    },
+    "keras_io": {
+      "documents": 255,
+      "words": 223623,
+      "val_documents": 33
+    },
+    "llm_course": {
+      "documents": 1,
+      "words": 5199,
+      "val_documents": 0
+    },
+    "pytorch_tutorials": {
+      "documents": 168,
+      "words": 165416,
+      "val_documents": 15
+    },
+    "tensorflow_docs": {
+      "documents": 127,
+      "words": 179938,
+      "val_documents": 16
+    },
+    "wikipedia": {
+      "documents": 5,
+      "words": 6091,
+      "val_documents": 1
+    }
+  }
+}

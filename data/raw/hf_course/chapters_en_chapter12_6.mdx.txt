@@ -1,0 +1,103 @@
+Practical Exercise: GRPO with Unsloth.
+
+In this exercise, you'll fine-tune a model with GRPO (Group Relative Policy Optimization) using Unsloth, to improve a model's reasoning capabilities. We covered GRPO in Chapter 3.
+
+Unsloth is a library that accelerates LLM fine-tuning, making it possible to train models faster and with less computational resources. Unsloth is plugs into TRL, so we'll build on what we learned in the previous sections, and adapt it for Unsloth specifics.
+
+This exercise can be run on a free Google Colab T4 GPU. For the best experience, follow along with the notebook linked above and try it out yourself.
+
+Install dependencies.
+
+First, let's install the necessary libraries. We'll need Unsloth for the accelerated fine-tuning and vLLM for fast inference.
+
+Setting up Unsloth.
+
+Unsloth provides a class (<code>) that integrates transformers with Unsloth optimizations. Let's import it:
+
+Now, let's load Google's Gemma 3 1B Instruct model and configure it for fine-tuning:
+
+This code loads the model in 4-bit quantization to save memory and applies LoRA (Low-Rank Adaptation) for efficient fine-tuning. The <code> parameter specifies which layers of the model to fine-tune, and <code> enables training with longer contexts.
+
+We won't cover the details of LoRA in this chapter, but you can learn more in Chapter 11.
+
+Data Preparation.
+
+For this exercise, we'll use the GSM8K dataset, which contains grade school math problems. We'll format the data to encourage the model to show its reasoning before providing an answer.
+
+First, we will define the format of the prompts and answers:
+
+Now, let's prepare the dataset:
+
+The dataset is prepared by extracting the answer from the dataset and formatting it as a string.
+
+Defining Reward Functions.
+
+As we discussed in an earlier page, GRPO can use reward functions to guide the model's learning based on verifiable criteria like length and formatting.
+
+In this exercise, we'll define several reward functions that encourage different aspects of good reasoning. For example, we'll reward the model for providing an integer answer, and for following the strict format.
+
+These reward functions serve different purposes:
+
+Training with GRPO.
+
+Now we'll set up the GRPO trainer with our model, tokenizer, and reward functions. This part follows the same approach as the previous exercise.
+
+The <code> sets various hyperparameters for training:
+
+<code>: Enables fast inference with vLLM.
+
+<code>: Controls how quickly the model learns.
+
+<code>: Number of completions to generate for each prompt.
+
+<code>: Total number of training steps to perform.
+
+Now let's start the training:
+
+Training may take some time. You might not see rewards increase immediately - it can take 150-200 steps before you start seeing improvements. Be patient!
+
+Testing the Model.
+
+After training, let's test our model to see how it performs. First, we'll save the LoRA weights:
+
+Now, let's test the model with a new question:
+
+You should see that the model now follows the specified format, showing its reasoning before providing an answer.
+
+Saving the Model.
+
+Unsloth provides several options for saving your fine-tuned model, but we'll focus on the most common.
+
+Pushing to Hugging Face Hub.
+
+We'll push the model to the Hugging Face Hub using the <code> method. This method allows us to push the model in multiple quantization formats.
+
+Unsloth also supports saving to GGUF format for use with llama.cpp:
+
+The GGUF files can be used with llama.cpp or UI-based systems like Jan or Open WebUI.
+
+Conclusion.
+
+In this exercise, you've learned how to:
+
+Set up Unsloth for accelerated fine-tuning.
+
+Prepare data for GRPO training.
+
+Define custom reward functions to guide the model's learning.
+
+Train a model using GRPO.
+
+Test the fine-tuned model.
+
+Save the model in various formats.
+
+GRPO is a powerful technique for aligning language models with specific behaviors, and Unsloth makes it accessible even on limited hardware. By combining multiple reward functions, you can guide the model to follow a specific format while also improving its reasoning capabilities.
+
+For more information and resources, check out:
+
+Unsloth Documentation.
+
+Unsloth Discord.
+
+Unsloth GitHub.

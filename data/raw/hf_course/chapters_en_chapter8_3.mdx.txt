@@ -1,0 +1,63 @@
+Asking for help on the forums.
+
+The Hugging Face forums are a great place to get help from the open source team and wider Hugging Face community. Here's what the main page looks like on any given day:
+
+On the lefthand side you can see all the categories that the various topics are grouped into, while the righthand side shows the most recent topics. A topic is a post that contains a title, category, and description; it's quite similar to the GitHub issues format that we saw when creating our own dataset in Chapter 5. As the name suggests, the Beginners category is primarily intended for people just starting out with the Hugging Face libraries and ecosystem. Any question on any of the libraries is welcome there, be it to debug some code or to ask for help about how to do something. (That said, if your question concerns one library in particular, you should probably head to the corresponding library category on the forum.).
+
+Similarly, the Intermediate and Research categories are for more advanced questions, for example about the libraries or some cool new NLP research that you'd like to discuss.
+
+And naturally, we should also mention the Course category, where you can ask any questions you have that are related to the Hugging Face course!
+
+Once you have selected a category, you'll be ready to write your first topic. You can find some guidelines in the forum on how to do this, and in this section we'll take a look at some features that make up a good topic.
+
+Writing a good forum post.
+
+As a running example, let's suppose that we're trying to generate embeddings from Wikipedia articles to create a custom search engine. As usual, we load the tokenizer and model as follows:
+
+Now suppose we try to embed a whole section of the Wikipedia article on Transformers (the franchise, not the library!):
+
+Uh-oh, we've hit a problem -- and the error message is far more cryptic than the ones we saw in section 2! We can't make head or tails of the full traceback, so we decide to turn to the Hugging Face forums for help. How might we craft the topic?
+
+To get started, we need to click the "New Topic" button at the upper-right corner (note that to create a topic, we'll need to be logged in):
+
+This brings up a writing interface where we can input the title of our topic, select a category, and draft the content:
+
+Since the error seems to be exclusively about 🤗 Transformers, we'll select this for the category. Our first attempt at explaining the problem might look something like this:
+
+Although this topic contains the error message we need help with, there are a few problems with the way it is written:
+
+The title is not very descriptive, so anyone browsing the forum won't be able to tell what the topic is about without reading the body as well.
+
+The body doesn't provide enough information about where the error is coming from and how to reproduce it.
+
+The topic tags a few people directly with a somewhat demanding tone.
+
+Topics like this one are not likely to get a fast answer (if they get one at all), so let's look at how we can improve it. We'll start with the first issue of picking a good title.
+
+Choosing a descriptive title.
+
+If you're trying to get help with a bug in your code, a good rule of thumb is to include enough information in the title so that others can quickly determine whether they think they can answer your question or not. In our running example, we know the name of the exception that's being raised and have some hints that it's triggered in the forward pass of the model, where we call <code>. To communicate this, one possible title could be: Source of IndexError in the AutoModel forward pass?
+
+This title tells the reader where you think the bug is coming from, and if they've encountered an <code> before, there's a good chance they'll know how to debug it. Of course, the title can be anything you want, and other variations like: Why does my model produce an IndexError?
+
+could also be fine. Now that we've got a descriptive title, let's take a look at improving the body.
+
+Formatting your code snippets.
+
+Reading source code is hard enough in an IDE, but it's even harder when the code is copied and pasted as plain text! Fortunately, the Hugging Face forums support the use of Markdown, so you should always enclose your code blocks with three backticks (```) so it's more easily readable. Let's do this to prettify the error message -- and while we're at it, let's make the body a bit more polite than our original version:
+
+As you can see in the screenshot, enclosing the code blocks in backticks converts the raw text into formatted code, complete with color styling! Also note that single backticks can be used to format inline variables, like we've done for <code>. This topic is looking much better, and with a bit of luck we might find someone in the community who can guess what the error is about. However, instead of relying on luck, let's make life easier by including the traceback in its full gory detail!
+
+Including the full traceback.
+
+Since the last line of the traceback is often enough to debug your own code, it can be tempting to just provide that in your topic to "save space." Although well intentioned, this actually makes it harder for others to debug the problem since the information that's higher up in the traceback can be really useful too. So, a good practice is to copy and paste the whole traceback, while making sure that it's nicely formatted. Since these tracebacks can get rather long, some people prefer to show them after they've explained the source code. Let's do this. Now, our forum topic looks like the following:
+
+This is much more informative, and a careful reader might be able to point out that the problem seems to be due to passing a long input because of this line in the traceback: Token indices sequence length is longer than the specified maximum sequence length for this model (583 > 512).
+
+However, we can make things even easier for them by providing the actual code that triggered the error. Let's do that now.
+
+Providing a reproducible example.
+
+If you've ever tried to debug someone else's code, you've probably first tried to recreate the problem they've reported so you can start working your way through the traceback to pinpoint the error. It's no different when it comes to getting (or giving) assistance on the forums, so it really helps if you can provide a small example that reproduces the error. Half the time, simply walking through this exercise will help you figure out what's going wrong. In any case, the missing piece of our example is to show the inputs that we provided to the model. Doing that gives us something like the following completed example:
+
+This topic now contains quite a lot of information, and it's written in a way that is much more likely to attract the attention of the community and get a helpful answer. With these basic guidelines, you can now create great topics to find the answers to your 🤗 Transformers questions!

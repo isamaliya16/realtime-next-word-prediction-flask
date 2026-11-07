@@ -1,0 +1,25 @@
+Trainer pattern.
+
+Introduction.
+
+This example shows how to create a custom training step using the "Trainer pattern", which can then be shared across multiple Keras models. This pattern overrides the <code> method of the <code> class, allowing for training loops beyond plain supervised learning.
+
+The Trainer pattern can also easily be adapted to more complex models with larger custom training steps, such as this end-to-end GAN model, by putting the custom training step in the Trainer class definition.
+
+Setup.
+
+Define the Trainer class.
+
+A custom training and evaluation step can be created by overriding the <code> and <code> method of a <code> subclass:
+
+Define multiple models to share the custom training step.
+
+Let's define two different models that can share our Trainer class and its custom <code>:
+
+Create Trainer class objects from the models.
+
+Compile and fit the models to the MNIST dataset.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

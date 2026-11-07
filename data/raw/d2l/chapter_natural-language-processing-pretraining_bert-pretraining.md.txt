@@ -1,0 +1,43 @@
+Pretraining BERT.
+
+With the BERT model implemented in section <num> and the pretraining examples generated from the WikiText-2 dataset in section <num>, we will pretrain BERT on the WikiText-2 dataset in this section.
+
+To start, we load the WikiText-2 dataset as minibatches of pretraining examples for masked language modeling and next sentence prediction. The batch size is 512 and the maximum length of a BERT input sequence is 64. Note that in the original BERT model, the maximum length is 512.
+
+Pretraining BERT.
+
+The original BERT has two versions of different model sizes . The base model (<math>) uses 12 layers (Transformer encoder blocks) with 768 hidden units (hidden size) and 12 self-attention heads. The large model (<math>) uses 24 layers with 1024 hidden units and 16 self-attention heads. Notably, the former has 110 million parameters while the latter has 340 million parameters. For demonstration with ease, we define [a small BERT, using 2 layers, 128 hidden units, and 2 self-attention heads].
+
+Before defining the training loop, we define a helper function <code>. Given the shard of training examples, this function [computes the loss for both the masked language modeling and next sentence prediction tasks]. Note that the final loss of BERT pretraining is just the sum of both the masked language modeling loss and the next sentence prediction loss.
+
+Invoking the two aforementioned helper functions, the following <code> function defines the procedure to [pretrain BERT (<code>) on the WikiText-2 (<code>) dataset]. Training BERT can take very long. Instead of specifying the number of epochs for training as in the <code> function (see section <num>), the input <code> of the following function specifies the number of iteration steps for training.
+
+We can plot both the masked language modeling loss and the next sentence prediction loss during BERT pretraining.
+
+[Representing Text with BERT].
+
+After pretraining BERT, we can use it to represent single text, text pairs, or any token in them. The following function returns the BERT (<code>) representations for all tokens in <code> and <code>.
+
+[Consider the sentence "a crane is flying".] Recall the input representation of BERT as discussed in section <num>. After inserting special tokens “ ” (used for classification) and “ ” (used for separation), the BERT input sequence has a length of six. Since zero is the index of the “ ” token, <code> is the BERT representation of the entire input sentence. To evaluate the polysemy token "crane", we also print out the first three elements of the BERT representation of the token.
+
+[Now consider a sentence pair "a crane driver came" and "he just left".] Similarly, <code> is the encoded result of the entire sentence pair from the pretrained BERT. Note that the first three elements of the polysemy token "crane" are different from those when the context is different. This supports that BERT representations are context-sensitive.
+
+In section <num>, we will fine-tune a pretrained BERT model for downstream natural language processing applications.
+
+Summary.
+
+The original BERT has two versions, where the base model has 110 million parameters and the large model has 340 million parameters.
+
+After pretraining BERT, we can use it to represent single text, text pairs, or any token in them.
+
+In the experiment, the same token has different BERT representation when their contexts are different. This supports that BERT representations are context-sensitive.
+
+Exercises.
+
+In the experiment, we can see that the masked language modeling loss is significantly higher than the next sentence prediction loss. Why?
+
+Set the maximum length of a BERT input sequence to be 512 (same as the original BERT model). Use the configurations of the original BERT model such as <math>. Do you encounter any error when running this section? Why?
+
+Discussions.
+
+Discussions.

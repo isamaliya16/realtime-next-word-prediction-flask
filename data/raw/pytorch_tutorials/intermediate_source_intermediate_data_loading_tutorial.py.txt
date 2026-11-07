@@ -1,0 +1,241 @@
+Data Loading Optimization in PyTorch.
+
+Introduction.
+
+Data loading is often a critical bottleneck in deep learning pipelines. While GPUs can process batches extremely quickly, inefficient data loading can leave expensive hardware idle, waiting for the next batch of data. This tutorial covers best practices and some techniques for optimizing your data loading configuration to maximize training throughput.
+
+We'll explore the key parameters of PyTorch's DataLoader and provide practical guidance on tuning them for your specific workload. Rather than showing each optimization in isolation, we'll build up from a baseline training loop and progressively apply optimizations, measuring the cumulative speedup at each step.
+
+Creating a Sample Dataset.
+
+First, let's create a simple dataset that simulates expensive transformations. This will help us demonstrate the impact of various DataLoader configurations.
+
+Shared Training Infrastructure.
+
+To measure the real-world impact of each optimization, we define a reusable training loop that accepts a DataLoader and returns timing and loss. This avoids duplicating the training loop for every benchmark.
+
+We use a small dataset (500 samples) with a high transform delay (5ms) to ensure the pipeline remains data-bound throughout. The small dataset means short epochs (16 batches each), so we run many epochs — making persistent_workers' benefit visible across epoch boundaries.
+
+Baseline Training Loop.
+
+Our starting point: a simple DataLoader with no multiprocessing, no pinned memory, and default settings. This establishes the performance floor we'll improve upon.
+
+Batch Size Optimization.
+
+The <code> parameter controls how many samples are processed together. Choosing the right batch size involves balancing several factors:
+
+Memory Considerations:
+
+Larger batch sizes require more GPU memory for storing inputs, activations, and gradients.
+
+Out-of-memory (OOM) errors are common with large batch sizes.
+
+Moderate batch sizes (32-128) often provide the best balance.
+
+Training Dynamics:
+
+Batch size changes affect the effective learning rate, typically requiring tuning.
+
+Larger batches provide more stable gradient estimates but may generalize differently.
+
+Since batch size is model-dependent (not a "just add it" optimization), we benchmark it in isolation rather than folding it into the progressive optimization chain.
+
+Number of Workers (<code>).
+
+The <code> parameter controls how many subprocesses are used for data loading. This is crucial for parallelizing expensive data transformations.
+
+How it works:
+
+Each worker maintains a queue of batches (controlled by <code>).
+
+Workers prepare batches in parallel and transfer them to the main process.
+
+If <code> (default), batches are returned in order.
+
+When to increase <code>:
+
+When transforms are computationally expensive (augmentations, decoding).
+
+When data is loaded from slow storage (network drives, HDD).
+
+When you observe GPU idle time due to data loading.
+
+When <code> might be faster:
+
+When transforms are cheap (simple tensor operations).
+
+When data is already in memory.
+
+The overhead of inter-process communication (IPC) exceeds the parallelization benefits.
+
+Let's add <code> and <code> to our training loop and measure the improvement:
+
+Understanding <code>.
+
+The <code> parameter enables faster CPU-to-GPU data transfers by using page-locked (pinned) memory.
+
+How pinned memory works:
+
+Pinned memory cannot be swapped to disk by the OS.
+
+This enables faster DMA (Direct Memory Access) transfers to GPU.
+
+The CPU-to-GPU transfer can happen asynchronously.
+
+Best practices:
+
+Use <code> in the DataLoader (recommended approach).
+
+Combine with <code> when moving data to GPU.
+
+Avoid manually calling <code> followed by <code> - this is slower because <code> is blocking.
+
+The safe pattern:
+
+Let's add <code> to our configuration:
+
+Persistent Workers.
+
+By default, worker processes are shut down and restarted between epochs. This incurs startup overhead (importing modules, forking processes, re-initializing datasets) on every epoch boundary.
+
+Setting <code> keeps the workers alive across epochs, eliminating this repeated startup cost.
+
+When it helps most:
+
+Training for many epochs on smaller datasets.
+
+When dataset <code> is expensive (e.g., loading metadata).
+
+When combined with high <code>.
+
+Let's compare with and without persistent workers over multiple epochs:
+
+Overlapping H2D Transfer with GPU Compute.
+
+For maximum throughput, you can overlap Host-to-Device (H2D) data transfers with GPU computation. This ensures the GPU is never idle waiting for data.
+
+The idea is to prefetch the next batch to GPU while the current batch is being processed.
+
+Dataset-Level Optimization: <code>.
+
+Beyond tuning DataLoader parameters, you can optimize the dataset itself. PyTorch's DataLoader supports a batched fetching protocol via <code>: if your dataset defines this method, the fetcher calls it once with a list of indices instead of calling <code> repeatedly for each sample.
+
+How it works:
+
+The default fetcher does: <code>.
+
+With <code>: <code>.
+
+When this helps:
+
+When per-sample overhead is significant (e.g., opening connections, parsing headers, acquiring locks).
+
+When data can be fetched in bulk more efficiently (e.g., one SQL query for N rows instead of N queries, or vectorized tensor generation).
+
+When the transform has a fixed setup cost that can be amortized across the batch.
+
+Expected signature:
+
+Our <code> implements <code> to generate the entire batch in one vectorized call (with a single amortized delay) rather than N individual calls each with their own delay. Let's add this to our cumulative configuration:
+
+<code> parameter.
+
+By default (<code>), the DataLoader returns batches in the same order as the dataset indices. This requires caching batches that arrive out of order from workers.
+
+When to consider <code>:
+
+When you don't need deterministic ordering (e.g., not checkpointing).
+
+When you observe training spikes due to batch caching.
+
+When maximizing throughput is more important than reproducibility.
+
+Snapshot Frequency (<code>).
+
+When using torchdata's StatefulDataLoader (for checkpointing), the <code> parameter controls how often the DataLoader state is saved.
+
+Trade-offs:
+
+Higher frequency (smaller n): More overhead, but less data loss on job failure.
+
+Lower frequency (larger n): Less overhead, but more replayed samples on recovery.
+
+Choose based on your fault tolerance requirements and the cost of reprocessing data.
+
+Shared Memory and <code>.
+
+When using multiprocessing with <code>, PyTorch needs to transfer tensors between worker processes and the main process. The sharing strategy determines how this is done.
+
+Available Strategies:
+
+PyTorch provides two sharing strategies via <code>:
+
+file_descriptor (default on most systems).
+
+Uses file descriptors to share memory.
+
+Limited by system's open file descriptor limit (<code>).
+
+More efficient for small tensors.
+
+file_system.
+
+Uses shared memory files in <code>.
+
+Not limited by file descriptor count.
+
+Better for large numbers of tensors.
+
+Low transform costs.
+
+How to Change the Strategy:
+
+Choosing the Right Strategy:
+
+Handling Insufficient Shared Memory (<code>).
+
+When using <code>, PyTorch uses shared memory (<code>) to efficiently pass data between worker processes and the main process. If you encounter errors like:
+
+This typically means you've exhausted the shared memory allocation.
+
+Solutions:
+
+1. Increase /dev/shm size (if you can).
+
+2. Reduce memory pressure from DataLoader:
+
+3. Switch sharing strategy:
+
+4. Clean up leaked shared memory:
+
+Final Summary.
+
+Here's the cumulative effect of each optimization we applied to our training loop. Each row includes all optimizations from previous rows:
+
+Summary and Best Practices.
+
+Start with moderate batch sizes (32-128) and scale up if memory allows.
+
+Use <code> when transforms are expensive. Start with 2-4 workers and increase based on memory capacity. Higher is not always better.
+
+Enable <code> when using an accelerator.
+
+Use <code> to avoid worker restart overhead between epochs.
+
+Profile your pipeline with to identify CPU bottlenecks during dataset access, transformations, etc.
+
+Implement data prefetching for GPU workloads to overlap data transfer with computation.
+
+Use <code> sharing strategy when hitting file descriptor limits.
+
+Conclusion.
+
+In this tutorial, we learned how to progressively optimize a PyTorch data loading pipeline — from a naive single-process baseline to a fully optimized configuration using multiprocessing workers, pinned memory, persistent workers, CUDA stream-based prefetching, and batched dataset fetching with <code>. Each optimization targets a different bottleneck, and together they can yield an order-of-magnitude improvement in throughput. These should be considered best practices and performance is dependent on the specific workload.
+
+Additional Resources.
+
+PyTorch DataLoader documentation.
+
+Pin Memory and Non-blocking Transfer Tutorial.
+
+PyTorch Performance Tuning Guide.

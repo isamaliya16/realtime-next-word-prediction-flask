@@ -1,0 +1,107 @@
+Custom C++ and CUDA Operators.
+
+PyTorch offers a large library of operators that work on Tensors (e.g. torch.add, torch.sum, etc). However, you may wish to bring a new custom operator to PyTorch. This tutorial demonstrates the blessed path to authoring a custom operator written in C++/CUDA.
+
+For our tutorial, we'll demonstrate how to author a fused multiply-add C++ and CUDA operator that composes with PyTorch subsystems. The semantics of the operation are as follows:
+
+You can find the end-to-end working example for this tutorial in the extension-cpp repository, which contains two parallel implementations:
+
+extension_cpp/: Uses the standard ATen/LibTorch API.
+
+extensioncppstable/: Uses APIs supported by the LibTorch Stable ABI (recommended for PyTorch 2.10+).
+
+Which API should you use?
+
+ABI-Stable LibTorch API (recommended): If you are using PyTorch 2.10+, we recommend using the ABI-stable API. It allows you to build a single wheel that works across multiple PyTorch versions (2.10, 2.11, 2.12, etc.), reducing the maintenance burden of supporting multiple PyTorch releases. See the libtorch-stable-abi section below for more details.
+
+Non-ABI-Stable LibTorch API: Use this if you need APIs not yet available in the stable ABI, or if you are targeting PyTorch versions older than 2.10. Note that you will need to build separate wheels for each PyTorch version you want to support.
+
+The code snippets below show both implementations using tabs, with the ABI-stable API shown by default.
+
+Setting up the Build System.
+
+If you are developing custom C++/CUDA code, it must be compiled. Note that if you're interfacing with a Python library that already has bindings to precompiled C++/CUDA code, you might consider writing a custom Python operator instead (python-custom-ops-tutorial).
+
+Use torch.utils.cppextension to compile custom C++/CUDA code for use with PyTorch. C++ extensions may be built either "ahead of time" with setuptools, or "just in time" via loadinline; we'll focus on the "ahead of time" flavor.
+
+Using <code> is as simple as writing a <code>:
+
+If you need to compile CUDA code (for example, <code> files), then instead use torch.utils.cpp_extension.CUDAExtension. Please see extension-cpp for an example for how this is set up.
+
+CPython Agnosticism.
+
+The above examples represent what we refer to as a CPython agnostic wheel, meaning we are building a single wheel that can be run across multiple CPython versions (similar to pure Python packages). CPython agnosticism is desirable in minimizing the number of wheels your custom library needs to support and release. The minimum version we'd like to support is 3.9, since it is the oldest supported version currently, so we use the corresponding hexcode and specifier throughout the setup code. We suggest building the extension in the same environment as the minimum CPython version you'd like to support to minimize unknown behavior, so, here, we build the extension in a CPython 3.9 environment. When built, this single wheel will be runnable in any CPython environment 3.9+. To achieve this, there are three key lines to note.
+
+The first is the specification of <code> in <code> to the minimum CPython version you would like to support:
+
+Defining the <code> flag helps verify that the extension is in fact only using the CPython Stable Limited API, which is a requirement for building a CPython agnostic wheel. If this requirement is not met, it is possible to build a wheel that looks CPython agnostic but will crash, or worse, be silently incorrect, in another CPython environment. Take care to avoid using unstable CPython APIs, for example APIs from libtorch_python (in particular pytorch/python bindings,) and to only use APIs from libtorch (ATen objects, operators and the dispatcher). We strongly recommend defining the <code> flag to help ascertain the extension is compliant and safe as a CPython agnostic wheel. Note that defining this flag is not a full guarantee that the built wheel is CPython agnostic, but it is better than the wild wild west. There are several caveats mentioned in the Python docs, and you should test and verify yourself that the wheel is truly agnostic for the relevant CPython versions.
+
+The second and third lines specifying <code> inform setuptools that you intend to build a CPython agnostic wheel and will influence the naming of the wheel accordingly:
+
+It is necessary to specify <code> as an argument to CppExtension/ CUDAExtension and also as an option to the <code> command with the minimal supported CPython version (in this case, 3.9). Consequently, the <code> in our tutorial would build one properly named wheel that could be installed across multiple CPython versions <code>.
+
+If your extension uses CPython APIs outside the stable limited set, then you cannot build a CPython agnostic wheel! You should build one wheel per CPython version instead, like so:
+
+LibTorch Stable ABI (PyTorch Agnosticism).
+
+In addition to CPython agnosticism, there is a second axis of wheel compatibility: LibTorch agnosticism. While CPython agnosticism allows building a single wheel that works across multiple Python versions (3.9, 3.10, 3.11, etc.), LibTorch agnosticism allows building a single wheel that works across multiple PyTorch versions (2.10, 2.11, 2.12, etc.). These two concepts are orthogonal and can be combined.
+
+To achieve LibTorch agnosticism, you must use the ABI stable LibTorch API, which provides a stable API for interacting with PyTorch tensors and operators. For example, instead of using <code>, you must use <code>. For comprehensive documentation on the stable ABI, including migration guides, supported types, and stack-based API conventions, see the LibTorch Stable ABI documentation.
+
+The stable ABI setup.py includes <code>, which indicates that the extension targets the LibTorch Stable ABI with a minimum supported PyTorch version of 2.10. The version format is: <code>, so 2.10.0 = <code>.
+
+If the stable API/ABI does not contain what you need, you can use the Non-ABI-stable LibTorch API, but you will need to build separate wheels for each PyTorch version you want to support.
+
+Defining the custom op and adding backend implementations First, let's write a C++ function that computes <code>:
+
+In order to use this from PyTorch's Python frontend, we need to register it as a PyTorch operator using the <code> (or <code>) macro. This will automatically bind the operator to Python.
+
+Operator registration is a two step-process:
+
+Defining the operator - This step ensures that PyTorch is aware of the new operator.
+
+Registering backend implementations - In this step, implementations for various backends, such as CPU and CUDA, are associated with the operator.
+
+Defining an operator To define an operator, follow these steps:
+
+select a namespace for an operator. We recommend the namespace be the name of your top-level project; we'll use "extension_cpp" in our tutorial.
+
+provide a schema string that specifies the input/output types of the operator and if an input Tensors will be mutated. We support more types in addition to Tensor and float; please see The Custom Operators Manual for more details.
+
+If you are authoring an operator that can mutate its input Tensors, please see here (mutable-ops) for how to specify that.
+
+This makes the operator available from Python via <code>.
+
+Registering backend implementations for an operator Use <code> (or <code>) to register a backend implementation for the operator.
+
+If you also have a CUDA implementation of <code>, you can register it in a separate <code> (or <code>) block:
+
+Adding <code> support for an operator.
+
+To add <code> support for an operator, we must add a FakeTensor kernel (also known as a "meta kernel" or "abstract impl"). FakeTensors are Tensors that have metadata (such as shape, dtype, device) but no data: the FakeTensor kernel for an operator specifies how to compute the metadata of output tensors given the metadata of input tensors. The FakeTensor kernel should return dummy Tensors of your choice with the correct Tensor metadata (shape/strides/<code>/device).
+
+We recommend that this be done from Python via the <code> API, though it is possible to do this from C++ as well (see The Custom Operators Manual for more details).
+
+Setting up hybrid Python/C++ registration In this tutorial, we defined a custom operator in C++, added CPU/CUDA implementations in C++, and added <code> kernels and backward formulas in Python. The order in which these registrations are loaded (or imported) matters (importing in the wrong order will lead to an error).
+
+To use the custom operator with hybrid Python/C++ registrations, we must first load the C++ library that holds the custom operator definition and then call the <code> registration APIs. This can happen in three ways:
+
+The first way to load the C++ library that holds the custom operator definition is to define a dummy Python module for _C. Then, in Python, when you import the module with <code>, the <code> files corresponding to the extension will be loaded and the <code> and <code> static initializers will run. One can create a dummy Python module with <code> like below, but you will notice that this does not compile with <code>, because <code> does not promise to only use the stable limited CPython API! With the below code, you sadly cannot build a CPython agnostic wheel for your extension! (Foreshadowing: I wonder what the second way is ;) ).
+
+In this tutorial, because we value being able to build a single wheel across multiple CPython versions, we will replace the unstable <code> call with stable API calls. The below code compiles with <code> and successfully creates a dummy Python module for our <code> extension so that it can be imported from Python. See extensioncpp/init.py and extensioncpp/csrc/muladd.cpp for more details:
+
+If you want to avoid <code> entirely in your C++ custom operator, you may use <code> in Python to load the <code> file(s) compiled from the extension. Note that, with this method, there is no <code> Python module created for the extension so you cannot call <code> from Python. Instead of relying on the import statement to trigger the custom operators to be registered, <code> will do the trick. The challenge then is shifted towards understanding where the <code> files are located so that you can load them, which is not always trivial:
+
+Adding training (autograd) support for an operator Use <code> to add training support for an operator. Prefer this over directly using Python <code> (see The Custom Operators Manual for more details).
+
+Note that the backward must be a composition of PyTorch-understood operators. If you wish to use another custom C++ or CUDA kernel in your backwards pass, it must be wrapped into a custom operator.
+
+If we had our own custom <code> kernel, we would need to wrap it into a custom operator and then call that from the backward:
+
+Testing an operator Use <code> to test that the custom op was registered correctly. Note that this function does not test that the gradients are mathematically correct -- plan to write separate tests for that, either manual ones or by using <code>.
+
+Creating mutable operators You may wish to author a custom operator that mutates its inputs. Use <code> to specify each mutable Tensor in the schema; otherwise, there will be undefined behavior. If there are multiple mutated Tensors, use different names (for example, <code>, <code>, <code>) for each mutable Tensor.
+
+Let's author a <code> operator, which writes the contents of <code> into <code>.
+
+Conclusion In this tutorial, we went over the recommended approach to integrating Custom C++ and CUDA operators with PyTorch. The <code> and <code> APIs are fairly low-level. For more information about how to use the API, see The Custom Operators Manual.

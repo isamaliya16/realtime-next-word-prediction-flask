@@ -1,0 +1,155 @@
+TF1.x -> TF2 migration overview.
+
+TensorFlow 2 is fundamentally different from TF1.x in several ways. You can still run unmodified TF1.x code (except for contrib) against TF2 binary installations like so:
+
+However, this is not running TF2 behaviors and APIs, and may not work as expected with code written for TF2. If you are not running with TF2 behaviors active, you are effectively running TF1.x on top of a TF2 installation. Read the TF1 vs TF2 behaviors guide for more details on how TF2 is different from TF1.x.
+
+This guide provides an overview of the process to migrate your TF1.x code to TF2. This enables you to take advantage of new and future feature improvements and also make your code simpler, more performant, and easier to maintain.
+
+If you are using <code>'s high level APIs and training exclusively with <code>, your code should more or less be fully compatible with TF2 except for the following caveats:
+
+TF2 has new default learning rates for Keras optimizers.
+
+TF2 may have changed the "name" that metrics are logged to.
+
+TF2 migration process.
+
+Before migrating, learn about the behavior and API differences between TF1.x and TF2 by reading the guide.
+
+Run the automated script to convert some of your TF1.x API usage to <code>.
+
+Remove old <code> symbols (check TF Addons and TF-Slim).
+
+Make your TF1.x model forward passes run in TF2 with eager execution enabled.
+
+Upgrade your TF1.x code for training loops and saving/loading models to TF2 equivalents.
+
+(Optional) Migrate your TF2-compatible <code> APIs to idiomatic TF2 APIs.
+
+The following sections expand upon the steps outlined above.
+
+Run the symbol conversion script.
+
+This executes an initial pass at rewriting your code symbols to run against TF 2.x binaries, but won't make your code idiomatic to TF 2.x nor will it automatically make your code compatible with TF2 behaviors.
+
+Your code will most likely still make use of <code> endpoints to access placeholders, sessions, collections, and other TF1.x-style functionality.
+
+Read the guide to find out more about the best practices for using the symbol conversion script.
+
+Remove usage of <code>.
+
+The <code> module has been sunsetted and several of its submodules have been integrated into the core TF2 API. The other submodules are now spun-off into other projects like TF IO and TF Addons.
+
+A large amount of older TF1.x code uses the Slim library, which was packaged with TF1.x as <code>. When migrating your Slim code to TF2, switch your Slim API usages to point to the tf-slim pip package. Then, read the model mapping guide to learn how to convert Slim code.
+
+Alternatively, if you use Slim pre-trained models you may consider trying out Keras's pre-traimed models from <code> or TF Hub's TF2 <code>s exported from the original Slim code.
+
+Make TF1.x model forward passes run with TF2 behaviors enabled.
+
+Track variables and losses.
+
+TF2 does not support global collections.
+
+Eager execution in TF2 does not support <code> collection-based APIs. This affects how you construct and track variables.
+
+For new TF2 code you would use <code> instead of <code> and use Python objects to collect and track variables instead of <code>. Typically this would be one of:
+
+<code>.
+
+<code>.
+
+<code>.
+
+Aggregate lists of variables (like <code>) with the <code> and <code> attributes of the <code>, <code>, or <code> objects.
+
+The <code> and <code> classes implement several other properties that remove the need for global collections. Their <code> property can be a replacement for using the <code> collection.
+
+Read the model mapping guide to find out more about using the TF2 code modeling shims to embed your existing <code> and <code> based code inside of <code>, <code>, and <code>. This will let you the execute forward passes with eager execution enabled without major rewrites.
+
+Adapting to other behavior changes.
+
+If the model mapping guide on its own is insufficient to get your model forward pass running other behavior changes that may be more details, see the guide on TF1.x vs TF2 behaviors to learn about the other behavior changes and how you can adapt to them. Also check out the making new Layers and Models via subclassing guide for details.
+
+Validating your results.
+
+See the model validation guide for easy tools and guidance around how you can (numerically) validate that your model is behaving correctly when eager execution is enabled. You may find this especially useful when paired with the model mapping guide.
+
+Upgrade training, evaluation, and import/export code.
+
+TF1.x training loops built with <code>-style <code>s and other collections-based approaches are not compatible with the new behaviors of TF2. It is important you migrate all your TF1.x training code as combining it with TF2 code can cause unexpected behaviors.
+
+You can choose from among several strategies to do this.
+
+The highest-level approach is to use <code>. The high level functions in Keras manage a lot of the low-level details that might be easy to miss if you write your own training loop. For example, they automatically collect the regularization losses, and set the <code> argument when calling the model.
+
+Refer to the Estimator migration guide to learn how you can migrate <code>s code to use vanilla and custom <code> training loops.
+
+Custom training loops give you finer control over your model such as tracking the weights of individual layers. Read the guide on building training loops from scratch to learn how to use <code> to retrieve model weights and use them to update the model.
+
+Convert TF1.x optimizers to Keras optimizers.
+
+The optimizers in <code>, such as the Adam optimizer and the gradient descent optimizer, have equivalents in <code>.
+
+The table below summarizes how you can convert these legacy optimizers to their Keras equivalents. You can directly replace the TF1.x version with the TF2 version unless additional steps (such as updating the default learning rate) are required.
+
+Note that converting your optimizers may make old checkpoints incompatible.
+
+TF1.x TF2 Additional steps.
+
+<code> <code> None.
+
+<code> <code> Include the <code> argument.
+
+<code> <code> Rename <code> and <code> arguments to <code> and <code>.
+
+<code> <code> Rename the <code> argument to <code>.
+
+<code> <code> None.
+
+<code> <code> None.
+
+<code> <code> Remove the <code> and <code> arguments.
+
+<code> <code> Rename the <code>, and <code> arguments to <code> and <code>.
+
+<code> <code> Rename the <code>, and <code> arguments to <code> and <code>.
+
+Note: In TF2, all epsilons (numerical stability constants) now default to <code> instead of <code>. This difference is negligible in most use cases.
+
+Upgrade data input pipelines.
+
+There are many ways to feed data to a <code> model. They will accept Python generators and Numpy arrays as input.
+
+The recommended way to feed data to a model is to use the <code> package, which contains a collection of high performance classes for manipulating data. The <code>s belonging to <code> are efficient, expressive, and integrate well with TF2.
+
+They can be passed directly to the <code> method.
+
+They can be iterated over directly standard Python:
+
+If you are still using <code>, these are now only supported as data-structures, not as input pipelines.
+
+You should also migrate all feature preprocessing code that uses<code>. Read the migration guide for more details.
+
+Saving and loading models.
+
+TF2 uses object-based checkpoints. Read the checkpoint migration guide to learn more about migrating off name-based TF1.x checkpoints. Also read the checkpoints guide in the core TensorFlow docs.
+
+There are no significant compatibility concerns for saved models. Read the <code> guide for more information about migrating <code>s in TF1.x to TF2. In general.
+
+TF1.x saved_models work in TF2.
+
+TF2 saved_models work in TF1.x if all the ops are supported.
+
+Also refer to the <code> section in the <code> migration guide for more information on working with <code> and <code> objects.
+
+(Optional) Migrate off <code> symbols.
+
+The <code> module contains the complete TF1.x API, with its original semantics.
+
+Even after following the steps above and ending up with code that is fully compatible with all TF2 behaviors, it is likely there may be many mentions of <code> apis that happen to be compatible with TF2. You should avoid using these legacy <code> apis for any new code that you write, though they will continue working for your already-written code.
+
+However, you may choose to migrate the existing usages to non-legacy TF2 APIs. The docstrings of individual <code> symbols will often explain how to migrate them to non-legacy TF2 APIs. Additionally, the model mapping guide's section on incremental migration to idiomatic TF2 APIs may help with this as well.
+
+Resources and further reading.
+
+As mentioned previously, it is a good practice to migrate all your TF1.x code to TF2. Read the guides in the Migrate to TF2 section of the TensorFlow guide to learn more.

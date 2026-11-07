@@ -1,0 +1,141 @@
+Saving and Loading Models Author: Matthew Inkawhich.
+
+This document provides solutions to a variety of use cases regarding the saving and loading of PyTorch models. Feel free to read the whole document, or just skip to the code you need for a desired use case.
+
+When it comes to saving and loading models, there are three core functions to be familiar with:
+
+torch.save: Saves a serialized object to disk. This function uses Python’s pickle utility for serialization. Models, tensors, and dictionaries of all kinds of objects can be saved using this function.
+
+torch.load: Uses pickle\ ’s unpickling facilities to deserialize pickled object files to memory. This function also facilitates the device to load the data into (see Saving & Loading Model Across Devices).
+
+torch.nn.Module.loadstatedict: Loads a model’s parameter dictionary using a deserialized state_dict. For more information on state_dict, see What is a state_dict?.
+
+Contents:
+
+What is a state_dict?
+
+Saving & Loading Model for Inference.
+
+Saving & Loading a General Checkpoint.
+
+Saving Multiple Models in One File.
+
+Warmstarting Model Using Parameters from a Different Model.
+
+Saving & Loading Model Across Devices.
+
+What is a <code>?
+
+In PyTorch, the learnable parameters (i.e. weights and biases) of an <code> model are contained in the model’s parameters (accessed with <code>). A state_dict is simply a Python dictionary object that maps each layer to its parameter tensor. Note that only layers with learnable parameters (convolutional layers, linear layers, etc.) and registered buffers (batchnorm's runningmean) have entries in the model’s statedict. Optimizer objects (<code>) also have a state_dict, which contains information about the optimizer's state, as well as the hyperparameters used.
+
+Because state_dict objects are Python dictionaries, they can be easily saved, updated, altered, and restored, adding a great deal of modularity to PyTorch models and optimizers.
+
+Example:
+
+Let’s take a look at the state_dict from the simple model used in the Training a classifier tutorial.
+
+Output:
+
+Saving & Loading Model for Inference.
+
+Save/Load <code> (Recommended).
+
+Save:
+
+Load:
+
+When saving a model for inference, it is only necessary to save the trained model’s learned parameters. Saving the model’s state_dict with the <code> function will give you the most flexibility for restoring the model later, which is why it is the recommended method for saving models.
+
+A common PyTorch convention is to save models using either a <code> or <code> file extension.
+
+Remember that you must call <code> to set dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
+
+Save/Load Entire Model.
+
+Save:
+
+Load:
+
+This save/load process uses the most intuitive syntax and involves the least amount of code. Saving a model in this way will save the entire module using Python’s pickle module. The disadvantage of this approach is that the serialized data is bound to the specific classes and the exact directory structure used when the model is saved. The reason for this is because pickle does not save the model class itself. Rather, it saves a path to the file containing the class, which is used during load time. Because of this, your code can break in various ways when used in other projects or after refactors.
+
+A common PyTorch convention is to save models using either a <code> or <code> file extension.
+
+Remember that you must call <code> to set dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results.
+
+Saving an Exported Program.
+
+If you are using <code>, you can save and load your <code> using the <code> and <code> APIs. with the <code> file extension:
+
+Saving & Loading a General Checkpoint for Inference and/or Resuming Training.
+
+Save:
+
+Load:
+
+When saving a general checkpoint, to be used for either inference or resuming training, you must save more than just the model’s state_dict. It is important to also save the optimizer's state_dict, as this contains buffers and parameters that are updated as the model trains. Other items that you may want to save are the epoch you left off on, the latest recorded training loss, external <code> layers, etc. As a result, such a checkpoint is often 2~3 times larger than the model alone.
+
+To save multiple components, organize them in a dictionary and use <code> to serialize the dictionary. A common PyTorch convention is to save these checkpoints using the <code> file extension.
+
+To load the items, first initialize the model and optimizer, then load the dictionary locally using <code>. From here, you can easily access the saved items by simply querying the dictionary as you would expect.
+
+Remember that you must call <code> to set dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results. If you wish to resuming training, call <code> to ensure these layers are in training mode.
+
+Saving Multiple Models in One File.
+
+Save:
+
+Load:
+
+When saving a model comprised of multiple <code>, such as a GAN, a sequence-to-sequence model, or an ensemble of models, you follow the same approach as when you are saving a general checkpoint. In other words, save a dictionary of each model’s state_dict and corresponding optimizer. As mentioned before, you can save any other items that may aid you in resuming training by simply appending them to the dictionary.
+
+A common PyTorch convention is to save these checkpoints using the <code> file extension.
+
+To load the models, first initialize the models and optimizers, then load the dictionary locally using <code>. From here, you can easily access the saved items by simply querying the dictionary as you would expect.
+
+Remember that you must call <code> to set dropout and batch normalization layers to evaluation mode before running inference. Failing to do this will yield inconsistent inference results. If you wish to resuming training, call <code> to set these layers to training mode.
+
+Warmstarting Model Using Parameters from a Different Model.
+
+Save:
+
+Load:
+
+Partially loading a model or loading a partial model are common scenarios when transfer learning or training a new complex model. Leveraging trained parameters, even if only a few are usable, will help to warmstart the training process and hopefully help your model converge much faster than training from scratch.
+
+Whether you are loading from a partial state_dict, which is missing some keys, or loading a state_dict with more keys than the model that you are loading into, you can set the <code> argument to False in the <code> function to ignore non-matching keys.
+
+If you want to load parameters from one layer to another, but some keys do not match, simply change the name of the parameter keys in the state_dict that you are loading to match the keys in the model that you are loading into.
+
+Saving & Loading Model Across Devices.
+
+Save on GPU, Load on CPU.
+
+Save:
+
+Load:
+
+When loading a model on a CPU that was trained with a GPU, pass <code> to the <code> argument in the <code> function. In this case, the storages underlying the tensors are dynamically remapped to the CPU device using the <code> argument.
+
+Save on GPU, Load on GPU.
+
+Save:
+
+Load:
+
+When loading a model on a GPU that was trained and saved on GPU, simply convert the initialized <code> to a CUDA optimized model using <code>. Also, be sure to use the <code> function on all model inputs to prepare the data for the model. Note that calling <code> returns a new copy of <code> on GPU. It does NOT overwrite <code>. Therefore, remember to manually overwrite tensors: <code>.
+
+Save on CPU, Load on GPU.
+
+Save:
+
+Load:
+
+When loading a model on a GPU that was trained and saved on CPU, set the <code> argument in the <code> function to <code>. This loads the model to a given GPU device. Next, be sure to call <code> to convert the model’s parameter tensors to CUDA tensors. Finally, be sure to use the <code> function on all model inputs to prepare the data for the CUDA optimized model. Note that calling <code> returns a new copy of <code> on GPU. It does NOT overwrite <code>. Therefore, remember to manually overwrite tensors: <code>.
+
+Saving <code> Models.
+
+Save:
+
+Load:
+
+<code> is a model wrapper that enables parallel GPU utilization. To save a <code> model generically, save the <code>. This way, you have the flexibility to load the model any way you want to any device you want.

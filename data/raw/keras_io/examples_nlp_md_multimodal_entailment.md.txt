@@ -1,0 +1,285 @@
+Multimodal entailment.
+
+Introduction.
+
+In this example, we will build and train a model for predicting multimodal entailment. We will be using the multimodal entailment dataset recently introduced by Google Research.
+
+What is multimodal entailment?
+
+On social media platforms, to audit and moderate content we may want to find answers to the following questions in near real-time:
+
+Does a given piece of information contradict the other?
+
+Does a given piece of information imply the other?
+
+In NLP, this task is called analyzing textual entailment. However, that's only when the information comes from text content. In practice, it's often the case the information available comes not just from text content, but from a multimodal combination of text, images, audio, video, etc. Multimodal entailment is simply the extension of textual entailment to a variety of new input modalities.
+
+Requirements.
+
+This example requires TensorFlow 2.5 or higher. In addition, TensorFlow Hub and TensorFlow Text are required for the BERT model (Devlin et al.). These libraries can be installed using the following command:
+
+Imports.
+
+Define a label map.
+
+Collect the dataset.
+
+The original dataset is available here. It comes with URLs of images which are hosted on Twitter's photo storage system called the Photo Blob Storage (PBS for short). We will be working with the downloaded images along with additional data that comes with the original dataset. Thanks to Nilabhra Roy Chowdhury who worked on preparing the image data.
+
+Read the dataset and apply basic preprocessing.
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+id1 text1 image1 id2 text2 image2 label.
+
+815 1370730009921343490 Sticky bombs are a threat as they have magnets...
+
+1370731764906295307 Sticky bombs are a threat as they have magnets...
+
+NoEntailment.
+
+615 1364119737446395905 Daily Horoscope for #Cancer 2.23.21 ♊️❤️✨ #Hor...
+
+1365218087906078720 Daily Horoscope for #Cancer 2.26.21 ♊️❤️✨ #Hor...
+
+NoEntailment.
+
+624 1335542260923068417 The Reindeer Run is back and this year's run i...
+
+1335872932267122689 Get your red nose and antlers on for the 2020 ...
+
+NoEntailment.
+
+970 1345058844439949312 Participants needed for online survey!\n\nTopi...
+
+1361211461792632835 Participants needed for top-ranked study on Su...
+
+NoEntailment.
+
+456 1379831489043521545 comission for @NanoBiteTSF \nenjoyed bros and ...
+
+1380660763749142531 another comission for @NanoBiteTSF \nhope you ...
+
+NoEntailment.
+
+917 1336180735191891968 (2/10)\n(Seoul Jung-gu) Market cluster -&gt;\n...
+
+1356113330536996866 (3/11)\n(Seoul Dongdaemun-gu) Goshitel cluster...
+
+NoEntailment.
+
+276 1339270210029834241 Today the message of freedom goes to Kisoro, R...
+
+1340881971132698625 Today the message of freedom is going to the p...
+
+Implies.
+
+35 1360186999836200961 Bitcoin in Argentina - Google Trends.
+
+1382778703055228929 Argentina wants #Bitcoin.
+
+Implies.
+
+762 1370824756400959491 $HSBA.L: The long term trend is positive and t...
+
+1374347458126475269 Although the technical rating is only medium, ...
+
+NoEntailment.
+
+130 1373789433607172097 I've just watched episode S01 | E05 of Ted Las...
+
+1374913509662806016 I've just watched episode S01 | E06 of Ted Las...
+
+Contradictory.
+
+The columns we are interested in are the following:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+The entailment task is formulated as the following:
+
+Given the pairs of (<code>, <code>) and (<code>, <code>) do they entail (or not entail or contradict) each other?
+
+We have the images already downloaded. <code> is downloaded as <code> as its filename and <code> is downloaded as <code> as its filename. In the next step, we will add two more columns to <code> - filepaths of <code>s and <code>s.
+
+Dataset visualization.
+
+Train/test split.
+
+The dataset suffers from class imbalance problem. We can confirm that in the following cell.
+
+To account for that we will go for a stratified split.
+
+Data input pipeline.
+
+Keras Hub provides variety of BERT family of models. Each of those models comes with a corresponding preprocessing layer. You can learn more about these models and their preprocessing layers from this resource.
+
+To keep the runtime of this example relatively short, we will use a base_unacased variant of the original BERT model.
+
+text preprocessing using KerasHub.
+
+Run the preprocessor on a sample input.
+
+We will now create <code> objects from the dataframes.
+
+Note that the text inputs will be preprocessed as a part of the data input pipeline. But the preprocessing modules can also be a part of their corresponding BERT models. This helps reduce the training/serving skew and lets our models operate with raw text inputs. Follow this tutorial to learn more about how to incorporate the preprocessing modules directly inside the models.
+
+Preprocessing utilities.
+
+Create the final datasets, method adapted from PyDataset doc string.
+
+Create train, validation and test datasets.
+
+Model building utilities.
+
+Our final model will accept two images along with their text counterparts. While the images will be directly fed to the model the text inputs will first be preprocessed and then will make it into the model. Below is a visual illustration of this approach:
+
+The model consists of the following elements:
+
+A standalone encoder for the images. We will use a ResNet50V2 pre-trained on the ImageNet-1k dataset for this.
+
+A standalone encoder for the images. A pre-trained BERT will be used for this.
+
+After extracting the individual embeddings, they will be projected in an identical space. Finally, their projections will be concatenated and be fed to the final classification layer.
+
+This is a multi-class classification problem involving the following classes:
+
+NoEntailment.
+
+Implies.
+
+Contradictory.
+
+<code>, <code>, and <code> utilities are referred from this example.
+
+Projection utilities.
+
+Vision encoder utilities.
+
+Text encoder utilities.
+
+Multimodal model utilities.
+
+You can inspect the structure of the individual encoders as well by setting the <code> argument of <code> to <code>. You are encouraged to play with the different hyperparameters involved in building this model and observe how the final performance is affected.
+
+Compile and train the model.
+
+1/27 37m━━━━━━━━━━━━━━━━━━━━ 45:45 106s/step - accuracy: 0.0625 - loss: 1.6335.
+
+2/27 ━[37m━━━━━━━━━━━━━━━━━━━ 42:14 101s/step - accuracy: 0.2422 - loss: 1.9508.
+
+3/27 ━━[37m━━━━━━━━━━━━━━━━━━ 38:49 97s/step - accuracy: 0.3524 - loss: 2.0126.
+
+4/27 ━━[37m━━━━━━━━━━━━━━━━━━ 37:09 97s/step - accuracy: 0.4284 - loss: 1.9870.
+
+5/27 ━━━[37m━━━━━━━━━━━━━━━━━ 35:08 96s/step - accuracy: 0.4815 - loss: 1.9855.
+
+6/27 ━━━━[37m━━━━━━━━━━━━━━━━ 31:56 91s/step - accuracy: 0.5210 - loss: 1.9939.
+
+7/27 ━━━━━[37m━━━━━━━━━━━━━━━ 29:30 89s/step - accuracy: 0.5512 - loss: 1.9980.
+
+8/27 ━━━━━[37m━━━━━━━━━━━━━━━ 27:12 86s/step - accuracy: 0.5750 - loss: 2.0061.
+
+9/27 ━━━━━━[37m━━━━━━━━━━━━━━ 25:15 84s/step - accuracy: 0.5956 - loss: 1.9959.
+
+10/27 ━━━━━━━[37m━━━━━━━━━━━━━ 23:33 83s/step - accuracy: 0.6120 - loss: 1.9738.
+
+11/27 ━━━━━━━━[37m━━━━━━━━━━━━ 22:09 83s/step - accuracy: 0.6251 - loss: 1.9579.
+
+12/27 ━━━━━━━━[37m━━━━━━━━━━━━ 20:59 84s/step - accuracy: 0.6357 - loss: 1.9524.
+
+13/27 ━━━━━━━━━[37m━━━━━━━━━━━ 19:44 85s/step - accuracy: 0.6454 - loss: 1.9439.
+
+14/27 ━━━━━━━━━━[37m━━━━━━━━━━ 18:22 85s/step - accuracy: 0.6540 - loss: 1.9346.
+
+15/27 ━━━━━━━━━━━[37m━━━━━━━━━ 16:52 84s/step - accuracy: 0.6621 - loss: 1.9213.
+
+16/27 ━━━━━━━━━━━[37m━━━━━━━━━ 15:29 85s/step - accuracy: 0.6693 - loss: 1.9101.
+
+17/27 ━━━━━━━━━━━━[37m━━━━━━━━ 14:08 85s/step - accuracy: 0.6758 - loss: 1.9021.
+
+18/27 ━━━━━━━━━━━━━[37m━━━━━━━ 12:45 85s/step - accuracy: 0.6819 - loss: 1.8916.
+
+19/27 ━━━━━━━━━━━━━━[37m━━━━━━ 11:24 86s/step - accuracy: 0.6874 - loss: 1.8851.
+
+20/27 ━━━━━━━━━━━━━━[37m━━━━━━ 10:00 86s/step - accuracy: 0.6925 - loss: 1.8791.
+
+21/27 ━━━━━━━━━━━━━━━[37m━━━━━ 8:36 86s/step - accuracy: 0.6976 - loss: 1.8699.
+
+22/27 ━━━━━━━━━━━━━━━━[37m━━━━ 7:11 86s/step - accuracy: 0.7020 - loss: 1.8623.
+
+23/27 ━━━━━━━━━━━━━━━━━[37m━━━ 5:46 87s/step - accuracy: 0.7061 - loss: 1.8573.
+
+24/27 ━━━━━━━━━━━━━━━━━[37m━━━ 4:20 87s/step - accuracy: 0.7100 - loss: 1.8534.
+
+25/27 ━━━━━━━━━━━━━━━━━━[37m━━ 2:54 87s/step - accuracy: 0.7136 - loss: 1.8494.
+
+26/27 ━━━━━━━━━━━━━━━━━━━[37m━ 1:27 87s/step - accuracy: 0.7170 - loss: 1.8449.
+
+27/27 ━━━━━━━━━━━━━━━━━━━━ 0s 88s/step - accuracy: 0.7201 - loss: 1.8414.
+
+27/27 ━━━━━━━━━━━━━━━━━━━━ 2508s 92s/step - accuracy: 0.7231 - loss: 1.8382 - valaccuracy: 0.8222 - valloss: 1.7304.
+
+Evaluate the model.
+
+1/4 ━━━━━[37m━━━━━━━━━━━━━━━ 5:32 111s/step - accuracy: 0.7812 - loss: 1.9384.
+
+2/4 ━━━━━━━━━━[37m━━━━━━━━━━ 2:10 65s/step - accuracy: 0.7969 - loss: 1.8931.
+
+3/4 ━━━━━━━━━━━━━━━[37m━━━━━ 1:05 65s/step - accuracy: 0.8056 - loss: 1.8200.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 49s/step - accuracy: 0.8092 - loss: 1.8075.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 256s 49s/step - accuracy: 0.8113 - loss: 1.8000.
+
+Additional notes regarding training.
+
+Incorporating regularization:
+
+The training logs suggest that the model is starting to overfit and may have benefitted from regularization. Dropout ([Srivastava et al.) is a simple yet powerful regularization technique that we can use in our model. But how should we apply it here?
+
+We could always introduce Dropout (<code>) in between different layers of the model. But here is another recipe. Our model expects inputs from two different data modalities. What if either of the modalities is not present during inference? To account for this, we can introduce Dropout to the individual projections just before they get concatenated:
+
+Attending to what matters:
+
+Do all parts of the images correspond equally to their textual counterparts? It's likely not the case. To make our model only focus on the most important bits of the images that relate well to their corresponding textual parts we can use "cross-attention":
+
+To see this in action, refer to this notebook.
+
+Handling class imbalance:
+
+The dataset suffers from class imbalance. Investigating the confusion matrix of the above model reveals that it performs poorly on the minority classes. If we had used a weighted loss then the training would have been more guided. You can check out this notebook that takes class-imbalance into account during model training.
+
+Using only text inputs:
+
+Also, what if we had only incorporated text inputs for the entailment task? Because of the nature of the text inputs encountered on social media platforms, text inputs alone would have hurt the final performance. Under a similar training setup, by only using text inputs we get to 67.14% top-1 accuracy on the same test set. Refer to this notebook for details.
+
+Finally, here is a table comparing different approaches taken for the entailment task:
+
+You can check out this repository to learn more about how the experiments were conducted to obtain these numbers.
+
+Final remarks.
+
+The architecture we used in this example is too large for the number of data points available for training. It's going to benefit from more data.
+
+We used a smaller variant of the original BERT model. Chances are high that with a larger variant, this performance will be improved. TensorFlow Hub provides a number of different BERT models that you can experiment with.
+
+We kept the pre-trained models frozen. Fine-tuning them on the multimodal entailment task would could resulted in better performance.
+
+We built a simple baseline model for the multimodal entailment task. There are various approaches that have been proposed to tackle the entailment problem. This presentation deck from the Recognizing Multimodal Entailment tutorial provides a comprehensive overview.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 9: ConvNet architecture patterns.
+
+Chapter 14: Text classification.

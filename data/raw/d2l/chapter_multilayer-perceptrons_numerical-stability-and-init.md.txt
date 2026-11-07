@@ -1,0 +1,93 @@
+Numerical Stability and Initialization.
+
+Thus far, every model that we have implemented required that we initialize its parameters according to some pre-specified distribution. Until now, we took the initialization scheme for granted, glossing over the details of how these choices are made. You might have even gotten the impression that these choices are not especially important. On the contrary, the choice of initialization scheme plays a significant role in neural network learning, and it can be crucial for maintaining numerical stability. Moreover, these choices can be tied up in interesting ways with the choice of the nonlinear activation function. Which function we choose and how we initialize parameters can determine how quickly our optimization algorithm converges. Poor choices here can cause us to encounter exploding or vanishing gradients while training. In this section, we delve into these topics in greater detail and discuss some useful heuristics that you will find useful throughout your career in deep learning.
+
+Vanishing and Exploding Gradients.
+
+Consider a deep network with <math> layers, input <math> and output <math>. With each layer <math> defined by a transformation <math> parametrized by weights <math>, whose hidden layer output is <math> (let <math>), our network can be expressed as:
+
+<math>.
+
+If all the hidden layer output and the input are vectors, we can write the gradient of <math> with respect to any set of parameters <math> as follows:
+
+<math>.
+
+In other words, this gradient is the product of <math> matrices <math> and the gradient vector <math>. Thus we are susceptible to the same problems of numerical underflow that often crop up when multiplying together too many probabilities. When dealing with probabilities, a common trick is to switch into log-space, i.e., shifting pressure from the mantissa to the exponent of the numerical representation. Unfortunately, our problem above is more serious: initially the matrices <math> may have a wide variety of eigenvalues. They might be small or large, and their product might be very large or very small.
+
+The risks posed by unstable gradients go beyond numerical representation. Gradients of unpredictable magnitude also threaten the stability of our optimization algorithms. We may be facing parameter updates that are either (i) excessively large, destroying our model (the exploding gradient problem); or (ii) excessively small (the vanishing gradient problem), rendering learning impossible as parameters hardly move on each update.
+
+(Vanishing Gradients).
+
+One frequent culprit causing the vanishing gradient problem is the choice of the activation function <math> that is appended following each layer's linear operations. Historically, the sigmoid function <math> (introduced in section <num>) was popular because it resembles a thresholding function. Since early artificial neural networks were inspired by biological neural networks, the idea of neurons that fire either fully or not at all (like biological neurons) seemed appealing. Let's take a closer look at the sigmoid to see why it can cause vanishing gradients.
+
+As you can see, (the sigmoid's gradient vanishes both when its inputs are large and when they are small). Moreover, when backpropagating through many layers, unless we are in the Goldilocks zone, where the inputs to many of the sigmoids are close to zero, the gradients of the overall product may vanish. When our network boasts many layers, unless we are careful, the gradient will likely be cut off at some layer. Indeed, this problem used to plague deep network training. Consequently, ReLUs, which are more stable (but less neurally plausible), have emerged as the default choice for practitioners.
+
+[Exploding Gradients].
+
+The opposite problem, when gradients explode, can be similarly vexing. To illustrate this a bit better, we draw 100 Gaussian random matrices and multiply them with some initial matrix. For the scale that we picked (the choice of the variance <math>), the matrix product explodes. When this happens because of the initialization of a deep network, we have no chance of getting a gradient descent optimizer to converge.
+
+Breaking the Symmetry.
+
+Another problem in neural network design is the symmetry inherent in their parametrization. Assume that we have a simple MLP with one hidden layer and two units. In this case, we could permute the weights <math> of the first layer and likewise permute the weights of the output layer to obtain the same function. There is nothing special differentiating the first and second hidden units. In other words, we have permutation symmetry among the hidden units of each layer.
+
+This is more than just a theoretical nuisance. Consider the aforementioned one-hidden-layer MLP with two hidden units. For illustration, suppose that the output layer transforms the two hidden units into only one output unit. Imagine what would happen if we initialized all the parameters of the hidden layer as <math> for some constant <math>. In this case, during forward propagation either hidden unit takes the same inputs and parameters producing the same activation which is fed to the output unit. During backpropagation, differentiating the output unit with respect to parameters <math> gives a gradient all of whose elements take the same value. Thus, after gradient-based iteration (e.g., minibatch stochastic gradient descent), all the elements of <math> still take the same value. Such iterations would never break the symmetry on their own and we might never be able to realize the network's expressive power. The hidden layer would behave as if it had only a single unit. Note that while minibatch stochastic gradient descent would not break this symmetry, dropout regularization (to be introduced later) would!
+
+Parameter Initialization.
+
+One way of addressing---or at least mitigating---the issues raised above is through careful initialization. As we will see later, additional care during optimization and suitable regularization can further enhance stability.
+
+Default Initialization.
+
+In the previous sections, e.g., in section <num>, we used a normal distribution to initialize the values of our weights. If we do not specify the initialization method, the framework will use a default random initialization method, which often works well in practice for moderate problem sizes.
+
+Xavier Initialization.
+
+Let's look at the scale distribution of an output <math> for some fully connected layer without nonlinearities. With <math> inputs <math> and their associated weights <math> for this layer, an output is given by.
+
+<math>.
+
+The weights <math> are all drawn independently from the same distribution. Furthermore, let's assume that this distribution has zero mean and variance <math>. Note that this does not mean that the distribution has to be Gaussian, just that the mean and variance need to exist. For now, let's assume that the inputs to the layer <math> also have zero mean and variance <math> and that they are independent of <math> and independent of each other. In this case, we can compute the mean of <math>:
+
+<math>.
+
+and the variance:
+
+<math>.
+
+One way to keep the variance fixed is to set <math>. Now consider backpropagation. There we face a similar problem, albeit with gradients being propagated from the layers closer to the output. Using the same reasoning as for forward propagation, we see that the gradients' variance can blow up unless <math>, where <math> is the number of outputs of this layer. This leaves us in a dilemma: we cannot possibly satisfy both conditions simultaneously. Instead, we simply try to satisfy:
+
+<math>.
+
+This is the reasoning underlying the now-standard and practically beneficial Xavier initialization, named after the first author of its creators . Typically, the Xavier initialization samples weights from a Gaussian distribution with zero mean and variance <math>. We can also adapt this to choose the variance when sampling weights from a uniform distribution. Note that the uniform distribution <math> has variance <math>. Plugging <math> into our condition on <math> prompts us to initialize according to.
+
+<math>.
+
+Though the assumption for nonexistence of nonlinearities in the above mathematical reasoning can be easily violated in neural networks, the Xavier initialization method turns out to work well in practice.
+
+Beyond.
+
+The reasoning above barely scratches the surface of modern approaches to parameter initialization. A deep learning framework often implements over a dozen different heuristics. Moreover, parameter initialization continues to be a hot area of fundamental research in deep learning. Among these are heuristics specialized for tied (shared) parameters, super-resolution, sequence models, and other situations. For instance, demonstrated the possibility of training 10,000-layer neural networks without architectural tricks by using a carefully-designed initialization method.
+
+If the topic interests you we suggest a deep dive into this module's offerings, reading the papers that proposed and analyzed each heuristic, and then exploring the latest publications on the topic. Perhaps you will stumble across or even invent a clever idea and contribute an implementation to deep learning frameworks.
+
+Summary.
+
+Vanishing and exploding gradients are common issues in deep networks. Great care in parameter initialization is required to ensure that gradients and parameters remain well controlled. Initialization heuristics are needed to ensure that the initial gradients are neither too large nor too small. Random initialization is key to ensuring that symmetry is broken before optimization. Xavier initialization suggests that, for each layer, variance of any output is not affected by the number of inputs, and variance of any gradient is not affected by the number of outputs. ReLU activation functions mitigate the vanishing gradient problem. This can accelerate convergence.
+
+Exercises.
+
+Can you design other cases where a neural network might exhibit symmetry that needs breaking, besides the permutation symmetry in an MLP's layers?
+
+Can we initialize all weight parameters in linear regression or in softmax regression to the same value?
+
+Look up analytic bounds on the eigenvalues of the product of two matrices. What does this tell you about ensuring that gradients are well conditioned?
+
+If we know that some terms diverge, can we fix this after the fact? Look at the paper on layerwise adaptive rate scaling for inspiration .
+
+Discussions.
+
+Discussions.
+
+Discussions.
+
+Discussions.

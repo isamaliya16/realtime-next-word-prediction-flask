@@ -1,0 +1,25 @@
+End-of-chapter quiz.
+
+Let's test what you learned in this chapter!
+
+1. When should you train a new tokenizer?
+
+2. What is the advantage of using a generator of lists of texts compared to a list of lists of texts when using <code>?
+
+trainnewfrom_iterator()</code> accepts.", explain: "A list of lists of texts is a particular kind of generator of lists of texts, so the method will accept this too. Try again!" }, { text: "You will avoid loading the whole dataset into memory at once.", explain: "Right! Each batch of texts will be released from memory when you iterate, and the gain will be especially visible if you use 🤗 Datasets to store your texts.", correct: true }, { text: "This will allow the 🤗 Tokenizers library to use multiprocessing.", explain: "No, it will use multiprocessing either way." }, { text: "The tokenizer you train will generate better texts.", explain: "The tokenizer does not generate text -- are you confusing it with a language model?" } ]} />.
+
+3. What are the advantages of using a "fast" tokenizer?
+
+4. How does the <code> pipeline handle entities that span over several tokens?
+
+5. How does the <code> pipeline handle long contexts?
+
+6. What is normalization?
+
+7. What is pre-tokenization for a subword tokenizer?
+
+8. Select the sentences that apply to the BPE model of tokenization.
+
+9. Select the sentences that apply to the WordPiece model of tokenization.
+
+10. Select the sentences that apply to the Unigram model of tokenization.

@@ -1,0 +1,69 @@
+Image Super-Resolution using an Efficient Sub-Pixel CNN.
+
+Introduction.
+
+ESPCN (Efficient Sub-Pixel CNN), proposed by Shi, 2016 is a model that reconstructs a high-resolution version of an image given a low-resolution version. It leverages efficient "sub-pixel convolution" layers, which learns an array of image upscaling filters.
+
+In this code example, we will implement the model from the paper and train it on a small dataset, BSDS500. BSDS500.
+
+Setup.
+
+Load data: BSDS500 dataset.
+
+Download dataset.
+
+We use the built-in <code> utility to retrieve the dataset.
+
+We create training and validation datasets via <code>.
+
+We rescale the images to take values in the range [0, 1].
+
+Let's visualize a few sample images:
+
+We prepare a dataset of test image paths that we will use for visual evaluation at the end of this example.
+
+Crop and resize images.
+
+Let's process image data. First, we convert our images from the RGB color space to the YUV colour space.
+
+For the input data (low-resolution images), we crop the image, retrieve the <code> channel (luninance), and resize it with the <code> method (use <code> if you use PIL). We only consider the luminance channel in the YUV color space because humans are more sensitive to luminance change.
+
+For the target data (high-resolution images), we just crop the image and retrieve the <code> channel.
+
+Let's take a look at the input and target data.
+
+Build a model.
+
+Compared to the paper, we add one more layer and we use the <code> activation function instead of <code>. It achieves better performance even though we train the model for fewer epochs.
+
+Define utility functions.
+
+We need to define several utility functions to monitor our results:
+
+<code> to plot an save an image.
+
+<code> to convert an image to its low-resolution version.
+
+<code> to turn a low-resolution image to a high-resolution version reconstructed by the model. In this function, we use the <code> channel from the YUV color space as input to the model and then combine the output with the other channels to obtain an RGB image.
+
+Define callbacks to monitor training.
+
+The <code> object will compute and display the PSNR metric. This is the main metric we use to evaluate super-resolution performance.
+
+Define <code> and <code> callbacks.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ inputlayer ( InputLayer ) │ ( None , None , None , 1 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d ( Conv2D ) │ ( None , None , None , 64 ) │ 1,664 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d1 ( Conv2D ) │ ( None , None , None , 64 ) │ 36,928 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d2 ( Conv2D ) │ ( None , None , None , 32 ) │ 18,464 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d3 ( Conv2D ) │ ( None , None , None , 9 ) │ 2,601 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ depthtospace ( DepthToSpace ) │ ( None , None , None , 1 ) │ 0 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 59,657 (233.04 KB).
+
+Trainable params: 59,657 (233.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Train the model.
+
+Run model prediction and plot the results.
+
+Let's compute the reconstructed version of a few images and save the results.

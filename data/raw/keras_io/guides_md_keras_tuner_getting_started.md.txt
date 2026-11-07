@@ -1,0 +1,351 @@
+Getting started with KerasTuner.
+
+Introduction.
+
+KerasTuner is a general-purpose hyperparameter tuning library. It has strong integration with Keras workflows, but it isn't limited to them: you could use it to tune scikit-learn models, or anything else. In this tutorial, you will see how to tune model architecture, training process, and data preprocessing steps with KerasTuner. Let's start from a simple example.
+
+Tune the model architecture.
+
+The first thing we need to do is writing a function, which returns a compiled Keras model. It takes an argument <code> for defining the hyperparameters while building the model.
+
+Define the search space.
+
+In the following code example, we define a Keras model with two <code> layers. We want to tune the number of units in the first <code> layer. We just define an integer hyperparameter with <code>, whose range is from 32 to 512 inclusive. When sampling from it, the minimum step for walking through the interval is 32.
+
+You can quickly test if the model builds successfully.
+
+There are many other types of hyperparameters as well. We can define multiple hyperparameters in the function. In the following code, we tune whether to use a <code> layer with <code>, tune which activation function to use with <code>, tune the learning rate of the optimizer with <code>.
+
+As shown below, the hyperparameters are actual values. In fact, they are just functions returning actual values. For example, <code> returns an <code> value. Therefore, you can put them into variables, for loops, or if conditions.
+
+You can also define the hyperparameters in advance and keep your Keras code in a separate function.
+
+Each of the hyperparameters is uniquely identified by its name (the first argument). To tune the number of units in different <code> layers separately as different hyperparameters, we give them different names as <code>.
+
+Notably, this is also an example of creating conditional hyperparameters. There are many hyperparameters specifying the number of units in the <code> layers. The number of such hyperparameters is decided by the number of layers, which is also a hyperparameter. Therefore, the total number of hyperparameters used may be different from trial to trial. Some hyperparameter is only used when a certain condition is satisfied. For example, <code> is only used when <code> is larger than 3. With KerasTuner, you can easily define such hyperparameters dynamically while creating the model.
+
+Start the search.
+
+After defining the search space, we need to select a tuner class to run the search. You may choose from <code>, <code> and <code>, which correspond to different tuning algorithms. Here we use <code> as an example.
+
+To initialize the tuner, we need to specify several arguments in the initializer.
+
+<code>. The model-building function, which is <code> in our case.
+
+<code>. The name of the objective to optimize (whether to minimize or maximize is automatically inferred for built-in metrics). We will introduce how to use custom metrics later in this tutorial.
+
+<code>. The total number of trials to run during the search.
+
+<code>. The number of models that should be built and fit for each trial. Different trials have different hyperparameter values. The executions within the same trial have the same hyperparameter values. The purpose of having multiple executions per trial is to reduce results variance and therefore be able to more accurately assess the performance of a model. If you want to get results faster, you could set <code> (single round of training for each model configuration).
+
+<code>. Control whether to overwrite the previous results in the same directory or resume the previous search instead. Here we set <code> to start a new search and ignore any previous results.
+
+<code>. A path to a directory for storing the search results.
+
+<code>. The name of the sub-directory in the <code>.
+
+You can print a summary of the search space:
+
+Before starting the search, let's prepare the MNIST dataset.
+
+Then, start the search for the best hyperparameter configuration. All the arguments passed to <code> is passed to <code> in each execution. Remember to pass <code> to evaluate the model.
+
+During the <code>, the model-building function is called with different hyperparameter values in different trial. In each trial, the tuner would generate a new set of hyperparameter values to build the model. The model is then fit and evaluated. The metrics are recorded. The tuner progressively explores the space and finally finds a good set of hyperparameter values.
+
+Query the results.
+
+When search is over, you can retrieve the best model(s). The model is saved at its best performing epoch evaluated on the <code>.
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ flatten ( Flatten ) │ ( 32 , 784 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( 32 , 416 ) │ 326,560 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense1 ( Dense ) │ ( 32 , 512 ) │ 213,504 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense2 ( Dense ) │ ( 32 , 32 ) │ 16,416 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( 32 , 32 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense_3 ( Dense ) │ ( 32 , 10 ) │ 330 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 556,810 (2.12 MB).
+
+Trainable params: 556,810 (2.12 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+You can also print a summary of the search results.
+
+You will find detailed logs, checkpoints, etc, in the folder <code>, i.e. <code>.
+
+You can also visualize the tuning results using TensorBoard and HParams plugin. For more information, please following this link.
+
+Retrain the model.
+
+If you want to train the model with the entire dataset, you may retrieve the best hyperparameters and retrain the model by yourself.
+
+1/1875 37m━━━━━━━━━━━━━━━━━━━━ 17:57 575ms/step - accuracy: 0.1250 - loss: 2.3113.
+
+29/1875 [37m━━━━━━━━━━━━━━━━━━━━ 3s 2ms/step - accuracy: 0.1753 - loss: 2.2296.
+
+63/1875 [37m━━━━━━━━━━━━━━━━━━━━ 3s 2ms/step - accuracy: 0.2626 - loss: 2.1206.
+
+96/1875 ━[37m━━━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.3252 - loss: 2.0103.
+
+130/1875 ━[37m━━━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.3745 - loss: 1.9041.
+
+164/1875 ━[37m━━━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.4139 - loss: 1.8094.
+
+199/1875 ━━[37m━━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.4470 - loss: 1.7246.
+
+235/1875 ━━[37m━━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.4752 - loss: 1.6493.
+
+270/1875 ━━[37m━━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.4982 - loss: 1.5857.
+
+305/1875 ━━━[37m━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.5182 - loss: 1.5293.
+
+339/1875 ━━━[37m━━━━━━━━━━━━━━━━━ 2s 2ms/step - accuracy: 0.5354 - loss: 1.4800.
+
+374/1875 ━━━[37m━━━━━━━━━━━━━━━━━ 2s 1ms/step - accuracy: 0.5513 - loss: 1.4340.
+
+409/1875 ━━━━[37m━━━━━━━━━━━━━━━━ 2s 1ms/step - accuracy: 0.5656 - loss: 1.3924.
+
+444/1875 ━━━━[37m━━━━━━━━━━━━━━━━ 2s 1ms/step - accuracy: 0.5785 - loss: 1.3545.
+
+478/1875 ━━━━━[37m━━━━━━━━━━━━━━━ 2s 1ms/step - accuracy: 0.5899 - loss: 1.3208.
+
+513/1875 ━━━━━[37m━━━━━━━━━━━━━━━ 2s 1ms/step - accuracy: 0.6006 - loss: 1.2887.
+
+548/1875 ━━━━━[37m━━━━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6104 - loss: 1.2592.
+
+583/1875 ━━━━━━[37m━━━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6195 - loss: 1.2318.
+
+618/1875 ━━━━━━[37m━━━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6279 - loss: 1.2063.
+
+653/1875 ━━━━━━[37m━━━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6358 - loss: 1.1823.
+
+688/1875 ━━━━━━━[37m━━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6431 - loss: 1.1598.
+
+723/1875 ━━━━━━━[37m━━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6500 - loss: 1.1387.
+
+758/1875 ━━━━━━━━[37m━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6564 - loss: 1.1189.
+
+793/1875 ━━━━━━━━[37m━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6625 - loss: 1.1002.
+
+828/1875 ━━━━━━━━[37m━━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6682 - loss: 1.0826.
+
+863/1875 ━━━━━━━━━[37m━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6736 - loss: 1.0658.
+
+899/1875 ━━━━━━━━━[37m━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6788 - loss: 1.0495.
+
+935/1875 ━━━━━━━━━[37m━━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6838 - loss: 1.0339.
+
+970/1875 ━━━━━━━━━━[37m━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6885 - loss: 1.0195.
+
+1005/1875 ━━━━━━━━━━[37m━━━━━━━━━━ 1s 1ms/step - accuracy: 0.6929 - loss: 1.0058.
+
+1041/1875 ━━━━━━━━━━━[37m━━━━━━━━━ 1s 1ms/step - accuracy: 0.6972 - loss: 0.9923.
+
+1076/1875 ━━━━━━━━━━━[37m━━━━━━━━━ 1s 1ms/step - accuracy: 0.7012 - loss: 0.9798.
+
+1111/1875 ━━━━━━━━━━━[37m━━━━━━━━━ 1s 1ms/step - accuracy: 0.7051 - loss: 0.9677.
+
+1146/1875 ━━━━━━━━━━━━[37m━━━━━━━━ 1s 1ms/step - accuracy: 0.7088 - loss: 0.9561.
+
+1182/1875 ━━━━━━━━━━━━[37m━━━━━━━━ 1s 1ms/step - accuracy: 0.7124 - loss: 0.9446.
+
+1218/1875 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 1ms/step - accuracy: 0.7159 - loss: 0.9336.
+
+1254/1875 ━━━━━━━━━━━━━[37m━━━━━━━ 0s 1ms/step - accuracy: 0.7193 - loss: 0.9230.
+
+1289/1875 ━━━━━━━━━━━━━[37m━━━━━━━ 0s 1ms/step - accuracy: 0.7225 - loss: 0.9131.
+
+1324/1875 ━━━━━━━━━━━━━━[37m━━━━━━ 0s 1ms/step - accuracy: 0.7255 - loss: 0.9035.
+
+1359/1875 ━━━━━━━━━━━━━━[37m━━━━━━ 0s 1ms/step - accuracy: 0.7284 - loss: 0.8943.
+
+1394/1875 ━━━━━━━━━━━━━━[37m━━━━━━ 0s 1ms/step - accuracy: 0.7313 - loss: 0.8853.
+
+1429/1875 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 1ms/step - accuracy: 0.7341 - loss: 0.8767.
+
+1465/1875 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 1ms/step - accuracy: 0.7368 - loss: 0.8680.
+
+1500/1875 ━━━━━━━━━━━━━━━━[37m━━━━ 0s 1ms/step - accuracy: 0.7394 - loss: 0.8599.
+
+1535/1875 ━━━━━━━━━━━━━━━━[37m━━━━ 0s 1ms/step - accuracy: 0.7419 - loss: 0.8520.
+
+1570/1875 ━━━━━━━━━━━━━━━━[37m━━━━ 0s 1ms/step - accuracy: 0.7443 - loss: 0.8444.
+
+1605/1875 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 1ms/step - accuracy: 0.7467 - loss: 0.8370.
+
+1639/1875 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 1ms/step - accuracy: 0.7489 - loss: 0.8299.
+
+1674/1875 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 1ms/step - accuracy: 0.7511 - loss: 0.8229.
+
+1707/1875 ━━━━━━━━━━━━━━━━━━[37m━━ 0s 1ms/step - accuracy: 0.7532 - loss: 0.8164.
+
+1741/1875 ━━━━━━━━━━━━━━━━━━[37m━━ 0s 1ms/step - accuracy: 0.7552 - loss: 0.8099.
+
+1774/1875 ━━━━━━━━━━━━━━━━━━[37m━━ 0s 1ms/step - accuracy: 0.7572 - loss: 0.8038.
+
+1809/1875 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 1ms/step - accuracy: 0.7592 - loss: 0.7975.
+
+1843/1875 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 1ms/step - accuracy: 0.7611 - loss: 0.7915.
+
+1875/1875 ━━━━━━━━━━━━━━━━━━━━ 3s 1ms/step - accuracy: 0.7629 - loss: 0.7858.
+
+Tune model training.
+
+To tune the model building process, we need to subclass the <code> class, which also makes it easy to share and reuse hypermodels.
+
+We need to override <code> and <code> to tune the model building and training process respectively. A <code> method is the same as the model-building function, which creates a Keras model using the hyperparameters and returns it.
+
+In <code>, you can access the model returned by <code>,<code> and all the arguments passed to <code>. You need to train the model and return the training history.
+
+In the following code, we will tune the <code> argument in <code>.
+
+It is generally not needed to tune the number of epochs because a built-in callback is passed to <code> to save the model at its best epoch evaluated by the <code>. Note: The <code> should always be passed to <code> because it contains the callbacks for model saving and tensorboard plugins.
+
+Again, we can do a quick check to see if the code works correctly.
+
+1/4 ━━━━━[37m━━━━━━━━━━━━━━━ 0s 279ms/step - accuracy: 0.0000e+00 - loss: 12.2230.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 108ms/step - accuracy: 0.0679 - loss: 11.9568.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 109ms/step - accuracy: 0.0763 - loss: 11.8941.
+
+Tune data preprocessing.
+
+To tune data preprocessing, we just add an additional step in <code>, where we can access the dataset from the arguments. In the following code, we tune whether to normalize the data before training the model. This time we explicitly put <code> and <code> in the function signature because we need to use them.
+
+1/4 ━━━━━[37m━━━━━━━━━━━━━━━ 0s 276ms/step - accuracy: 0.1250 - loss: 12.0090.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 94ms/step - accuracy: 0.0994 - loss: 12.1242.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 95ms/step - accuracy: 0.0955 - loss: 12.1594.
+
+If a hyperparameter is used both in <code> and <code>, you can define it in <code> and use <code> to retrieve it in <code>. We use the image size as an example. It is both used as the input shape in <code>, and used by data prerprocessing step to crop the images in <code>.
+
+Retrain the model.
+
+Using <code> also allows you to retrain the best model by yourself.
+
+1/1875 [37m━━━━━━━━━━━━━━━━━━━━ 9:00 289ms/step - accuracy: 0.0000e+00 - loss: 2.4352.
+
+52/1875 [37m━━━━━━━━━━━━━━━━━━━━ 1s 996us/step - accuracy: 0.6035 - loss: 1.3521.
+
+110/1875 ━[37m━━━━━━━━━━━━━━━━━━━ 1s 925us/step - accuracy: 0.7037 - loss: 1.0231.
+
+171/1875 ━[37m━━━━━━━━━━━━━━━━━━━ 1s 890us/step - accuracy: 0.7522 - loss: 0.8572.
+
+231/1875 ━━[37m━━━━━━━━━━━━━━━━━━ 1s 877us/step - accuracy: 0.7804 - loss: 0.7590.
+
+291/1875 ━━━[37m━━━━━━━━━━━━━━━━━ 1s 870us/step - accuracy: 0.7993 - loss: 0.6932.
+
+350/1875 ━━━[37m━━━━━━━━━━━━━━━━━ 1s 867us/step - accuracy: 0.8127 - loss: 0.6467.
+
+413/1875 ━━━━[37m━━━━━━━━━━━━━━━━ 1s 856us/step - accuracy: 0.8238 - loss: 0.6079.
+
+476/1875 ━━━━━[37m━━━━━━━━━━━━━━━ 1s 848us/step - accuracy: 0.8326 - loss: 0.5774.
+
+535/1875 ━━━━━[37m━━━━━━━━━━━━━━━ 1s 849us/step - accuracy: 0.8394 - loss: 0.5536.
+
+600/1875 ━━━━━━[37m━━━━━━━━━━━━━━ 1s 841us/step - accuracy: 0.8458 - loss: 0.5309.
+
+661/1875 ━━━━━━━[37m━━━━━━━━━━━━━ 1s 840us/step - accuracy: 0.8511 - loss: 0.5123.
+
+723/1875 ━━━━━━━[37m━━━━━━━━━━━━━ 0s 837us/step - accuracy: 0.8559 - loss: 0.4955.
+
+783/1875 ━━━━━━━━[37m━━━━━━━━━━━━ 0s 838us/step - accuracy: 0.8600 - loss: 0.4811.
+
+847/1875 ━━━━━━━━━[37m━━━━━━━━━━━ 0s 834us/step - accuracy: 0.8640 - loss: 0.4671.
+
+912/1875 ━━━━━━━━━[37m━━━━━━━━━━━ 0s 830us/step - accuracy: 0.8677 - loss: 0.4544.
+
+976/1875 ━━━━━━━━━━[37m━━━━━━━━━━ 0s 827us/step - accuracy: 0.8709 - loss: 0.4429.
+
+1040/1875 ━━━━━━━━━━━[37m━━━━━━━━━ 0s 825us/step - accuracy: 0.8738 - loss: 0.4325.
+
+1104/1875 ━━━━━━━━━━━[37m━━━━━━━━━ 0s 822us/step - accuracy: 0.8766 - loss: 0.4229.
+
+1168/1875 ━━━━━━━━━━━━[37m━━━━━━━━ 0s 821us/step - accuracy: 0.8791 - loss: 0.4140.
+
+1233/1875 ━━━━━━━━━━━━━[37m━━━━━━━ 0s 818us/step - accuracy: 0.8815 - loss: 0.4056.
+
+1296/1875 ━━━━━━━━━━━━━[37m━━━━━━━ 0s 817us/step - accuracy: 0.8837 - loss: 0.3980.
+
+1361/1875 ━━━━━━━━━━━━━━[37m━━━━━━ 0s 815us/step - accuracy: 0.8858 - loss: 0.3907.
+
+1424/1875 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 814us/step - accuracy: 0.8877 - loss: 0.3840.
+
+1488/1875 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 813us/step - accuracy: 0.8895 - loss: 0.3776.
+
+1550/1875 ━━━━━━━━━━━━━━━━[37m━━━━ 0s 813us/step - accuracy: 0.8912 - loss: 0.3718.
+
+1613/1875 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 813us/step - accuracy: 0.8928 - loss: 0.3662.
+
+1678/1875 ━━━━━━━━━━━━━━━━━[37m━━━ 0s 811us/step - accuracy: 0.8944 - loss: 0.3607.
+
+1744/1875 ━━━━━━━━━━━━━━━━━━[37m━━ 0s 809us/step - accuracy: 0.8959 - loss: 0.3555.
+
+1810/1875 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 808us/step - accuracy: 0.8973 - loss: 0.3504.
+
+1874/1875 ━━━━━━━━━━━━━━━━━━━[37m━ 0s 807us/step - accuracy: 0.8987 - loss: 0.3457.
+
+1875/1875 ━━━━━━━━━━━━━━━━━━━━ 2s 808us/step - accuracy: 0.8987 - loss: 0.3456.
+
+Specify the tuning objective.
+
+In all previous examples, we all just used validation accuracy (<code>) as the tuning objective to select the best model. Actually, you can use any metric as the objective. The most commonly used metric is <code>, which is the validation loss.
+
+Built-in metric as the objective.
+
+There are many other built-in metrics in Keras you can use as the objective. Here is [a list of the built-in metrics.
+
+To use a built-in metric as the objective, you need to follow these steps:
+
+Compile the model with the the built-in metric. For example, you want to use <code>. You need to compile the model with <code>. You may also use its name string instead: <code>. The name string of the metric is always the snake case of the class name.
+
+Identify the objective name string. The name string of the objective is always in the format of <code>. For example, the objective name string of mean squared error evaluated on the validation data should be <code>.
+
+Wrap it into <code>. We usually need to wrap the objective into a <code> object to specify the direction to optimize the objective. For example, we want to minimize the mean squared error, we can use <code>. The direction should be either <code> or <code>.
+
+Pass the wrapped objective to the tuner.
+
+You can see the following barebone code example.
+
+Custom metric as the objective.
+
+You may implement your own metric and use it as the hyperparameter search objective. Here, we use mean squared error (MSE) as an example. First, we implement the MSE metric by subclassing <code>. Remember to give a name to your metric using the <code> argument of <code>, which will be used later. Note: MSE is actually a build-in metric, which can be imported with <code>. This is just an example to show how to use a custom metric as the hyperparameter search objective.
+
+For more information about implementing custom metrics, please see this tutorial. If you would like a metric with a different function signature than `updatestate(ytrue, ypred, sampleweight)<code>train_step()` method of your model following this tutorial.
+
+Run the search with the custom objective.
+
+If your custom objective is hard to put into a custom metric, you can also evaluate the model by yourself in <code> and return the objective value. The objective value would be minimized by default. In this case, you don't need to specify the <code> when initializing the tuner. However, in this case, the metric value will not be tracked in the Keras logs by only KerasTuner logs. Therefore, these values would not be displayed by any TensorBoard view using the Keras metrics.
+
+If you have multiple metrics to track in KerasTuner, but only use one of them as the objective, you can return a dictionary, whose keys are the metric names and the values are the metrics values, for example, return `{"metrica": 1.0, "metricb", 2.0}`. Use one of the keys as the objective name, for example, <code>.
+
+Tune end-to-end workflows.
+
+In some cases, it is hard to align your code into build and fit functions. You can also keep your end-to-end workflow in one place by overriding <code>, which gives you full control of a trial. You can see it as a black-box optimizer for anything.
+
+Tune any function.
+
+For example, you can find a value of <code>, which minimizes <code>. In the following code, we just define <code> as a hyperparameter, and return <code> as the objective value. The <code> and <code> argument for initializing the tuner can be omitted.
+
+Keep Keras code separate.
+
+You can keep all your Keras code unchanged and use KerasTuner to tune it. It is useful if you cannot modify the Keras code for some reason.
+
+It also gives you more flexibility. You don't have to separate the model building and training code apart. However, this workflow would not help you save the model or connect with the TensorBoard plugins.
+
+To save the model, you can use <code>, which is a string to uniquely identify a trial, to construct different paths to save the models from different trials.
+
+1/4 ━━━━━[37m━━━━━━━━━━━━━━━ 0s 172ms/step - loss: 0.5030.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 60ms/step - loss: 0.5288.
+
+4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 61ms/step - loss: 0.5367.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 27ms/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 28ms/step.
+
+KerasTuner includes pre-made tunable applications: HyperResNet and HyperXception.
+
+These are ready-to-use hypermodels for computer vision.
+
+They come pre-compiled with <code> and <code>.

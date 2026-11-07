@@ -1,0 +1,47 @@
+CutMix data augmentation for image classification.
+
+Introduction.
+
+CutMix is a data augmentation technique that addresses the issue of information loss and inefficiency present in regional dropout strategies. Instead of removing pixels and filling them with black or grey pixels or Gaussian noise, you replace the removed regions with a patch from another image, while the ground truth labels are mixed proportionally to the number of pixels of combined images. CutMix was proposed in CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features (Yun et al., 2019).
+
+It's implemented via the following formulas:
+
+where <code> is the binary mask which indicates the cutout and the fill-in regions from the two randomly drawn images and <code> (in <code>) is drawn from a <code> distribution.
+
+The coordinates of bounding boxes are:
+
+which indicates the cutout and fill-in regions in case of the images. The bounding box sampling is represented by:
+
+where <code> are randomly drawn from a uniform distribution with upper bound.
+
+Setup.
+
+Load the CIFAR-10 dataset.
+
+In this example, we will use the CIFAR-10 image classification dataset.
+
+Define hyperparameters.
+
+Define the image preprocessing function.
+
+Convert the data into TensorFlow <code> objects.
+
+Define the CutMix data augmentation function.
+
+The CutMix function takes two <code> and <code> pairs to perform the augmentation. It samples <code> from the Beta distribution and returns a bounding box from <code> function. We then crop the second image (<code>) and pad this image in the final padded image at the same location.
+
+Note: we are combining two images to create a single one.
+
+Visualize the new dataset after applying the CutMix augmentation.
+
+Define a ResNet-20 model.
+
+Train the model with the dataset augmented by CutMix.
+
+Train the model using the original non-augmented dataset.
+
+Notes.
+
+In this example, we trained our model for 15 epochs. In our experiment, the model with CutMix achieves a better accuracy on the CIFAR-10 dataset (77.34% in our experiment) compared to the model that doesn't use the augmentation (66.90%). You may notice it takes less time to train the model with the CutMix augmentation.
+
+You can experiment further with the CutMix technique by following the original paper.

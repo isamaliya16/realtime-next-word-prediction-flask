@@ -1,0 +1,57 @@
+Implementing a Parameter Server Using Distributed RPC Framework.
+
+Author\ : Rohan Varma.
+
+Prerequisites:
+
+PyTorch Distributed Overview.
+
+RPC API documents.
+
+This tutorial walks through a simple example of implementing a parameter server using PyTorch's Distributed RPC framework. The parameter server framework is a paradigm in which a set of servers store parameters, such as large embedding tables, and several trainers query the parameter servers in order to retrieve the most up to date parameters. These trainers can run a training loop locally and occasionally synchronize with the parameter server to get the latest parameters. For more reading on the parameter server approach, check out this paper.
+
+Using the Distributed RPC Framework, we'll build an example where multiple trainers use RPC to communicate with the same parameter server and use RRef to access states on the remote parameter server instance. Each trainer will launch its dedicated backward pass in a distributed fashion through stitching of the autograd graph across multiple nodes using distributed autograd.
+
+Note\ : This tutorial covers the use of the Distributed RPC Framework, which is useful for splitting a model onto multiple machines, or for implementing a parameter-server training strategy where network trainers fetch parameters hosted on a different machine. If instead you are looking for replicating your model across many GPUs, please see the Distributed Data Parallel tutorial. There is also another RPC tutorial that covers reinforcement learning and RNN use cases.
+
+Let's start with the familiar: importing our required modules and defining a simple ConvNet that will train on the MNIST dataset. The below network is largely adopted from the network defined in the pytorch/examples repo.
+
+Next, let's define some helper functions that will be useful for the rest of our script. The following uses rpc_sync and RRef in order to define a function that invokes a given method on an object living on a remote node. Below, our handle to the remote object is given by the <code> argument, and we run it on its owning node: <code>. On the caller node, we run this command synchronously through the use of <code>\ , meaning that we will block until a response is received.
+
+Now, we're ready to define our parameter server. We will subclass <code> and save a handle to our network defined above. We'll also save an input device which will be the device our input is transferred to before invoking the model.
+
+Next, we'll define our forward pass. Note that regardless of the device of the model output, we move the output to CPU, as the Distributed RPC Framework currently only supports sending CPU tensors over RPC. We have intentionally disabled sending CUDA tensors over RPC due to the potential for different devices (CPU/GPU) on on the caller/callee, but may support this in future releases.
+
+Next, we'll define a few miscellaneous functions useful for training and verification purposes. The first, <code>\ , will take in a Distributed Autograd context ID and call into the <code> API in order to retrieve gradients computed by distributed autograd. More information can be found in the distributed autograd documentation. Note that we also iterate through the resulting dictionary and convert each tensor to a CPU tensor, as the framework currently only supports sending tensors over RPC. Next, <code> will iterate through our model parameters and wrap them as a (local) RRef. This method will be invoked over RPC by trainer nodes and will return a list of the parameters to be optimized. This is required as input to the Distributed Optimizer\ , which requires all parameters it must optimize as a list of <code>\ s.
+
+Finally, we'll create methods to initialize our parameter server. Note that there will only be one instance of a parameter server across all processes, and all trainers will talk to the same parameter server and update the same stored model. As seen in <code>\ , the server itself does not take any independent actions; it waits for requests from trainers (which are yet to be defined) and responds to them by running the requested function.
+
+Note that above, <code> will not immediately shut down the Parameter Server. Instead, it will wait for all workers (trainers in this case) to also call into <code>. This gives us the guarantee that the parameter server will not go offline before all trainers (yet to be define) have completed their training process.
+
+Next, we'll define our <code> class. This will also be a subclass of <code>\ , and our <code> method will use the <code> API to obtain an RRef, or Remote Reference, to our parameter server. Note that here we are not copying the parameter server to our local process, instead, we can think of <code> as a distributed shared pointer to the parameter server that lives on a separate process.
+
+Next, we'll define a method called <code>. To motivate the need for this method, it is worth it to read through the documentation on DistributedOptimizer, specifically the API signature. The optimizer must be passed a list of <code>\ s corresponding to the remote parameters to be optimized, so here we obtain the necessary <code>\ s. Since the only remote worker that a given <code> interacts with is the <code>\ , we simply invoke a <code> on the <code>. We use the <code> method which we defined in the <code> class. This method will return a list of <code>\ s to the parameters that need to be optimized. Note that in this case our <code> does not define its own paramaters; if it did, we would need to wrap each parameter in an <code> as well and include it into our input to <code>.
+
+Now, we're ready to define our <code> method, which will invoke (synchronous) RPC to run the forward pass of the network defined on the <code>. Note that we pass in <code>\ , which is a remote handle to our <code>\ , to our RPC call. This call will send an RPC to the node on which our <code> is running, invoke the <code> pass, and return the <code> corresponding to the model's output.
+
+With our trainer fully defined, it's now time to write our neural network training loop that will create our network and optimizer, run some inputs through the network and compute the loss. The training loop looks a lot like that of a local training program, with some modifications due to the nature of our network being distributed across machines.
+
+Below, we initialize our <code> and build a <code>. Note that as mentioned above, we must pass in all of the global (across all nodes participating in distributed training) parameters that we want to be optimized. In addition, we pass in the local optimizer to be used, in this case, SGD. Note that we can configure the underlying optimizer algorithm in the same way as creating a local optimizer - all arguments for <code> will be forwarded properly. As an example, we pass in a custom learning rate that will be used as the learning rate for all local optimizers.
+
+Next, we define our main training loop. We loop through iterables given by PyTorch's DataLoader. Before writing our typical forward/backward/optimizer loop, we first wrap the logic within a Distributed Autograd context. Note that this is needed to record RPCs invoked in the model's forward pass, so that an appropriate graph can be constructed which includes all participating distributed workers in the backward pass. The distributed autograd context returns a <code> which serves as an identifier for accumulating and optimizing gradients corresponding to a particular iteration.
+
+As opposed to calling the typical <code> which would kick off the backward pass on this local worker, we call <code> and pass in our context_id as well as <code>\ , which is the root at which we want the backward pass to begin. In addition, we pass this <code> into our optimizer call, which is required to be able to look up the corresponding gradients computed by this particular backwards pass across all nodes.
+
+The following simply computes the accuracy of our model after we're done training, much like a traditional local model. However, note that the <code> we pass into this function above is an instance of <code> and therefore the forward pass invokes RPC in a transparent fashion.
+
+Next, similar to how we defined <code> as the main loop for our <code> that is responsible for initializing RPC, let's define a similar loop for our trainers. The difference will be that our trainers must run the training loop we defined above:
+
+Note that similar to <code>\ , <code> will by default wait for all workers, both trainers and ParameterServers, to call into <code> before this node exits. This ensures that nodes are terminated gracefully and no node goes offline while another is expecting it to be online.
+
+We've now completed our trainer and parameter server specific code, and all that's left is to add code to launch trainers and parameter servers. First, we must take in various arguments that apply to our parameter server and trainers. <code> corresponds to the total number of nodes that will participate in training, and is the sum of all trainers and the parameter server. We also must pass in a unique <code> for each individual process, from 0 (where we will run our single parameter server) to <code>. <code> and <code> are arguments that can be used to identify where the rank 0 process is running, and will be used by individual nodes to discover each other. To test this example out locally, simply pass in <code> and the same <code> to all instances spawned. Note that for demonstration purposes, this example supports only between 0-2 GPUs, although the pattern can be extended to make use of additional GPUs.
+
+Now, we'll create a process corresponding to either a parameter server or trainer depending on our command line arguments. We'll create a <code> if our passed in rank is 0, and a <code> otherwise. Note that we're using <code> to launch a subprocess corresponding to the function that we want to execute, and waiting on this process's completion from the main thread with <code>. In the case of initializing our trainers, we also use PyTorch's dataloaders in order to specify train and test data loaders on the MNIST dataset.
+
+To run the example locally, run the following command worker for the server and each worker you wish to spawn, in separate terminal windows: <code>. For example, for a master node with world size of 2, the command would be <code>. The trainer can then be launched with the command <code> in a separate window, and this will begin training with one server and a single trainer. Note that this tutorial assumes that training occurs using between 0 and 2 GPUs, and this argument can be configured by passing <code> into the training script.
+
+You can pass in the command line arguments <code> and <code> to indicate the address and port that the master worker is listening on, for example, to test functionality where trainers and master nodes run on different machines.

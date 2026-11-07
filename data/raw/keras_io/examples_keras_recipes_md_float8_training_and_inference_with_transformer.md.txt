@@ -1,0 +1,109 @@
+Float8 training and inference with a simple Transformer model.
+
+Introduction.
+
+As the number of parameters in Transformer models continues to grow, training and inference become highly memory and compute-intensive. Therefore, 8-bit floating point (FP8) was introduced, offering improved performance over 16-bit floating point with nearly no degradation in accuracy.
+
+In detail, there are two distinct types of FP8: E4M3 and E5M2, useful in different parts of training.
+
+E4M3: It consists of 1 sign bit, 4 exponent bits and 3 bits of mantissa. It can store values up to +/-448 and nan.
+
+E5M2: It consists of 1 sign bit, 5 exponent bits and 2 bits of mantissa. It can store values up to +/-57344, +/-inf and nan. The tradeoff of theincreased dynamic range is lower precision of the stored values.
+
+Typically, E4M3 is best used during the forward pass because activations and weights require more precision. In the backward pass, however, E5M2 is utilized because gradients are less susceptible to the loss of precision but require higher dynamic range.
+
+It is worth noting that FP8 inference deployment is greatly simplified, as inference and training use the same datatype. This is in contrast to INT8 inference with networks trained in 32- or 16-bit floating point, which require post-training quantization (PTQ) calibration and even quantization-aware training (QAT) in order to maintain model accuracy.
+
+In this example, we will build a simple Transformer model and train it with both FP16 and FP8 precision. You will observe that the accuracy doesn't decrease with lower precision.
+
+Note: You will need a decent GPU with FP8 Tensor Cores support for the expected performance improvement.
+
+Setup.
+
+We will use KerasHub library to simplify the model implementation. Additionally, use mixed precision training to reduce the training time.
+
+Note: The dependency on TensorFlow is only required for data processing.
+
+Define some hyperparameters.
+
+Dataset.
+
+First, let's download the IMDB dataset and extract it.
+
+We'll use the <code> utility to generate our labelled <code> dataset from text files.
+
+We will now convert the text to lowercase.
+
+Let's print a few samples.
+
+Tokenizing the data.
+
+We'll be using the <code> layer to tokenize the text. <code> takes a WordPiece vocabulary and has functions for tokenizing the text, and detokenizing sequences of tokens.
+
+Before we define the tokenizer, we first need to train it on the dataset we have. The WordPiece tokenization algorithm is a subword tokenization algorithm; training it on a corpus gives us a vocabulary of subwords. A subword tokenizer is a compromise between word tokenizers (word tokenizers need very large vocabularies for good coverage of input words), and character tokenizers (characters don't really encode meaning like words do). Luckily, KerasHub makes it very simple to train WordPiece on a corpus with the <code> utility.
+
+Every vocabulary has a few special, reserved tokens. We have two such tokens:
+
+<code> - Padding token. Padding tokens are appended to the input sequence length when the input sequence length is shorter than the maximum sequence length.
+
+<code> - Unknown token.
+
+Let's see some tokens!
+
+Now, let's define the tokenizer. We will configure the tokenizer with the the vocabularies trained above. We will define a maximum sequence length so that all sequences are padded to the same length, if the length of the sequence is less than the specified sequence length. Otherwise, the sequence is truncated.
+
+Let's try and tokenize a sample from our dataset! To verify whether the text has been tokenized correctly, we can also detokenize the list of tokens back to the original text.
+
+Formatting the dataset.
+
+Next, we'll format our datasets in the form that will be fed to the models. We need to tokenize the text.
+
+Model.
+
+Let's build a simple Transformer model. We will use <code> and <code> from KerasHub library. <code> represents words and their order in a sentence, while <code> outputs one vector for each time step of our input sequence. Here, we take the mean across all time steps and use a feedforward network on top of it to classify text.
+
+Training and evaluating our model.
+
+First, we train and evaluate the model with mixed precision (<code>). Afterward, we compare the results with FP8 training/inference.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputids ( InputLayer ) │ ( None , None ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ tokenandpositionembedding │ ( None , None , 32 ) │ 646,400 │ │ ( TokenAndPositionEmbedding ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout ( Dropout ) │ ( None , None , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ transformerdecoder │ ( None , None , 32 ) │ 6,464 │ │ ( TransformerDecoder ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ globalaveragepooling1d │ ( None , 32 ) │ 0 │ │ ( GlobalAveragePooling1D ) │ │ │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout2 ( Dropout ) │ ( None , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense ( Dense ) │ ( None , 32 ) │ 1,056 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout3 ( Dropout ) │ ( None , 32 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense1 ( Dense ) │ ( None , 1 ) │ 33 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 653,953 (2.49 MB).
+
+Trainable params: 653,953 (2.49 MB).
+
+Non-trainable params: 0 (0.00 B).
+
+We can enable FP8 training/inference with a one-line API: <code>.
+
+To inspect that FP8 training takes place, we can print out some variables related to FP8 training:
+
+<code>: The scaling factor that shift the distribution of inputs, weights and gradients into the representable range of FP8. Defaults to <code>.
+
+<code>: The amax history window used for scaling factor computation. Defaults to <code> with the length of 1024.
+
+The dtype policies of FP8 layers have also been modified.
+
+Let's train the model and see the results. We can verify that the accuracy doesn't decrease with FP8 training that the variables containing FP8 information change after fitting.
+
+Recipes.
+
+The improvements in training speed are relatively small if the model is not sufficiently large. The recommendation is to train with a model containing parameters >5B.
+
+You will need hardware such as NVIDIA H100 that supports FP8 Tensor Cores to gain the speedups.
+
+References.
+
+FP8 Formats for Deep Learning.
+
+FP8 Primer.
+
+Flax - fp8_ops.py.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.
+
+Chapter 18: Best practices for the real world.

@@ -1,0 +1,83 @@
+Deep Convolutional Generative Adversarial Network.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial demonstrates how to generate images of handwritten digits using a Deep Convolutional Generative Adversarial Network (DCGAN). The code is written using the Keras Sequential API with a <code> training loop.
+
+What are GANs?
+
+Generative Adversarial Networks (GANs) are one of the most interesting ideas in computer science today. Two models are trained simultaneously by an adversarial process. A generator ("the artist") learns to create images that look real, while a discriminator ("the art critic") learns to tell real images apart from fakes.
+
+During training, the generator progressively becomes better at creating images that look real, while the discriminator becomes better at telling them apart. The process reaches equilibrium when the discriminator can no longer distinguish real images from fakes.
+
+This notebook demonstrates this process on the MNIST dataset. The following animation shows a series of images produced by the generator as it was trained for 50 epochs. The images begin as random noise, and increasingly resemble hand written digits over time.
+
+To learn more about GANs, see MIT's Intro to Deep Learning course.
+
+Setup.
+
+Load and prepare the dataset.
+
+You will use the MNIST dataset to train the generator and the discriminator. The generator will generate handwritten digits resembling the MNIST data.
+
+Create the models.
+
+Both the generator and discriminator are defined using the Keras Sequential API.
+
+The Generator.
+
+The generator uses <code> (upsampling) layers to produce an image from a seed (random noise). Start with a <code> layer that takes this seed as input, then upsample several times until you reach the desired image size of 28x28x1. Notice the <code> activation for each layer, except the output layer which uses tanh.
+
+Use the (as yet untrained) generator to create an image.
+
+The Discriminator.
+
+The discriminator is a CNN-based image classifier.
+
+Use the (as yet untrained) discriminator to classify the generated images as real or fake. The model will be trained to output positive values for real images, and negative values for fake images.
+
+Define the loss and optimizers.
+
+Define loss functions and optimizers for both models.
+
+Discriminator loss.
+
+This method quantifies how well the discriminator is able to distinguish real images from fakes. It compares the discriminator's predictions on real images to an array of 1s, and the discriminator's predictions on fake (generated) images to an array of 0s.
+
+Generator loss.
+
+The generator's loss quantifies how well it was able to trick the discriminator. Intuitively, if the generator is performing well, the discriminator will classify the fake images as real (or 1). Here, compare the discriminators decisions on the generated images to an array of 1s.
+
+The discriminator and the generator optimizers are different since you will train two networks separately.
+
+Save checkpoints.
+
+This notebook also demonstrates how to save and restore models, which can be helpful in case a long running training task is interrupted.
+
+Define the training loop.
+
+The training loop begins with generator receiving a random seed as input. That seed is used to produce an image. The discriminator is then used to classify real images (drawn from the training set) and fakes images (produced by the generator). The loss is calculated for each of these models, and the gradients are used to update the generator and discriminator.
+
+Generate and save images.
+
+Train the model.
+
+Call the <code> method defined above to train the generator and discriminator simultaneously. Note, training GANs can be tricky. It's important that the generator and discriminator do not overpower each other (e.g., that they train at a similar rate).
+
+At the beginning of the training, the generated images look like random noise. As training progresses, the generated digits will look increasingly real. After about 50 epochs, they resemble MNIST digits. This may take about one minute / epoch with the default settings on Colab.
+
+Restore the latest checkpoint.
+
+Create a GIF.
+
+Use <code> to create an animated gif using the images saved during training.
+
+Next steps.
+
+This tutorial has shown the complete code necessary to write and train a GAN. As a next step, you might like to experiment with a different dataset, for example the Large-scale Celeb Faces Attributes (CelebA) dataset available on Kaggle. To learn more about GANs see the NIPS 2016 Tutorial: Generative Adversarial Networks.

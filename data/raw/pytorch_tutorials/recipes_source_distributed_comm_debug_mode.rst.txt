@@ -1,0 +1,29 @@
+Getting Started with <code>.
+
+In this tutorial, we will explore how to use <code> with PyTorch's DistributedTensor (DTensor) for debugging by tracking collective operations in distributed training environments.
+
+Prerequisites.
+
+Python 3.8 - 3.11.
+
+PyTorch 2.2 or later.
+
+What is <code> and why is it useful As the size of models continues to increase, users are seeking to leverage various combinations of parallel strategies to scale up distributed training. However, the lack of interoperability between existing solutions poses a significant challenge, primarily due to the absence of a unified abstraction that can bridge these different parallelism strategies. To address this issue, PyTorch has proposed DistributedTensor(DTensor) which abstracts away the complexities of tensor communication in distributed training, providing a seamless user experience. However, when dealing with existing parallelism solutions and developing parallelism solutions using the unified abstraction like DTensor, the lack of transparency about what and when the collective communications happens under the hood could make it challenging for advanced users to identify and resolve issues. To address this challenge, <code>, a Python context manager will serve as one of the primary debugging tools for DTensors, enabling users to view when and why collective operations are happening when using DTensors, effectively addressing this issue.
+
+Using <code>.
+
+Here is how you can use <code>:
+
+This is what the output looks like for a MLPModule at noise level 0:
+
+To use <code>, you must wrap the code running the model in <code> and call the API that you want to use to display the data. You can also use a <code> argument to control the verbosity level of displayed information. Here is what each noise level displays:
+
+In the example above, you can see that the collective operation, all_reduce, occurs once in the forward pass of the <code>. Furthermore, you can use <code> to pinpoint that the all-reduce operation happens in the second linear layer of the <code>.
+
+Below is the interactive module tree visualization that you can use to upload your own JSON dump:
+
+Conclusion.
+
+In this recipe, we have learned how to use <code> to debug Distributed Tensors and parallelism solutions that uses communication collectives with PyTorch. You can use your own JSON outputs in the embedded visual browser.
+
+For more detailed information about <code>, see commmodefeatures_example.py.

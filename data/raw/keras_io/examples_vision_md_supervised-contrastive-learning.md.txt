@@ -1,0 +1,79 @@
+Supervised Contrastive Learning.
+
+Introduction.
+
+Supervised Contrastive Learning (Prannay Khosla et al.) is a training methodology that outperforms supervised training with crossentropy on classification tasks.
+
+Essentially, training an image classification model with Supervised Contrastive Learning is performed in two phases:
+
+Training an encoder to learn to produce vector representations of input images such that representations of images in the same class will be more similar compared to representations of images in different classes.
+
+Training a classifier on top of the frozen encoder.
+
+Setup.
+
+Prepare the data.
+
+Using image data augmentation.
+
+Build the encoder model.
+
+The encoder model takes the image as input and turns it into a 2048-dimensional feature vector.
+
+Model: "cifar10-encoder".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputlayer1 ( InputLayer ) │ ( None , 32 , 32 , 3 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ sequential ( Sequential ) │ ( None , 32 , 32 , 3 ) │ 7 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ resnet50v2 ( Functional ) │ ( None , 2048 ) │ 23,564,800 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 23,564,807 (89.89 MB).
+
+Trainable params: 23,519,360 (89.72 MB).
+
+Non-trainable params: 45,447 (177.53 KB).
+
+Build the classification model.
+
+The classification model adds a fully-connected layer on top of the encoder, plus a softmax layer with the target classes.
+
+Experiment 1: Train the baseline classification model.
+
+In this experiment, a baseline classifier is trained as usual, i.e., the encoder and the classifier parts are trained together as a single model to minimize the crossentropy loss.
+
+Model: "cifar10-classifier".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputlayer5 ( InputLayer ) │ ( None , 32 , 32 , 3 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ cifar10-encoder ( Functional ) │ ( None , 2048 ) │ 23,564,807 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout ( Dropout ) │ ( None , 2048 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense ( Dense ) │ ( None , 512 ) │ 1,049,088 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dropout1 ( Dropout ) │ ( None , 512 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense1 ( Dense ) │ ( None , 10 ) │ 5,130 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 24,619,025 (93.91 MB).
+
+Trainable params: 24,573,578 (93.74 MB).
+
+Non-trainable params: 45,447 (177.53 KB).
+
+Experiment 2: Use supervised contrastive learning.
+
+In this experiment, the model is trained in two phases. In the first phase, the encoder is pretrained to optimize the supervised contrastive loss, described in Prannay Khosla et al..
+
+In the second phase, the classifier is trained using the trained encoder with its weights freezed; only the weights of fully-connected layers with the softmax are optimized.
+
+1. Supervised contrastive learning loss function.
+
+2. Pretrain the encoder.
+
+Model: "cifar-encoderwithprojection-head".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩ │ inputlayer8 ( InputLayer ) │ ( None , 32 , 32 , 3 ) │ 0 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ cifar10-encoder ( Functional ) │ ( None , 2048 ) │ 23,564,807 │ ├─────────────────────────────────┼────────────────────────┼───────────────┤ │ dense_2 ( Dense ) │ ( None , 128 ) │ 262,272 │ └─────────────────────────────────┴────────────────────────┴───────────────┘.
+
+Total params: 23,827,079 (90.89 MB).
+
+Trainable params: 23,781,632 (90.72 MB).
+
+Non-trainable params: 45,447 (177.53 KB).
+
+3. Train the classifier with the frozen encoder.
+
+We get to an improved test accuracy.
+
+Conclusion.
+
+As shown in the experiments, using the supervised contrastive learning technique outperformed the conventional technique in terms of the test accuracy. Note that the same training budget (i.e., number of epochs) was given to each technique. Supervised contrastive learning pays off when the encoder involves a complex architecture, like ResNet, and multi-class problems with many labels. In addition, large batch sizes and multi-layer projection heads improve its effectiveness. See the Supervised Contrastive Learning paper for more details.
+
+You can use the trained model hosted on Hugging Face Hub and try the demo on Hugging Face Spaces.

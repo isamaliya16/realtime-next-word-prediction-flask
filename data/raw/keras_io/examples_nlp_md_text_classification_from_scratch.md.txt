@@ -1,0 +1,61 @@
+Text classification from scratch.
+
+Introduction.
+
+This example shows how to do text classification starting from raw text (as a set of text files on disk). We demonstrate the workflow on the IMDB sentiment classification dataset (unprocessed version). We use the <code> layer for word splitting & indexing.
+
+Setup.
+
+Load the data: IMDB movie review sentiment classification.
+
+Let's download the data and inspect its structure.
+
+The <code> folder contains a <code> and <code> subfolder:
+
+The <code> and <code> folders contain text files, each of which represents one review (either positive or negative):
+
+We are only interested in the <code> and <code> subfolders, so let's delete the other subfolder that has text files in it:
+
+You can use the utility <code> to generate a labeled <code> object from a set of text files on disk filed into class-specific folders.
+
+Let's use it to generate the training, validation, and test datasets. The validation and training datasets are generated from two subsets of the <code> directory, with 20% of samples going to the validation dataset and 80% going to the training dataset.
+
+Having a validation dataset in addition to the test dataset is useful for tuning hyperparameters, such as the model architecture, for which the test dataset should not be used.
+
+Before putting the model out into the real world however, it should be retrained using all available training data (without creating a validation dataset), so its performance is maximized.
+
+When using the <code> & <code> arguments, make sure to either specify a random seed, or to pass <code>, so that the validation & training splits you get have no overlap.
+
+Let's preview a few samples:
+
+Prepare the data.
+
+In particular, we remove <code> tags.
+
+Two options to vectorize the data.
+
+There are 2 ways we can use our text vectorization layer:
+
+Option 1: Make it part of the model, so as to obtain a model that processes raw strings, like this:
+
+Option 2: Apply it to the text dataset to obtain a dataset of word indices, then feed it into a model that expects integer sequences as inputs.
+
+An important difference between the two is that option 2 enables you to do asynchronous CPU processing and buffering of your data when training on GPU. So if you're training the model on GPU, you probably want to go with this option to get the best performance. This is what we will do below.
+
+If we were to export our model to production, we'd ship a model that accepts raw strings as input, like in the code snippet for option 1 above. This can be done after training. We do this in the last section.
+
+Build a model.
+
+We choose a simple 1D convnet starting with an <code> layer.
+
+Train the model.
+
+Evaluate the model on the test set.
+
+Make an end-to-end model.
+
+If you want to obtain a model capable of processing raw strings, you can simply create a new model (using the weights we just trained):
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

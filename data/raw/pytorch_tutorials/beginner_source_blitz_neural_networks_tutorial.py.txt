@@ -1,0 +1,91 @@
+Neural Networks.
+
+Neural networks can be constructed using the <code> package.
+
+Now that you had a glimpse of <code>, <code> depends on <code> to define models and differentiate them. An <code> contains layers, and a method <code> that returns the <code>.
+
+For example, look at this network that classifies digit images:
+
+It is a simple feed-forward network. It takes the input, feeds it through several layers one after the other, and then finally gives the output.
+
+A typical training procedure for a neural network is as follows:
+
+Define the neural network that has some learnable parameters (or weights).
+
+Iterate over a dataset of inputs.
+
+Process input through the network.
+
+Compute the loss (how far is the output from being correct).
+
+Propagate gradients back into the network’s parameters.
+
+Update the weights of the network, typically using a simple update rule: <code>.
+
+Define the network.
+
+Let’s define this network:
+
+You just have to define the <code> function, and the <code> function (where gradients are computed) is automatically defined for you using <code>. You can use any of the Tensor operations in the <code> function.
+
+The learnable parameters of a model are returned by <code>.
+
+Let's try a random 32x32 input. Note: expected input size of this net (LeNet) is 32x32. To use this net on the MNIST dataset, please resize the images from the dataset to 32x32.
+
+Zero the gradient buffers of all parameters and backprops with random gradients:
+
+Before proceeding further, let's recap all the classes you’ve seen so far.
+
+Recap:
+
+<code> - A multi-dimensional array with support for autograd operations like <code>. Also holds the gradient w.r.t. the tensor.
+
+<code> - Neural network module. Convenient way of encapsulating parameters, with helpers for moving them to GPU, exporting, loading, etc.
+
+<code> - A kind of Tensor, that is automatically registered as a parameter when assigned as an attribute to a <code>.
+
+<code> - Implements forward and backward definitions of an autograd operation. Every <code> operation creates at least a single <code> node that connects to functions that created a <code> and encodes its history.
+
+At this point, we covered:
+
+Defining a neural network.
+
+Processing inputs and calling backward.
+
+Still Left:
+
+Computing the loss.
+
+Updating the weights of the network.
+
+Loss Function A loss function takes the (output, target) pair of inputs, and computes a value that estimates how far away the output is from the target.
+
+There are several different loss functions under the nn package . A simple loss is: <code> which computes the mean-squared error between the output and the target.
+
+For example:
+
+Now, if you follow <code> in the backward direction, using its <code> attribute, you will see a graph of computations that looks like this:
+
+So, when we call <code>, the whole graph is differentiated w.r.t. the neural net parameters, and all Tensors in the graph that have <code> will have their <code> Tensor accumulated with the gradient.
+
+For illustration, let us follow a few steps backward:
+
+Backprop To backpropagate the error all we have to do is to <code>. You need to clear the existing gradients though, else gradients will be accumulated to existing gradients.
+
+Now we shall call <code>, and have a look at conv1's bias gradients before and after the backward. Since we have not introduced an optimizer yet, we clear the gradients directly on the model. Once using an optimizer, prefer <code> as shown below.
+
+Now, we have seen how to use loss functions.
+
+Read Later:
+
+The neural network package contains various modules and loss functions that form the building blocks of deep neural networks. A full list with documentation is here.
+
+The only thing left to learn is:
+
+Updating the weights of the network.
+
+Update the weights The simplest update rule used in practice is the Stochastic Gradient Descent (SGD):
+
+We can implement this using simple Python code:
+
+However, as you use neural networks, you want to use various different update rules such as SGD, Nesterov-SGD, Adam, RMSProp, etc. To enable this, we built a small package: <code> that implements all these methods. Using it is very simple:

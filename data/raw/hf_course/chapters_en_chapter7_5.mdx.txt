@@ -1,0 +1,233 @@
+Summarization.
+
+In this section we'll take a look at how Transformer models can be used to condense long documents into summaries, a task known as text summarization. This is one of the most challenging NLP tasks as it requires a range of abilities, such as understanding long passages and generating coherent text that captures the main topics in a document. However, when done well, text summarization is a powerful tool that can speed up various business processes by relieving the burden of domain experts to read long documents in detail.
+
+Although there already exist various fine-tuned models for summarization on the Hugging Face Hub, almost all of these are only suitable for English documents. So, to add a twist in this section, we'll train a bilingual model for English and Spanish. By the end of this section, you'll have a model that can summarize customer reviews like the one shown here:
+
+As we'll see, these summaries are concise because they're learned from the titles that customers provide in their product reviews. Let's start by putting together a suitable bilingual corpus for this task.
+
+Preparing a multilingual corpus.
+
+We'll use the Multilingual Amazon Reviews Corpus to create our bilingual summarizer. This corpus consists of Amazon product reviews in six languages and is typically used to benchmark multilingual classifiers. However, since each review is accompanied by a short title, we can use the titles as the target summaries for our model to learn from! To get started, let's download the English and Spanish subsets from the Hugging Face Hub:
+
+As you can see, for each language there are 200,000 reviews for the <code> split, and 5,000 reviews for each of the <code> and <code> splits. The review information we are interested in is contained in the <code> and <code> columns. Let's take a look at a few examples by creating a simple function that takes a random sample from the training set with the techniques we learned in Chapter 5:
+
+✏️ Try it out! Change the random seed in the <code> command to explore other reviews in the corpus. If you're a Spanish speaker, take a look at some of the reviews in <code> to see if the titles also seem like reasonable summaries.
+
+This sample shows the diversity of reviews one typically finds online, ranging from positive to negative (and everything in between!). Although the example with the "meh" title is not very informative, the other titles look like decent summaries of the reviews themselves. Training a summarization model on all 400,000 reviews would take far too long on a single GPU, so instead we'll focus on generating summaries for a single domain of products. To get a feel for what domains we can choose from, let's convert <code> to a <code> and compute the number of reviews per product category:
+
+The most popular products in the English dataset are about household items, clothing, and wireless electronics. To stick with the Amazon theme, though, let's focus on summarizing book reviews -- after all, this is what the company was founded on! We can see two product categories that fit the bill (<code> and <code>), so let's filter the datasets in both languages for just these products. As we saw in Chapter 5, the <code> function allows us to slice a dataset very efficiently, so we can define a simple function to do this:
+
+Now when we apply this function to <code> and <code>, the result will contain just those rows involving the book categories. Before applying the filter, let's switch the format of <code> from <code> back to <code>:
+
+We can then apply the filter function, and as a sanity check let's inspect a sample of reviews to see if they are indeed about books:
+
+Okay, we can see that the reviews are not strictly about books and might refer to things like calendars and electronic applications such as OneNote. Nevertheless, the domain seems about right to train a summarization model on. Before we look at various models that are suitable for this task, we have one last bit of data preparation to do: combining the English and Spanish reviews as a single <code> object. 🤗 Datasets provides a handy <code> function that (as the name suggests) will stack two <code> objects on top of each other. So, to create our bilingual dataset, we'll loop over each split, concatenate the datasets for that split, and shuffle the result to ensure our model doesn't overfit to a single language:
+
+This certainly looks like a mix of English and Spanish reviews! Now that we have a training corpus, one final thing to check is the distribution of words in the reviews and their titles. This is especially important for summarization tasks, where short reference summaries in the data can bias the model to only output one or two words in the generated summaries. The plots below show the word distributions, and we can see that the titles are heavily skewed toward just 1-2 words:
+
+To deal with this, we'll filter out the examples with very short titles so that our model can produce more interesting summaries. Since we're dealing with English and Spanish texts, we can use a rough heuristic to split the titles on whitespace and then use our trusty <code> method as follows:
+
+Now that we've prepared our corpus, let's take a look at a few possible Transformer models that one might fine-tune on it!
+
+Models for text summarization.
+
+If you think about it, text summarization is a similar sort of task to machine translation: we have a body of text like a review that we'd like to "translate" into a shorter version that captures the salient features of the input. Accordingly, most Transformer models for summarization adopt the encoder-decoder architecture that we first encountered in Chapter 1, although there are some exceptions like the GPT family of models which can also be used for summarization in few-shot settings. The following table lists some popular pretrained models that can be fine-tuned for summarization.
+
+As you can see from this table, the majority of Transformer models for summarization (and indeed most NLP tasks) are monolingual. This is great if your task is in a "high-resource" language like English or German, but less so for the thousands of other languages in use across the world. Fortunately, there is a class of multilingual Transformer models, like mT5 and mBART, that come to the rescue. These models are pretrained using language modeling, but with a twist: instead of training on a corpus of one language, they are trained jointly on texts in over 50 languages at once!
+
+We'll focus on mT5, an interesting architecture based on T5 that was pretrained in a text-to-text framework. In T5, every NLP task is formulated in terms of a prompt prefix like <code> which conditions the model to adapt the generated text to the prompt. As shown in the figure below, this makes T5 extremely versatile, as you can solve many tasks with a single model!
+
+mT5 doesn't use prefixes, but shares much of the versatility of T5 and has the advantage of being multilingual. Now that we've picked a model, let's take a look at preparing our data for training.
+
+✏️ Try it out! Once you've worked through this section, see how well mT5 compares to mBART by fine-tuning the latter with the same techniques. For bonus points, you can also try fine-tuning T5 on just the English reviews. Since T5 has a special prefix prompt, you'll need to prepend <code> to the input examples in the preprocessing steps below.
+
+Preprocessing the data.
+
+Our next task is to tokenize and encode our reviews and their titles. As usual, we begin by loading the tokenizer associated with the pretrained model checkpoint. We'll use <code> as our checkpoint so we can fine-tune the model in a reasonable amount of time:
+
+💡 In the early stages of your NLP projects, a good practice is to train a class of "small" models on a small sample of data. This allows you to debug and iterate faster toward an end-to-end workflow. Once you are confident in the results, you can always scale up the model by simply changing the model checkpoint!
+
+Let's test out the mT5 tokenizer on a small example:
+
+Here we can see the familiar <code> and <code> that we encountered in our first fine-tuning experiments back in Chapter 3. Let's decode these input IDs with the tokenizer's <code> function to see what kind of tokenizer we're dealing with:
+
+The special Unicode character <code> and end-of-sequence token <code> indicate that we're dealing with the SentencePiece tokenizer, which is based on the Unigram segmentation algorithm discussed in Chapter 6. Unigram is especially useful for multilingual corpora since it allows SentencePiece to be agnostic about accents, punctuation, and the fact that many languages, like Japanese, do not have whitespace characters.
+
+To tokenize our corpus, we have to deal with a subtlety associated with summarization: because our labels are also text, it is possible that they exceed the model's maximum context size. This means we need to apply truncation to both the reviews and their titles to ensure we don't pass excessively long inputs to our model. The tokenizers in 🤗 Transformers provide a nifty <code> argument that allows you to tokenize the labels in parallel to the inputs. Here is an example of how the inputs and targets are processed for mT5:
+
+Let's walk through this code to understand what's happening. The first thing we've done is define values for <code> and <code>, which set the upper limits for how long our reviews and titles can be. Since the review body is typically much larger than the title, we've scaled these values accordingly.
+
+With <code>, it is then a simple matter to tokenize the whole corpus using the handy <code> function we've used extensively throughout this course:
+
+Now that the corpus has been preprocessed, let's take a look at some metrics that are commonly used for summarization. As we'll see, there is no silver bullet when it comes to measuring the quality of machine-generated text.
+
+💡 You may have noticed that we used <code> in our <code> function above. This encodes the examples in batches of 1,000 (the default) and allows you to make use of the multithreading capabilities of the fast tokenizers in 🤗 Transformers. Where possible, try using <code> to get the most out of your preprocessing!
+
+Metrics for text summarization.
+
+In comparison to most of the other tasks we've covered in this course, measuring the performance of text generation tasks like summarization or translation is not as straightforward. For example, given a review like "I loved reading the Hunger Games", there are multiple valid summaries, like "I loved the Hunger Games" or "Hunger Games is a great read". Clearly, applying some sort of exact match between the generated summary and the label is not a good solution -- even humans would fare poorly under such a metric, because we all have our own writing style.
+
+For summarization, one of the most commonly used metrics is the ROUGE score) (short for Recall-Oriented Understudy for Gisting Evaluation). The basic idea behind this metric is to compare a generated summary against a set of reference summaries that are typically created by humans. To make this more precise, suppose we want to compare the following two summaries:
+
+One way to compare them could be to count the number of overlapping words, which in this case would be 6. However, this is a bit crude, so instead ROUGE is based on computing the precision and recall scores for the overlap.
+
+🙋 Don't worry if this is the first time you've heard of precision and recall -- we'll go through some explicit examples together to make it all clear. These metrics are usually encountered in classification tasks, so if you want to understand how precision and recall are defined in that context, we recommend checking out the <code> guides.
+
+For ROUGE, recall measures how much of the reference summary is captured by the generated one. If we are just comparing words, recall can be calculated according to the following formula:
+
+<math>.
+
+For our simple example above, this formula gives a perfect recall of 6/6 = 1; i.e., all the words in the reference summary have been produced by the model. This may sound great, but imagine if our generated summary had been "I really really loved reading the Hunger Games all night". This would also have perfect recall, but is arguably a worse summary since it is verbose. To deal with these scenarios we also compute the precision, which in the ROUGE context measures how much of the generated summary was relevant:
+
+<math>.
+
+Applying this to our verbose summary gives a precision of 6/10 = 0.6, which is considerably worse than the precision of 6/7 = 0.86 obtained by our shorter one. In practice, both precision and recall are usually computed, and then the F1-score (the harmonic mean of precision and recall) is reported. We can do this easily in 🤗 Datasets by first installing the <code> package:
+
+and then loading the ROUGE metric as follows:
+
+Then we can use the <code> function to calculate all the metrics at once:
+
+Whoa, there's a lot of information in that output -- what does it all mean? First, 🤗 Datasets actually computes confidence intervals for precision, recall, and F1-score; these are the <code>, <code>, and <code> attributes you can see here. Moreover, 🤗 Datasets computes a variety of ROUGE scores which are based on different types of text granularity when comparing the generated and reference summaries. The <code> variant is the overlap of unigrams -- this is just a fancy way of saying the overlap of words and is exactly the metric we've discussed above. To verify this, let's pull out the <code> value of our scores:
+
+Great, the precision and recall numbers match up! Now what about those other ROUGE scores? <code> measures the overlap between bigrams (think the overlap of pairs of words), while <code> and <code> measure the longest matching sequences of words by looking for the longest common substrings in the generated and reference summaries. The "sum" in <code> refers to the fact that this metric is computed over a whole summary, while <code> is computed as the average over individual sentences.
+
+✏️ Try it out! Create your own example of a generated and reference summary and see if the resulting ROUGE scores agree with a manual calculation based on the formulas for precision and recall. For bonus points, split the text into bigrams and compare the precision and recall for the <code> metric.
+
+We'll use these ROUGE scores to track the performance of our model, but before doing that let's do something every good NLP practitioner should do: create a strong, yet simple baseline!
+
+Creating a strong baseline.
+
+A common baseline for text summarization is to simply take the first three sentences of an article, often called the lead-3 baseline. We could use full stops to track the sentence boundaries, but this will fail on acronyms like "U.S." or "U.N." -- so instead we'll use the <code> library, which includes a better algorithm to handle these cases. You can install the package using <code> as follows:
+
+and then download the punctuation rules:
+
+Next, we import the sentence tokenizer from <code> and create a simple function to extract the first three sentences in a review. The convention in text summarization is to separate each summary with a newline, so let's also include this and test it on a training example:
+
+This seems to work, so let's now implement a function that extracts these "summaries" from a dataset and computes the ROUGE scores for the baseline:
+
+We can then use this function to compute the ROUGE scores over the validation set and prettify them a bit using Pandas:
+
+We can see that the <code> score is significantly lower than the rest; this likely reflects the fact that review titles are typically concise and so the lead-3 baseline is too verbose. Now that we have a good baseline to work from, let's turn our attention toward fine-tuning mT5!
+
+Fine-tuning mT5 with the <code> API.
+
+Fine-tuning a model for summarization is very similar to the other tasks we've covered in this chapter. The first thing we need to do is load the pretrained model from the <code> checkpoint. Since summarization is a sequence-to-sequence task, we can load the model with the <code> class, which will automatically download and cache the weights:
+
+Fine-tuning mT5 with Keras.
+
+Fine-tuning a model for summarization is very similar to the other tasks we've covered in this chapter. The first thing we need to do is load the pretrained model from the <code> checkpoint. Since summarization is a sequence-to-sequence task, we can load the model with the <code> class, which will automatically download and cache the weights:
+
+💡 If you're wondering why you don't see any warnings about fine-tuning the model on a downstream task, that's because for sequence-to-sequence tasks we keep all the weights of the network. Compare this to our text classification model in Chapter 3, where the head of the pretrained model was replaced with a randomly initialized network.
+
+The next thing we need to do is log in to the Hugging Face Hub. If you're running this code in a notebook, you can do so with the following utility function:
+
+which will display a widget where you can enter your credentials. Alternatively, you can run this command in your terminal and log in there:
+
+We'll need to generate summaries in order to compute ROUGE scores during training. Fortunately, 🤗 Transformers provides dedicated <code> and <code> classes that can do this for us automatically! To see how this works, let's first define the hyperparameters and other arguments for our experiments:
+
+Here, the <code> argument has been set to indicate that we should generate summaries during evaluation so that we can compute ROUGE scores for each epoch. As discussed in Chapter 1, the decoder performs inference by predicting tokens one by one, and this is implemented by the model's <code> method. Setting <code> tells the <code> to use that method for evaluation. We've also adjusted some of the default hyperparameters, like the learning rate, number of epochs, and weight decay, and we've set the <code> option to only save up to 3 checkpoints during training -- this is because even the "small" version of mT5 uses around a GB of hard drive space, and we can save a bit of room by limiting the number of copies we save.
+
+The <code> argument will allow us to push the model to the Hub after training; you'll find the repository under your user profile in the location defined by <code>. Note that you can specify the name of the repository you want to push to with the <code> argument (in particular, you will have to use this argument to push to an organization). For instance, when we pushed the model to the <code> organization, we added <code> to <code>.
+
+The next thing we need to do is provide the trainer with a <code> function so that we can evaluate our model during training. For summarization this is a bit more involved than simply calling <code> on the model's predictions, since we need to decode the outputs and labels into text before we can compute the ROUGE scores. The following function does exactly that, and also makes use of the <code> function from <code> to separate the summary sentences with newlines:
+
+Next, we need to define a data collator for our sequence-to-sequence task. Since mT5 is an encoder-decoder Transformer model, one subtlety with preparing our batches is that during decoding we need to shift the labels to the right by one. This is required to ensure that the decoder only sees the previous ground truth labels and not the current or future ones, which would be easy for the model to memorize. This is similar to how masked self-attention is applied to the inputs in a task like causal language modeling.
+
+Luckily, 🤗 Transformers provides a <code> collator that will dynamically pad the inputs and the labels for us. To instantiate this collator, we simply need to provide the <code> and <code>:
+
+Let's see what this collator produces when fed a small batch of examples. First, we need to remove the columns with strings because the collator won't know how to pad these elements:
+
+Since the collator expects a list of <code>s, where each <code> represents a single example in the dataset, we also need to wrangle the data into the expected format before passing it to the data collator:
+
+The main thing to notice here is that the first example is longer than the second one, so the <code> and <code> of the second example have been padded on the right with a <code> token (whose ID is <code>). Similarly, we can see that the <code> have been padded with <code>s, to make sure the padding tokens are ignored by the loss function. And finally, we can see a new <code> which has shifted the labels to the right by inserting a <code> token in the first entry.
+
+We finally have all the ingredients we need to train with! We now simply need to instantiate the trainer with the standard arguments:
+
+and launch our training run:
+
+During training, you should see the training loss decrease and the ROUGE scores increase with each epoch. Once the training is complete, you can see the final ROUGE scores by running <code>:
+
+From the scores we can see that our model has handily outperformed our lead-3 baseline -- nice! The final thing to do is push the model weights to the Hub, as follows:
+
+This will save the checkpoint and configuration files to <code>, before uploading all the files to the Hub. By specifying the <code> argument, we also ensure that the widget on the Hub will be one for a summarization pipeline instead of the default text generation one associated with the mT5 architecture (for more information about model tags, see the 🤗 Hub documentation). The output from <code> is a URL to the Git commit hash, so you can easily see the changes that were made to the model repository!
+
+To wrap up this section, let's take a look at how we can also fine-tune mT5 using the low-level features provided by 🤗 Accelerate.
+
+We're almost ready to train! We just need to convert our datasets to <code>s using the data collator we defined above, and then <code> and <code> the model. First, the datasets:
+
+Now, we define our training hyperparameters and compile:
+
+And finally, we fit the model. We use a <code> to save the model to the Hub after each epoch, which will allow us to use it for inference later:
+
+We got some loss values during training, but really we'd like to see the ROUGE metrics we computed earlier. To get those metrics, we'll need to generate outputs from the model and convert them to strings. Let's build some lists of labels and predictions for the ROUGE metric to compare (note that if you get import errors for this section, you may need to<code>). We're also going to use a trick that dramatically increases performance - compiling our generation code with XLA, TensorFlow's accelerated linear algebra compiler. XLA applies various optimizations to the model's computation graph, and results in significant improvements to speed and memory usage. As described in the Hugging Face blog, XLA works best when our input shapes don't vary too much. To handle this, we'll pad our inputs to multiples of 128, and make a new dataset with the padding collator, and then we'll apply the <code> decorator to our generation function, which marks the whole function for compilation with XLA.
+
+Once we have our lists of label and prediction strings, computing the ROUGE score is easy:
+
+Fine-tuning mT5 with 🤗 Accelerate.
+
+Fine-tuning our model with 🤗 Accelerate is very similar to the text classification example we encountered in Chapter 3. The main differences will be the need to explicitly generate our summaries during training and define how we compute the ROUGE scores (recall that the <code> took care of the generation for us). Let's take a look how we can implement these two requirements within 🤗 Accelerate!
+
+Preparing everything for training.
+
+The first thing we need to do is create a <code> for each of our splits. Since the PyTorch dataloaders expect batches of tensors, we need to set the format to <code> in our datasets:
+
+Now that we've got datasets consisting of just tensors, the next thing to do is instantiate the <code> again. For this we need to provide a fresh version of the model, so let's load it again from our cache:
+
+We can then instantiate the data collator and use this to define our dataloaders:
+
+The next thing to do is define the optimizer we want to use. As in our other examples, we'll use <code>, which works well for most problems:
+
+Finally, we feed our model, optimizer, and dataloaders to the <code> method:
+
+🚨 If you're training on a TPU, you'll need to move all the code above into a dedicated training function. See Chapter 3 for more details.
+
+Now that we've prepared our objects, there are three remaining things to do:
+
+Define the learning rate schedule.
+
+Implement a function to post-process the summaries for evaluation.
+
+Create a repository on the Hub that we can push our model to.
+
+For the learning rate schedule, we'll use the standard linear one from previous sections:
+
+For post-processing, we need a function that splits the generated summaries into sentences that are separated by newlines. This is the format the ROUGE metric expects, and we can achieve this with the following snippet of code:
+
+This should look familiar to you if you recall how we defined the <code> function of the <code>.
+
+Finally, we need to create a model repository on the Hugging Face Hub. For this, we can use the appropriately titled 🤗 Hub library. We just need to define a name for our repository, and the library has a utility function to combine the repository ID with the user profile:
+
+Now we can use this repository name to clone a local version to our results directory that will store the training artifacts:
+
+This will allow us to push the artifacts back to the Hub by calling the <code> method during training! Let's now wrap up our analysis by writing out the training loop.
+
+Training loop.
+
+The training loop for summarization is quite similar to the other 🤗 Accelerate examples that we've encountered and is roughly split into four main steps:
+
+Train the model by iterating over all the examples in <code> for each epoch.
+
+Generate model summaries at the end of each epoch, by first generating the tokens and then decoding them (and the reference summaries) into text.
+
+Compute the ROUGE scores using the same techniques we saw earlier.
+
+Save the checkpoints and push everything to the Hub. Here we rely on the nifty <code> argument of the <code> object so that we can push the checkpoints per epoch asynchronously. This allows us to continue training without having to wait for the somewhat slow upload associated with a GB-sized model!
+
+These steps can be seen in the following block of code:
+
+And that's it! Once you run this, you'll have a model and results that are pretty similar to the ones we obtained with the <code>.
+
+Using your fine-tuned model.
+
+Once you've pushed the model to the Hub, you can play with it either via the inference widget or with a <code> object, as follows:
+
+We can feed some examples from the test set (which the model has not seen) to our pipeline to get a feel for the quality of the summaries. First let's implement a simple function to show the review, title, and generated summary together:
+
+Let's take a look at one of the English examples we get:
+
+This is not too bad! We can see that our model has actually been able to perform abstractive summarization by augmenting parts of the review with new words. And perhaps the coolest aspect of our model is that it is bilingual, so we can also generate summaries of Spanish reviews:
+
+The summary translates into "Very easy to read" in English, which we can see in this case was extracted directly from the review. Nevertheless, this shows the versatility of the mT5 model and has given you a taste of what it's like to deal with a multilingual corpus!
+
+Next, we'll turn our attention to a slightly more complex task: training a language model from scratch.

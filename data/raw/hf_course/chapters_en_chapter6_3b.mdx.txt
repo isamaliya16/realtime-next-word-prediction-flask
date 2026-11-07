@@ -1,0 +1,99 @@
+Fast tokenizers in the QA pipeline.
+
+We will now dive into the <code> pipeline and see how to leverage the offsets to grab the answer to the question at hand from the context, a bit like we did for the grouped entities in the previous section. Then we will see how we can deal with very long contexts that end up being truncated. You can skip this section if you're not interested in the question answering task.
+
+Using the <code> pipeline.
+
+As we saw in Chapter 1, we can use the <code> pipeline like this to get the answer to a question:
+
+Unlike the other pipelines, which can't truncate and split texts that are longer than the maximum length accepted by the model (and thus may miss information at the end of a document), this pipeline can deal with very long contexts and will return the answer to the question even if it's at the end:
+
+Let's see how it does all of this!
+
+Using a model for question answering.
+
+Like with any other pipeline, we start by tokenizing our input and then send it through the model. The checkpoint used by default for the <code> pipeline is <code> (the "squad" in the name comes from the dataset on which the model was fine-tuned; we'll talk more about the SQuAD dataset in Chapter 7):
+
+Note that we tokenize the question and the context as a pair, with the question first.
+
+Models for question answering work a little differently from the models we've seen up to now. Using the picture above as an example, the model has been trained to predict the index of the token starting the answer (here 21) and the index of the token where the answer ends (here 24). This is why those models don't return one tensor of logits but two: one for the logits corresponding to the start token of the answer, and one for the logits corresponding to the end token of the answer. Since in this case we have only one input containing 66 tokens, we get:
+
+To convert those logits into probabilities, we will apply a softmax function -- but before that, we need to make sure we mask the indices that are not part of the context. Our input is <code>, so we need to mask the tokens of the question as well as the <code> token. We'll keep the <code> token, however, as some models use it to indicate that the answer is not in the context.
+
+Since we will apply a softmax afterward, we just need to replace the logits we want to mask with a large negative number. Here, we use <code>:
+
+Now that we have properly masked the logits corresponding to positions we don't want to predict, we can apply the softmax:
+
+At this stage, we could take the argmax of the start and end probabilities -- but we might end up with a start index that is greater than the end index, so we need to take a few more precautions. We will compute the probabilities of each possible <code> and <code> where <code>, then take the tuple <code> with the highest probability.
+
+Assuming the events "The answer starts at <code>" and "The answer ends at <code>" to be independent, the probability that the answer starts at <code> and ends at <code> is:
+
+<math>.
+
+So, to compute all the scores, we just need to compute all the products \<math> where <code>.
+
+First let's compute all the possible products:
+
+Then we'll mask the values where <code> by setting them to <code> (the other probabilities are all positive numbers). The <code> function returns the upper triangular part of the 2D tensor passed as an argument, so it will do that masking for us:
+
+Then we'll mask the values where <code> by setting them to <code> (the other probabilities are all positive numbers). The <code> function returns the upper triangular part of the 2D tensor passed as an argument, so it will do that masking for us:
+
+Now we just have to get the index of the maximum. Since PyTorch will return the index in the flattened tensor, we need to use the floor division <code> and modulus <code> operations to get the <code> and <code>:
+
+We're not quite done yet, but at least we already have the correct score for the answer (you can check this by comparing it to the first result in the previous section):
+
+✏️ Try it out! Compute the start and end indices for the five most likely answers.
+
+We have the <code> and <code> of the answer in terms of tokens, so now we just need to convert to the character indices in the context. This is where the offsets will be super useful. We can grab them and use them like we did in the token classification task:
+
+Now we just have to format everything to get our result:
+
+Great! That's the same as in our first example!
+
+✏️ Try it out! Use the best scores you computed earlier to show the five most likely answers. To check your results, go back to the first pipeline and pass in <code> when calling it.
+
+Handling long contexts.
+
+If we try to tokenize the question and long context we used as an example previously, we'll get a number of tokens higher than the maximum length used in the <code> pipeline (which is 384):
+
+So, we'll need to truncate our inputs at that maximum length. There are several ways we can do this, but we don't want to truncate the question, only the context. Since the context is the second sentence, we'll use the <code> truncation strategy. The problem that arises then is that the answer to the question may not be in the truncated context. Here, for instance, we picked a question where the answer is toward the end of the context, and when we truncate it that answer is not present:
+
+This means the model will have a hard time picking the correct answer. To fix this, the <code> pipeline allows us to split the context into smaller chunks, specifying the maximum length. To make sure we don't split the context at exactly the wrong place to make it possible to find the answer, it also includes some overlap between the chunks.
+
+We can have the tokenizer (fast or slow) do this for us by adding <code>, and we can specify the overlap we want with the <code> argument. Here is an example, using a smaller sentence:
+
+As we can see, the sentence has been split into chunks in such a way that each entry in <code> has at most 6 tokens (we would need to add padding to have the last entry be the same size as the others) and there is an overlap of 2 tokens between each of the entries.
+
+Let's take a closer look at the result of the tokenization:
+
+As expected, we get input IDs and an attention mask. The last key, <code>, is a map that tells us which sentence each of the results corresponds to -- here we have 7 results that all come from the (only) sentence we passed the tokenizer:
+
+This is more useful when we tokenize several sentences together. For instance, this:
+
+gets us:
+
+which means the first sentence is split into 7 chunks as before, and the next 4 chunks come from the second sentence.
+
+Now let's go back to our long context. By default the <code> pipeline uses a maximum length of 384, as we mentioned earlier, and a stride of 128, which correspond to the way the model was fine-tuned (you can adjust those parameters by passing <code> and <code> arguments when calling the pipeline). We will thus use those parameters when tokenizing. We'll also add padding (to have samples of the same length, so we can build tensors) as well as ask for the offsets:
+
+Those <code> will contain the input IDs and attention masks the model expects, as well as the offsets and the <code> we just talked about. Since those two are not parameters used by the model, we'll pop them out of the <code> (and we won't store the map, since it's not useful here) before converting it to a tensor:
+
+Our long context was split in two, which means that after it goes through our model, we will have two sets of start and end logits:
+
+Like before, we first mask the tokens that are not part of the context before taking the softmax. We also mask all the padding tokens (as flagged by the attention mask):
+
+Then we can use the softmax to convert our logits to probabilities:
+
+The next step is similar to what we did for the small context, but we repeat it for each of our two chunks. We attribute a score to all possible spans of answer, then take the span with the best score:
+
+Those two candidates correspond to the best answers the model was able to find in each chunk. The model is way more confident the right answer is in the second part (which is a good sign!). Now we just have to map those two token spans to spans of characters in the context (we only need to map the second one to have our answer, but it's interesting to see what the model has picked in the first chunk).
+
+✏️ Try it out! Adapt the code above to return the scores and spans for the five most likely answers (in total, not per chunk).
+
+The <code> we grabbed earlier is actually a list of offsets, with one list per chunk of text:
+
+If we ignore the first result, we get the same result as our pipeline for this long context -- yay!
+
+✏️ Try it out! Use the best scores you computed before to show the five most likely answers (for the whole context, not each chunk). To check your results, go back to the first pipeline and pass in <code> when calling it.
+
+This concludes our deep dive into the tokenizer's capabilities. We will put all of this in practice again in the next chapter, when we show you how to fine-tune a model on a range of common NLP tasks.

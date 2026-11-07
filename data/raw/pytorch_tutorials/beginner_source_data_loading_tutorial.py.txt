@@ -1,0 +1,83 @@
+Writing Custom Datasets, DataLoaders and Transforms Author: Sasank Chilamkurthy.
+
+A lot of effort in solving any machine learning problem goes into preparing the data. PyTorch provides many tools to make data loading easy and hopefully, to make your code more readable. In this tutorial, we will see how to load and preprocess/augment data from a non trivial dataset.
+
+To run this tutorial, please make sure the following packages are installed:
+
+<code>: For image io and transforms.
+
+<code>: For easier csv parsing.
+
+The dataset we are going to deal with is that of facial pose. This means that a face is annotated like this:
+
+Over all, 68 different landmark points are annotated for each face.
+
+Dataset comes with a <code> file with annotations which looks like this:
+
+Let's take a single image name and its annotations from the CSV, in this case row index number 65 for person-7.jpg just as an example. Read it, store the image name in <code> and store its annotations in an (L, 2) array <code> where L is the number of landmarks in that row.
+
+Let's write a simple helper function to show an image and its landmarks and use it to show a sample.
+
+Dataset class.
+
+<code> is an abstract class representing a dataset. Your custom dataset should inherit <code> and override the following methods:
+
+<code> so that <code> returns the size of the dataset.
+
+<code> to support the indexing such that <code> can be used to get i\ th sample.
+
+Let's create a dataset class for our face landmarks dataset. We will read the csv in <code> but leave the reading of images to <code>. This is memory efficient because all the images are not stored in the memory at once but read as required.
+
+Sample of our dataset will be a dict <code>. Our dataset will take an optional argument <code> so that any required processing can be applied on the sample. We will see the usefulness of <code> in the next section.
+
+Let's instantiate this class and iterate through the data samples. We will print the sizes of first 4 samples and show their landmarks.
+
+Transforms.
+
+One issue we can see from the above is that the samples are not of the same size. Most neural networks expect the images of a fixed size. Therefore, we will need to write some preprocessing code. Let's create three transforms:
+
+<code>: to scale the image.
+
+<code>: to crop from image randomly. This is data augmentation.
+
+<code>: to convert the numpy images to torch images (we need to swap axes).
+
+We will write them as callable classes instead of simple functions so that parameters of the transform need not be passed every time it's called. For this, we just need to implement <code> method and if required, <code> method. We can then use a transform like this:
+
+Observe below how these transforms had to be applied both on the image and landmarks.
+
+Compose transforms.
+
+Now, we apply the transforms on a sample.
+
+Let's say we want to rescale the shorter side of the image to 256 and then randomly crop a square of size 224 from it. i.e, we want to compose <code> and <code> transforms. <code> is a simple callable class which allows us to do this.
+
+Iterating through the dataset.
+
+Let's put this all together to create a dataset with composed transforms. To summarize, every time this dataset is sampled:
+
+An image is read from the file on the fly.
+
+Transforms are applied on the read image.
+
+Since one of the transforms is random, data is augmented on sampling.
+
+We can iterate over the created dataset with a <code> loop as before.
+
+However, we are losing a lot of features by using a simple <code> loop to iterate over the data. In particular, we are missing out on:
+
+Batching the data.
+
+Shuffling the data.
+
+Load the data in parallel using <code> workers.
+
+<code> is an iterator which provides all these features. Parameters used below should be clear. One parameter of interest is <code>. You can specify how exactly the samples need to be batched using <code>. However, default collate should work fine for most use cases.
+
+Afterword: torchvision.
+
+In this tutorial, we have seen how to write and use datasets, transforms and dataloader. <code> package provides some common datasets and transforms. You might not even have to write custom classes. One of the more generic datasets available in torchvision is <code>. It assumes that images are organized in the following way:
+
+where 'ants', 'bees' etc. are class labels. Similarly generic transforms which operate on <code> like <code>, <code>, are also available. You can use these to write a dataloader like this:
+
+For an example with training code, please see transferlearningtutorial.

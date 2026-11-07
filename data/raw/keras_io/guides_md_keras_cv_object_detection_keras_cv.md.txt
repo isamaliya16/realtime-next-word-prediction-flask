@@ -1,0 +1,189 @@
+Object Detection with KerasCV.
+
+KerasCV offers a complete set of production grade APIs to solve object detection problems. These APIs include object-detection-specific data augmentation techniques, Keras native COCO metrics, bounding box format conversion utilities, visualization tools, pretrained object detection models, and everything you need to train your own state of the art object detection models!
+
+Let's give KerasCV's object detection API a spin.
+
+Object detection introduction.
+
+Object detection is the process of identifying, classifying, and localizing objects within a given image. Typically, your inputs are images, and your labels are bounding boxes with optional class labels. Object detection can be thought of as an extension of classification, however instead of one class label for the image, you must detect and localize an arbitrary number of classes.
+
+For example:
+
+The data for the above image may look something like this:
+
+Since the inception of You Only Look Once (aka YOLO), object detection has primarily been solved using deep learning. Most deep learning architectures do this by cleverly framing the object detection problem as a combination of many small classification problems and many regression problems.
+
+More specifically, this is done by generating many anchor boxes of varying shapes and sizes across the input images and assigning them each a class label, as well as <code>, <code>, <code> and <code> offsets. The model is trained to predict the class labels of each box, as well as the <code>, <code>, <code>, and <code> offsets of each box that is predicted to be an object.
+
+Visualization of some sample anchor boxes:
+
+Objection detection is a technically complex problem but luckily we offer a bulletproof approach to getting great results. Let's do this!
+
+Perform detections with a pretrained model.
+
+The highest level API in the KerasCV Object Detection API is the <code> API. This API includes fully pretrained object detection models, such as <code>.
+
+Let's get started by constructing a YOLOV8Detector pretrained on the <code> dataset.
+
+Notice the <code> argument?
+
+Recall in the section above, the format of bounding boxes:
+
+This argument describes exactly what format the values in the <code> field of the label dictionary take in your pipeline. For example, a box in <code> format with its top left corner at the coordinates (100, 100) with a width of 55 and a height of 70 would be represented by:
+
+or equivalently in <code> format:
+
+While this may seem simple, it is a critical piece of the KerasCV object detection API! Every component that processes bounding boxes requires a <code> argument. You can read more about KerasCV bounding box formats in the API docs.
+
+This is done because there is no one correct format for bounding boxes! Components in different pipelines expect different formats, and so by requiring them to be specified we ensure that our components remain readable, reusable, and clear. Box format conversion bugs are perhaps the most common bug surface in object detection pipelines - by requiring this parameter we mitigate against these bugs (especially when combining code from many sources).
+
+Next let's load an image:
+
+To use the <code> architecture with a ResNet50 backbone, you'll need to resize your image to a size that is divisible by 64. This is to ensure compatibility with the number of downscaling operations done by the convolution layers in the ResNet.
+
+If the resize operation distorts the input's aspect ratio, the model will perform signficantly poorer. For the pretrained <code> preset we are using, the final <code> on the <code> evaluation set drops to <code> from <code> when using a naive resizing operation.
+
+Additionally, if you crop to preserve the aspect ratio as you do in classification your model may entirely miss some bounding boxes. As such, when running inference on an object detection model we recommend the use of padding to the desired size, while resizing the longest size to match the aspect ratio.
+
+KerasCV makes resizing properly easy; simply pass <code> to a <code> layer.
+
+This can be implemented in one line of code:
+
+This can be used as our inference preprocessing pipeline:
+
+<code> supports a <code> parameter to highlight what class each box was assigned to. Let's assemble a class mapping now.
+
+Just like any other <code> you can predict bounding boxes using the <code> API.
+
+In order to support this easy and intuitive inference workflow, KerasCV performs non-max suppression inside of the <code> class. Non-max suppression is a traditional computing algorithm that solves the problem of a model detecting multiple boxes for the same object.
+
+Non-max suppression is a highly configurable algorithm, and in most cases you will want to customize the settings of your model's non-max suppression operation. This can be done by overriding to the <code> argument.
+
+To show this concept off, let's temporarily disable non-max suppression on our YOLOV8Detector. This can be done by writing to the <code> attribute.
+
+Next, let's re-configure <code> for our use case! In this case, we will tune the <code> to <code>, and the <code> to <code>.
+
+Raising the <code> will cause the model to only output boxes that have a higher confidence score. <code> controls the threshold of intersection over union (IoU) that two boxes must have in order for one to be pruned out. More information on these parameters may be found in the TensorFlow API docs.
+
+That looks a lot better!
+
+Train a custom object detection model.
+
+Whether you're an object detection amateur or a well seasoned veteran, assembling an object detection pipeline from scratch is a massive undertaking. Luckily, all KerasCV object detection APIs are built as modular components. Whether you need a complete pipeline, just an object detection model, or even just a conversion utility to transform your boxes from <code> format to <code>, KerasCV has you covered.
+
+In this guide, we'll assemble a full training pipeline for a KerasCV object detection model. This includes data loading, augmentation, metric evaluation, and inference!
+
+To get started, let's sort out all of our imports and define global configuration parameters.
+
+Data loading.
+
+To get started, let's discuss data loading and bounding box formatting. KerasCV has a predefined format for bounding boxes. To comply with this, you should package your bounding boxes into a dictionary matching the specification below:
+
+<code> contains the coordinates of your bounding box in a KerasCV supported <code>. KerasCV requires a <code> argument in all components that process bounding boxes. This is done to maximize your ability to plug and play individual components into their object detection pipelines, as well as to make code self-documenting across object detection pipelines.
+
+To match the KerasCV API style, it is recommended that when writing a custom data loader, you also support a <code> argument. This makes it clear to those invoking your data loader what format the bounding boxes are in. In this example, we format our boxes to <code> format.
+
+For example:
+
+This clearly yields bounding boxes in the format <code>. You can read more about KerasCV bounding box formats in the API docs.
+
+Our data comes loaded into the format <code>. This format is supported in all KerasCV preprocessing components.
+
+Let's load some data and verify that the data looks as we expect it to.
+
+Next, let's batch our data.
+
+In KerasCV object detection tasks it is recommended that users use ragged batches of inputs. This is due to the fact that images may be of different sizes in PascalVOC, as well as the fact that there may be different numbers of bounding boxes per image.
+
+To construct a ragged dataset in a <code> pipeline, you can use the <code> method.
+
+Let's make sure our dataset is following the format KerasCV expects. By using the <code> function, you can visually verify that your data is in the format that KerasCV expects. If the bounding boxes are not visible or are visible in the wrong locations that is a sign that your data is mis-formatted.
+
+And for the eval set:
+
+Looks like everything is structured as expected. Now we can move on to constructing our data augmentation pipeline.
+
+Data augmentation.
+
+One of the most challenging tasks when constructing object detection pipelines is data augmentation. Image augmentation techniques must be aware of the underlying bounding boxes, and must update them accordingly.
+
+Luckily, KerasCV natively supports bounding box augmentation with its extensive library of data augmentation layers. The code below loads the Pascal VOC dataset, and performs on-the-fly, bounding-box-friendly data augmentation inside a <code> pipeline.
+
+Great! We now have a bounding-box-friendly data augmentation pipeline. Let's format our evaluation dataset to match. Instead of using <code>, let's use the deterministic <code> layer.
+
+Due to the fact that the resize operation differs between the train dataset, which uses <code> to resize images, and the inference dataset, which uses <code>, it is good practice to visualize both datasets:
+
+Finally, let's unpackage our inputs from the preprocessing dictionary, and prepare to feed the inputs into our model. In order to be TPU compatible, bounding box Tensors need to be <code> instead of <code>.
+
+Optimizer.
+
+In this guide, we use a standard SGD optimizer and rely on the <code> callback to reduce the learning rate.
+
+You will always want to include a <code> when training object detection models. This is to remedy exploding gradient problems that frequently occur when training object detection models.
+
+To achieve the best results on your dataset, you'll likely want to hand craft a <code> learning rate schedule. While <code> schedules tend to perform better, they don't translate between problems.
+
+Loss functions.
+
+You may not be familiar with the <code> loss. While not common in other models, this loss is sometimes used in the object detection world.
+
+In short, "Complete IoU" is a flavour of the Intersection over Union loss and is used due to its convergence properties.
+
+In KerasCV, you can use this loss simply by passing the string <code> to <code>. We also use standard binary crossentropy loss for the class head.
+
+Metric evaluation.
+
+The most popular object detection metrics are COCO metrics, which were published alongside the MSCOCO dataset. KerasCV provides an easy-to-use suite of COCO metrics under the <code> symbol. Note that we use a Keras callback instead of a Keras metric to compute COCO metrics. This is because computing COCO metrics requires storing all of a model's predictions for the entire evaluation dataset in memory at once, which is impractical to do during training time.
+
+Our data pipeline is now complete! We can now move on to model creation and training.
+
+Model creation.
+
+Next, let's use the KerasCV API to construct an untrained YOLOV8Detector model. In this tutorial we use a pretrained ResNet50 backbone from the imagenet dataset.
+
+KerasCV makes it easy to construct a <code> with any of the KerasCV backbones. Simply use one of the presets for the architecture you'd like!
+
+For example:
+
+That is all it takes to construct a KerasCV YOLOv8. The YOLOv8 accepts tuples of dense image Tensors and bounding box dictionaries to <code> and <code>.
+
+This matches what we have constructed in our input pipeline above.
+
+Training our model.
+
+All that is left to do is train our model. KerasCV object detection models follow the standard Keras workflow, leveraging <code> and <code>.
+
+Let's compile our model:
+
+If you want to fully train the model, remove <code> from all dataset references (below and in the initialization of the metrics callback).
+
+Inference and plotting results.
+
+KerasCV makes object detection inference simple. <code> returns a tensor of bounding boxes. By default, <code> will perform a non max suppression operation for you.
+
+In this section, we will use a <code> provided preset:
+
+Next, for convenience we construct a dataset with larger batches:
+
+Let's create a simple function to plot our inferences:
+
+You may need to configure your NonMaxSuppression operation to achieve visually appealing results.
+
+Awesome! One final helpful pattern to be aware of is to visualize detections in a <code> to monitor training :
+
+Takeaways and next steps.
+
+KerasCV makes it easy to construct state-of-the-art object detection pipelines. In this guide, we started off by writing a data loader using the KerasCV bounding box specification. Following this, we assembled a production grade data augmentation pipeline using KerasCV preprocessing layers in <50 lines of code.
+
+KerasCV object detection components can be used independently, but also have deep integration with each other. KerasCV makes authoring production grade bounding box augmentation, model training, visualization, and metric evaluation easy.
+
+Some follow up exercises for the reader:
+
+add additional augmentation techniques to improve model performance.
+
+tune the hyperparameters and data augmentation used to produce high quality results.
+
+train an object detection model on your own dataset.
+
+One last fun code snippet to showcase the power of KerasCV's API!

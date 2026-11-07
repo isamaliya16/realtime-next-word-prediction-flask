@@ -1,0 +1,235 @@
+Save, serialize, and export models.
+
+Introduction.
+
+A Keras model consists of multiple components:
+
+The architecture, or configuration, which specifies what layers the model contain, and how they're connected.
+
+A set of weights values (the "state of the model").
+
+An optimizer (defined by compiling the model).
+
+A set of losses and metrics (defined by compiling the model).
+
+The Keras API saves all of these pieces together in a unified format, marked by the <code> extension. This is a zip archive consisting of the following:
+
+A JSON-based configuration file (config.json): Records of model, layer, and other trackables' configuration.
+
+A H5-based state file, such as <code> (for the whole model), with directory keys for layers and their weights.
+
+A metadata file in JSON, storing things such as the current Keras version.
+
+Let's take a look at how this works.
+
+How to save and load a model.
+
+If you only have 10 seconds to read this guide, here's what you need to know.
+
+Saving a Keras model:
+
+Loading the model back:
+
+Now, let's look at the details.
+
+Setup.
+
+Saving.
+
+This section is about saving an entire model to a single file. The file will include:
+
+The model's architecture/config.
+
+The model's weight values (which were learned during training).
+
+The model's compilation information (if <code> was called).
+
+The optimizer and its state, if any (this enables you to restart training where you left).
+
+APIs.
+
+You can save a model with <code> or <code> (which is equivalent). You can load it back with <code>.
+
+The only supported format in Keras 3 is the "Keras v3" format, which uses the <code> extension.
+
+Example:
+
+Custom objects.
+
+This section covers the basic workflows for handling custom layers, functions, and models in Keras saving and reloading.
+
+When saving a model that includes custom objects, such as a subclassed Layer, you must define a <code> method on the object class. If the arguments passed to the constructor (<code> method) of the custom object aren't Python objects (anything other than base types like ints, strings, etc.), then you must also explicitly deserialize these arguments in the <code> class method.
+
+Like this:
+
+Please see the Defining the config methods section for more details and examples.
+
+The saved <code> file is lightweight and does not store the Python code for custom objects. Therefore, to reload the model, <code> requires access to the definition of any custom objects used through one of the following methods:
+
+Registering custom objects (preferred).
+
+Passing custom objects directly when loading, or.
+
+Using a custom object scope.
+
+Below are examples of each workflow:
+
+Registering custom objects (preferred).
+
+This is the preferred method, as custom object registration greatly simplifies saving and loading code. Adding the <code> decorator to the class definition of a custom object registers the object globally in a master list, allowing Keras to recognize the object when loading the model.
+
+Let's create a custom model involving both a custom layer and a custom activation function to demonstrate this.
+
+Example:
+
+Passing custom objects to <code>.
+
+Using a custom object scope.
+
+Any code within the custom object scope will be able to recognize the custom objects passed to the scope argument. Therefore, loading the model within the scope will allow the loading of our custom objects.
+
+Example:
+
+Model serialization.
+
+This section is about saving only the model's configuration, without its state. The model's configuration (or architecture) specifies what layers the model contains, and how these layers are connected. If you have the configuration of a model, then the model can be created with a freshly initialized state (no weights or compilation information).
+
+APIs.
+
+The following serialization APIs are available:
+
+<code>: make a (randomly initialized) copy of a model.
+
+<code> and <code>: retrieve the configuration of a layer or model, and recreate a model instance from its config, respectively.
+
+<code> and <code>: similar, but as JSON strings.
+
+<code>: retrieve the configuration any arbitrary Keras object.
+
+<code>: recreate an object instance from its configuration.
+
+In-memory model cloning.
+
+You can do in-memory cloning of a model via <code>. This is equivalent to getting the config then recreating the model from its config (so it does not preserve compilation information or layer weights values).
+
+Example:
+
+<code> and <code>.
+
+Calling <code> or <code> will return a Python dict containing the configuration of the model or layer, respectively. You should define <code> to contain arguments needed for the <code> method of the model or layer. At loading time, the <code> method will then call <code> with these arguments to reconstruct the model or layer.
+
+Layer example:
+
+Now let's reconstruct the layer using the <code> method:
+
+Sequential model example:
+
+Functional model example:
+
+<code> and <code>.
+
+This is similar to <code> / <code>, except it turns the model into a JSON string, which can then be loaded without the original model class. It is also specific to models, it isn't meant for layers.
+
+Example:
+
+Arbitrary object serialization and deserialization.
+
+The <code> and <code> APIs are general-purpose APIs that can be used to serialize or deserialize any Keras object and any custom object. It is at the foundation of saving model architecture and is behind all <code>/<code> calls in keras.
+
+Example:
+
+Note the serialization format containing all the necessary information for proper reconstruction:
+
+<code> containing the name of the Keras module or other identifying module the object comes from.
+
+<code> containing the name of the object's class.
+
+<code> with all the information needed to reconstruct the object.
+
+<code> for custom objects. See here.
+
+Now we can reconstruct the regularizer.
+
+Model weights saving.
+
+You can choose to only save & load a model's weights. This can be useful if:
+
+You only need the model for inference: in this case you won't need to restart training, so you don't need the compilation information or optimizer state.
+
+You are doing transfer learning: in this case you will be training a new model reusing the state of a prior model, so you don't need the compilation information of the prior model.
+
+APIs for in-memory weight transfer.
+
+Weights can be copied between different objects by using <code> and <code>:
+
+<code>: Returns a list of NumPy arrays of weight values.
+
+<code>: Sets the model weights to the values provided (as NumPy arrays).
+
+Examples:
+
+Transferring weights from one layer to another, in memory.
+
+Transferring weights from one model to another model with a compatible architecture, in memory.
+
+The case of stateless layers.
+
+Because stateless layers do not change the order or number of weights, models can have compatible architectures even if there are extra/missing stateless layers.
+
+APIs for saving weights to disk & loading them back.
+
+Weights can be saved to disk by calling <code>. The filename should end in <code>.
+
+Example:
+
+Note that changing <code> may result in a different <code> ordering when the model contains nested layers.
+
+Transfer learning example.
+
+When loading pretrained weights from a weights file, it is recommended to load the weights into the original checkpointed model, and then extract the desired weights/layers into a new model.
+
+Example:
+
+Model: "sequential_4".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ dense1 ( Dense ) │ ( None , 64 ) │ 50,240 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense2 ( Dense ) │ ( None , 64 ) │ 4,160 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense_3 ( Dense ) │ ( None , 5 ) │ 325 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 54,725 (213.77 KB).
+
+Trainable params: 54,725 (213.77 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Appendix: Handling custom objects.
+
+Defining the config methods.
+
+Specifications:
+
+<code> should return a JSON-serializable dictionary in order to be compatible with the Keras architecture- and model-saving APIs.
+
+<code> (a <code>) should return a new layer or model object that is created from the config. The default implementation returns <code>.
+
+NOTE: If all your constructor arguments are already serializable, e.g. strings and ints, or non-custom Keras objects, overriding <code> is not necessary. However, for more complex objects such as layers or models passed to <code>, deserialization must be handled explicitly either in <code> itself or overriding the <code> method.
+
+Example:
+
+Note that overriding <code> is unnecessary above for <code> because <code>, <code>, and <code> are ints, strings, and a built-in Keras object, respectively. This means that the default <code> implementation of <code> will work as intended.
+
+For more complex objects, such as layers and models passed to <code>, for example, you must explicitly deserialize these objects. Let's take a look at an example of a model where a <code> override is necessary.
+
+Example:
+
+How custom objects are serialized.
+
+The serialization format has a special key for custom objects registered via <code>. This <code> key allows for easy retrieval at loading/deserialization time while also allowing users to add custom naming.
+
+Let's take a look at the config from serializing the custom layer <code> we defined above.
+
+Example:
+
+As shown, the <code> key contains the lookup information for the Keras master list, including the package <code> and the custom name <code> that we gave in the <code> decorator. Take a look again at the custom class definition/registration here.
+
+Note that the <code> key contains the original name of the class, allowing for proper re-initialization in <code>.
+
+Additionally, note that the <code> key is <code> since this is a custom object.

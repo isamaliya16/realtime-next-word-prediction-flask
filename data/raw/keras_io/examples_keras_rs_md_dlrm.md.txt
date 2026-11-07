@@ -1,0 +1,43 @@
+Ranking with Deep Learning Recommendation Model.
+
+Introduction.
+
+This tutorial demonstrates how to use the Deep Learning Recommendation Model (DLRM) to effectively learn the relationships between items and user preferences using a dot-product interaction mechanism. For more details, please refer to the DLRM paper.
+
+DLRM is designed to excel at capturing explicit, bounded-degree feature interactions and is particularly effective at processing both categorical and continuous (sparse/dense) input features. The architecture consists of three main components: dedicated input layers to handle diverse features (typically embedding layers for categorical features), a dot-product interaction layer to explicitly model feature interactions, and a Multi-Layer Perceptron (MLP) to capture implicit feature relationships.
+
+The dot-product interaction layer lies at the heart of DLRM, efficiently computing pairwise interactions between different feature embeddings. This contrasts with models like Deep & Cross Network (DCN), which can treat elements within a feature vector as independent units, potentially leading to a higher-dimensional space and increased computational cost. The MLP is a standard feedforward network. The DLRM is formed by combining the interaction layer and MLP.
+
+The following image illustrates the DLRM architecture:
+
+Now that we have a foundational understanding of DLRM's architecture and key characteristics, let's dive into the code. We will train a DLRM on a real-world dataset to demonstrate its capability to learn meaningful feature interactions. Let's begin by setting the backend to JAX and organizing our imports.
+
+Let's also define variables which will be reused throughout the example.
+
+Here, we define a helper function for visualising weights of the cross layer in order to better understand its functioning. Also, we define a function for compiling, training and evaluating a given model.
+
+Real-world example.
+
+Let's use the MovieLens 100K dataset. This dataset is used to train models to predict users' movie ratings, based on user-related features and movie-related features.
+
+Preparing the dataset.
+
+The dataset processing steps here are similar to what's given in the basic ranking tutorial. Let's load the dataset, and keep only the useful columns.
+
+For every categorical feature, let's get the list of unique values, i.e., vocabulary, so that we can use that for the embedding layer.
+
+One thing we need to do is to use <code> and <code> to convert all the categorical features into indices, which can then be fed into embedding layers.
+
+Let's normalize all the continuous features, so that we can use that for the MLP layers.
+
+Let's split our data into train and test sets. We also use <code> and <code> for better performance.
+
+Building the model.
+
+The model will have embedding layers, followed by DotInteraction and feedforward layers.
+
+Visualizing feature interactions.
+
+The DotInteraction layer itself doesn't have a conventional "weight" matrix like a Dense layer. Instead, its function is to compute the dot product between the embedding vectors of your features.
+
+To visualize the strength of these interactions, we can calculate a matrix representing the pairwise interaction strength between all feature embeddings. A common way to do this is to take the dot product of the embedding matrices for each pair of features and then aggregate the result into a single value (like the mean of the absolute values) that represents the overall interaction strength.

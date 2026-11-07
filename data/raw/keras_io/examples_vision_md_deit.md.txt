@@ -1,0 +1,107 @@
+Distilling Vision Transformers.
+
+Introduction.
+
+In the original Vision Transformers (ViT) paper (Dosovitskiy et al.), the authors concluded that to perform on par with Convolutional Neural Networks (CNNs), ViTs need to be pre-trained on larger datasets. The larger the better. This is mainly due to the lack of inductive biases in the ViT architecture -- unlike CNNs, they don't have layers that exploit locality. In a follow-up paper (Steiner et al.), the authors show that it is possible to substantially improve the performance of ViTs with stronger regularization and longer training.
+
+Many groups have proposed different ways to deal with the problem of data-intensiveness of ViT training. One such way was shown in the Data-efficient image Transformers, (DeiT) paper (Touvron et al.). The authors introduced a distillation technique that is specific to transformer-based vision models. DeiT is among the first works to show that it's possible to train ViTs well without using larger datasets.
+
+In this example, we implement the distillation recipe proposed in DeiT. This requires us to slightly tweak the original ViT architecture and write a custom training loop to implement the distillation recipe.
+
+To comfortably navigate through this example, you'll be expected to know how a ViT and knowledge distillation work. The following are good resources in case you needed a refresher:
+
+ViT on keras.io.
+
+Knowledge distillation on keras.io.
+
+Imports.
+
+Constants.
+
+You probably noticed that <code> has been set 0.0. Dropout has been used in the implementation to keep it complete. For smaller models (like the one used in this example), you don't need it, but for bigger models, using dropout helps.
+
+Load the flowers dataset and prepare preprocessing utilities.
+
+The authors use an array of different augmentation techniques, including MixUp (Zhang et al.), RandAugment (Cubuk et al.), and so on. However, to keep the example simple to work through, we'll discard them.
+
+We use <code> to build a fully backend-agnostic data pipeline that works with JAX, PyTorch, and TensorFlow alike.
+
+A couple of practical details are important here:
+
+<code> may return the extraction cache directory, so we explicitly resolve the inner <code> folder when present.
+
+Source images have variable spatial sizes, so we decode each image with a fixed <code> before stacking into a NumPy batch.
+
+Implementing the DeiT variants of ViT.
+
+Since DeiT is an extension of ViT it'd make sense to first implement ViT and then extend it to support DeiT's components.
+
+First, we'll implement a layer for Stochastic Depth (Huang et al.) which is used in DeiT for regularization.
+
+Now, we'll implement the MLP and Transformer blocks.
+
+We'll now implement a <code> class building on top of the components we just developed. Here we'll be following the original pooling strategy used in the ViT paper -- use a class token and use the feature representations corresponding to it for classification.
+
+This class can be used standalone as ViT and is end-to-end trainable. Just remove the <code> phrase in <code> and it should work with <code>. Let's now extend it to DeiT. The following figure presents the schematic of DeiT (taken from the DeiT paper):
+
+Apart from the class token, DeiT has another token for distillation. During distillation, the logits corresponding to the class token are compared to the true labels, and the logits corresponding to the distillation token are compared to the teacher's predictions.
+
+Let's verify if the <code> class can be initialized and called as expected.
+
+Implementing the trainer.
+
+Unlike what happens in standard knowledge distillation (Hinton et al.), where a temperature-scaled softmax is used as well as KL divergence, DeiT authors use the following loss function:
+
+Here.
+
+CE is cross-entropy.
+
+<code> is the softmax function.
+
+Z_s denotes student predictions.
+
+y denotes true labels.
+
+y_t denotes teacher predictions.
+
+Build a teacher model.
+
+For full backend portability in Keras 3, we build a teacher with standard Keras layers instead of using a TensorFlow-only SavedModel loader. We use <code> (pretrained on ImageNet) as the backbone, freeze it, and fine-tune only a small classification head on the flowers dataset. In practice you could swap in any compatible Keras model as the teacher.
+
+<code> includes preprocessing by default (<code>), so it expects raw <code> image values. We therefore avoid adding an extra <code> layer in the teacher path to prevent double normalization.
+
+Training through distillation.
+
+In this Keras 3 setup, distillation consistently improves over training the same backbone from scratch under the same budget. In our current run, the distilled model reaches about 61.5% validation accuracy after 20 epochs.
+
+You can adapt the following code to reproduce a non-distilled baseline:
+
+Notes.
+
+Through the use of distillation, we're effectively transferring the inductive biases of a CNN-based teacher model.
+
+In this example, a compact CNN teacher (<code>) provides a strong signal and stabilizes DeiT training on the flowers dataset.
+
+The use of regularization to train DeiT models is very important.
+
+ViT models are initialized with a combination of different initializers including truncated normal, random normal, Glorot uniform, etc. If you're looking for end-to-end reproduction of the original results, don't forget to initialize the ViTs well.
+
+The entire pipeline is backend-agnostic in Keras 3: data loading, augmentation, and distillation all run without TensorFlow-specific APIs.
+
+If you want to explore the pre-trained DeiT models in Keras with code for fine-tuning, check out these models on TF-Hub.
+
+Acknowledgements.
+
+Ross Wightman for keeping <code> updated with readable implementations. I referred to the implementations of ViT and DeiT a lot during implementing them in Keras.
+
+Aritra Roy Gosthipaty who implemented some portions of the <code> in another project.
+
+Google Developers Experts program for supporting me with GCP credits which were used to run experiments for this example.
+
+Example available on HuggingFace:
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.
+
+Chapter 15: Language models and the Transformer.

@@ -1,0 +1,99 @@
+Writing Keras Models With TensorFlow NumPy.
+
+Introduction.
+
+NumPy is a hugely successful Python linear algebra library.
+
+TensorFlow recently launched tf_numpy, a TensorFlow implementation of a large subset of the NumPy API. Thanks to <code>, you can write Keras layers or models in the NumPy style!
+
+The TensorFlow NumPy API has full integration with the TensorFlow ecosystem. Features such as automatic differentiation, TensorBoard, Keras model callbacks, TPU distribution and model exporting are all supported.
+
+Let's run through a few examples.
+
+Setup.
+
+To test our models we will use the Boston housing prices regression dataset.
+
+Subclassing keras.Model with TNP.
+
+The most flexible way to make use of the Keras API is to subclass the <code> class. Subclassing the Model class gives you the ability to fully customize what occurs in the training loop. This makes subclassing Model a popular option for researchers.
+
+In this example, we will implement a <code> subclass that performs regression over the boston housing dataset using the TNP API. Note that differentiation and gradient descent is handled automatically when using the TNP API alongside keras.
+
+First let's define a simple <code> class.
+
+Just like with any other Keras model we can utilize any supported optimizer, loss, metrics or callbacks that we want.
+
+Let's see how the model performs!
+
+Great! Our model seems to be effectively learning to solve the problem at hand.
+
+We can also write our own custom loss function using TNP.
+
+Implementing a Keras Layer Based Model with TNP.
+
+If desired, TNP can also be used in layer oriented Keras code structure. Let's implement the same model, but using a layered approach!
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ tnpdense ( TNPDense ) │ ( None , 3 ) │ 27 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ tnpdense1 ( TNPDense ) │ ( None , 3 ) │ 12 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ tnpdense_2 ( TNPDense ) │ ( None , 1 ) │ 4 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 43 (172.00 B).
+
+Trainable params: 43 (172.00 B).
+
+Non-trainable params: 0 (0.00 B).
+
+You can also seamlessly switch between TNP layers and native Keras layers!
+
+Model: "sequential_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ tnpdense3 ( TNPDense ) │ ( None , 3 ) │ 27 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 3 ) │ 12 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ tnpdense4 ( TNPDense ) │ ( None , 1 ) │ 4 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 43 (172.00 B).
+
+Trainable params: 43 (172.00 B).
+
+Non-trainable params: 0 (0.00 B).
+
+The Keras API offers a wide variety of layers. The ability to use them alongside NumPy code can be a huge time saver in projects.
+
+Distribution Strategy.
+
+TensorFlow NumPy and Keras integrate with TensorFlow Distribution Strategies. This makes it simple to perform distributed training across multiple GPUs, or even an entire TPU Pod.
+
+Model: "sequential_2".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ tnpdense5 ( TNPDense ) │ ( None , 3 ) │ 27 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ tnpdense6 ( TNPDense ) │ ( None , 3 ) │ 12 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ tnpdense7 ( TNPDense ) │ ( None , 1 ) │ 4 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 43 (172.00 B).
+
+Trainable params: 43 (172.00 B).
+
+Non-trainable params: 0 (0.00 B).
+
+TensorBoard Integration.
+
+One of the many benefits of using the Keras API is the ability to monitor training through TensorBoard. Using the TensorFlow NumPy API alongside Keras allows you to easily leverage TensorBoard.
+
+To load the TensorBoard from a Jupyter notebook, you can run the following magic:
+
+To load the TensorBoard from a Jupyter notebook you can use the <code> magic:
+
+The TensorBoard monitor metrics and examine the training curve.
+
+The TensorBoard also allows you to explore the computation graph used in your models.
+
+The ability to introspect into your models can be valuable during debugging.
+
+Conclusion.
+
+Porting existing NumPy code to Keras models using the <code> API is easy! By integrating with Keras you gain the ability to use existing Keras callbacks, metrics and optimizers, easily distribute your training and use Tensorboard.
+
+Migrating a more complex model, such as a ResNet, to the TensorFlow NumPy API would be a great follow up learning exercise.
+
+Several open source NumPy ResNet implementations are available online.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.

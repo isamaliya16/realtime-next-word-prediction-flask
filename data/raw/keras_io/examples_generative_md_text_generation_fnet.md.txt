@@ -1,0 +1,53 @@
+Text Generation using FNet.
+
+Introduction.
+
+The original transformer implementation (Vaswani et al., 2017) was one of the major breakthroughs in Natural Language Processing, giving rise to important architectures such BERT and GPT. However, the drawback of these architectures is that the self-attention mechanism they use is computationally expensive. The FNet architecture proposes to replace this self-attention attention with a leaner mechanism: a Fourier transformation-based linear mixer for input tokens.
+
+The FNet model was able to achieve 92-97% of BERT's accuracy while training 80% faster on GPUs and almost 70% faster on TPUs. This type of design provides an efficient and small model size, leading to faster inference times.
+
+In this example, we will implement and train this architecture on the Cornell Movie Dialog corpus to show the applicability of this model to text generation.
+
+Imports.
+
+Loading data.
+
+We will be using the Cornell Dialog Corpus. We will parse the movie conversations into questions and answers sets.
+
+Preprocessing and Tokenization.
+
+Tokenizing and padding sentences using <code>.
+
+Creating the FNet Encoder.
+
+The FNet paper proposes a replacement for the standard attention mechanism used by the Transformer architecture (Vaswani et al., 2017).
+
+The outputs of the FFT layer are complex numbers. To avoid dealing with complex layers, only the real part (the magnitude) is extracted.
+
+The dense layers that follow the Fourier transformation act as convolutions applied on the frequency domain.
+
+Creating the Decoder.
+
+The decoder architecture remains the same as the one proposed by (Vaswani et al., 2017) in the original transformer architecture, consisting of an embedding, positional encoding, two masked multi-head attention layers and finally the dense output layers. The architecture that follows is taken from Deep Learning with Python, second edition, chapter 11.
+
+Creating and Training the model.
+
+The model as configured here uses a simplified architecture to keep training time manageable for a tutorial. The text generation quality will be limited - outputs may be generic. Although accuracy is not a good measure for this task, we will use it just to get a hint of the improvement of the network.
+
+Performing inference.
+
+Conclusion.
+
+This example shows how to train and perform inference using the FNet model. For getting insight into the architecture or for further reading, you can refer to:
+
+FNet: Mixing Tokens with Fourier Transforms (Lee-Thorp et al., 2021).
+
+Attention Is All You Need (Vaswani et al., 2017).
+
+Thanks to François Chollet for his Keras example on English-to-Spanish translation with a sequence-to-sequence Transformer from which the decoder implementation was extracted.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 15: Language models and the Transformer.
+
+Chapter 16: Text generation.

@@ -1,0 +1,41 @@
+Model Interpretability using Captum.
+
+Captum helps you understand how the data features impact your model predictions or neuron activations, shedding light on how your model operates.
+
+Using Captum, you can apply a wide range of state-of-the-art feature attribution algorithms such as \ <code>\ and \ <code>\ in a unified way.
+
+In this recipe you will learn how to use Captum to:
+
+Attribute the predictions of an image classifier to their corresponding image features.
+
+Visualize the attribution results.
+
+Before you begin.
+
+Make sure Captum is installed in your active Python environment. Captum is available both on GitHub, as a <code> package, or as a <code> package. For detailed instructions, consult the installation guide at.
+
+For a model, we use a built-in image classifier in PyTorch. Captum can reveal which parts of a sample image support certain predictions made by the model.
+
+Computing Attribution.
+
+Among the top-3 predictions of the models are classes 208 and 283 which correspond to dog and cat.
+
+Let us attribute each of these predictions to the corresponding part of the input, using Captum’s \ <code>\ algorithm.
+
+Besides <code>, Captum features many algorithms such as \ <code>\ , \ <code>\ , \ <code>\ , \ <code>\ , \ <code>\ , and \ <code>\ . All of these algorithms are subclasses of <code> which expects your model as a callable <code> upon initialization and has an <code> method which returns the attribution result in a unified format.
+
+Let us visualize the computed attribution results in case of images.
+
+Visualizing the Results.
+
+Captum’s \ <code>\ utility provides out-of-the-box methods to visualize attribution results both for pictorial and for textual inputs.
+
+If your data is textual, <code> offers a dedicated view to explore attribution on top of the input text. Find out more at.
+
+Final Notes.
+
+Captum can handle most model types in PyTorch across modalities including vision, text, and more. With Captum you can: \ Attribute a specific output to the model input as illustrated above. \ Attribute a specific output to a hidden-layer neuron (see Captum API reference). \ Attribute a hidden-layer neuron response to the model input (see Captum API reference).
+
+For complete API of the supported methods and a list of tutorials, consult our website.
+
+Another useful post by Gilbert Tanner:

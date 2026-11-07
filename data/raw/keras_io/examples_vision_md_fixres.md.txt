@@ -1,0 +1,63 @@
+FixRes: Fixing train-test resolution discrepancy.
+
+Introduction.
+
+It is a common practice to use the same input image resolution while training and testing vision models. However, as investigated in Fixing the train-test resolution discrepancy (Touvron et al.), this practice leads to suboptimal performance. Data augmentation is an indispensable part of the training process of deep neural networks. For vision models, we typically use random resized crops during training and center crops during inference. This introduces a discrepancy in the object sizes seen during training and inference. As shown by Touvron et al., if we can fix this discrepancy, we can significantly boost model performance.
+
+In this example, we implement the FixRes techniques introduced by Touvron et al. to fix this discrepancy.
+
+Imports.
+
+Load the <code> dataset.
+
+Data preprocessing utilities.
+
+We create three datasets:
+
+A dataset with a smaller resolution - 128x128.
+
+Two datasets with a larger resolution - 224x224.
+
+We will apply different augmentation transforms to the larger-resolution datasets.
+
+The idea of FixRes is to first train a model on a smaller resolution dataset and then fine-tune it on a larger resolution dataset. This simple yet effective recipe leads to non-trivial performance improvements. Please refer to the original paper for results.
+
+Notice how the augmentation transforms vary for the kind of dataset we are preparing.
+
+Prepare datasets.
+
+Visualize the datasets.
+
+Model training utilities.
+
+We train multiple variants of ResNet50V2 (He et al.):
+
+On the smaller resolution dataset (128x128). It will be trained from scratch.
+
+Then fine-tune the model from 1 on the larger resolution (224x224) dataset.
+
+Train another ResNet50V2 from scratch on the larger resolution dataset.
+
+As a reminder, the larger resolution datasets differ in terms of their augmentation transforms.
+
+Experiment 1: Train on 128x128 and then fine-tune on 224x224.
+
+Freeze all the layers except for the final Batch Normalization layer.
+
+For fine-tuning, we train only two layers:
+
+The final Batch Normalization (Ioffe et al.) layer.
+
+The classification layer.
+
+We are unfreezing the final Batch Normalization layer to compensate for the change in activation statistics before the global average pooling layer. As shown in the paper, unfreezing the final Batch Normalization layer is enough.
+
+For a comprehensive guide on fine-tuning models in Keras, refer to this tutorial.
+
+Experiment 2: Train a model on 224x224 resolution from scratch.
+
+Now, we train another model from scratch on the larger resolution dataset. Recall that the augmentation transforms used in this dataset are different from before.
+
+As we can notice from the above cells, FixRes leads to a better performance. Another advantage of FixRes is the improved total training time and reduction in GPU memory usage. FixRes is model-agnostic, you can use it on any image classification model to potentially boost performance.
+
+You can find more results here that were gathered by running the same code with different random seeds.

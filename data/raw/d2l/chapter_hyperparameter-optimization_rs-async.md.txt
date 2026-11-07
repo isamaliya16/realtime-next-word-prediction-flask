@@ -1,0 +1,61 @@
+Asynchronous Random Search.
+
+As we have seen in the previous section <num>, we might have to wait hours or even days before random search returns a good hyperparameter configuration, because of the expensive evaluation of hyperparameter configurations. In practice, we have often access to a pool of resources such as multiple GPUs on the same machine or multiple machines with a single GPU. This begs the question: How do we efficiently distribute random search?
+
+In general, we distinguish between synchronous and asynchronous parallel hyperparameter optimization (see section <num>). In the synchronous setting, we wait for all concurrently running trials to finish, before we start the next batch. Consider configuration spaces that contain hyperparameters such as the number of filters or number of layers of a deep neural network. Hyperparameter configurations that contain a larger number of layers of filters will naturally take more time to finish, and all other trials in the same batch will have to wait at synchronisation points (grey area in section <num>) before we can continue the optimization process.
+
+In the asynchronous setting we immediately schedule a new trial as soon as resources become available. This will optimally exploit our resources, since we can avoid any synchronisation overhead. For random search, each new hyperparameter configuration is chosen independently of all others, and in particular without exploiting observations from any prior evaluation. This means we can trivially parallelize random search asynchronously. This is not straight-forward with more sophisticated methods that make decision based on previous observations (see section <num>). While we need access to more resources than in the sequential setting, asynchronous random search exhibits a linear speed-up, in that a certain performance is reached <math> times faster if <math> trials can be run in parallel.
+
+In this notebook, we will look at asynchronous random search that, where trials are executed in multiple python processes on the same machine. Distributed job scheduling and execution is difficult to implement from scratch. We will use Syne Tune , which provides us with a simple interface for asynchronous HPO. Syne Tune is designed to be run with different execution back-ends, and the interested reader is invited to study its simple APIs in order to learn more about distributed HPO.
+
+Objective Function.
+
+First, we have to define a new objective function such that it now returns the performance back to Syne Tune via the <code> callback.
+
+Note that the <code> of Syne Tune requires dependencies to be imported inside the function definition.
+
+Asynchronous Scheduler.
+
+First, we define the number of workers that evaluate trials concurrently. We also need to specify how long we want to run random search, by defining an upper limit on the total wall-clock time.
+
+Next, we state which metric we want to optimize and whether we want to minimize or maximize this metric. Namely, <code> needs to correspond to the argument name passed to the <code> callback.
+
+We use the configuration space from our previous example. In Syne Tune, this dictionary can also be used to pass constant attributes to the training script. We make use of this feature in order to pass <code>. Moreover, we specify the first configuration to be evaluated in <code>.
+
+Next, we need to specify the back-end for job executions. Here we just consider the distribution on a local machine where parallel jobs are executed as sub-processes. However, for large scale HPO, we could run this also on a cluster or cloud environment, where each trial consumes a full instance.
+
+We can now create the scheduler for asynchronous random search, which is similar in behaviour to our <code> from section <num>.
+
+Syne Tune also features a <code>, where the main experiment loop and bookkeeping is centralized, and interactions between scheduler and back-end are mediated.
+
+Let us run our distributed HPO experiment. According to our stopping criterion, it will run for about 12 minutes.
+
+The logs of all evaluated hyperparameter configurations are stored for further analysis. At any time during the tuning job, we can easily get the results obtained so far and plot the incumbent trajectory.
+
+Visualize the Asynchronous Optimization Process.
+
+Below we visualize how the learning curves of every trial (each color in the plot represents a trial) evolve during the asynchronous optimization process. At any point in time, there are as many trials running concurrently as we have workers. Once a trial finishes, we immediately start the next trial, without waiting for the other trials to finish. Idle time of workers is reduced to a minimum with asynchronous scheduling.
+
+Summary.
+
+We can reduce the waiting time for random search substantially by distribution trials across parallel resources. In general, we distinguish between synchronous scheduling and asynchronous scheduling. Synchronous scheduling means that we sample a new batch of hyperparameter configurations once the previous batch finished. If we have a stragglers - trials that takes more time to finish than other trials - our workers need to wait at synchronization points. Asynchronous scheduling evaluates a new hyperparameter configurations as soon as resources become available, and, hence, ensures that all workers are busy at any point in time. While random search is easy to distribute asynchronously and does not require any change of the actual algorithm, other methods require some additional modifications.
+
+Exercises.
+
+Consider the <code> model implemented in section <num>, and used in Exercise 1 of section <num>.
+
+Implement an objective function <code> to be used with Syne Tune. Make sure that your function reports the validation error after every epoch.
+
+Using the setup of Exercise 1 in section <num>, compare random search to Bayesian optimization. If you use SageMaker, feel free to use Syne Tune's benchmarking facilities in order to run experiments in parallel. Hint: Bayesian optimization is provided as <code>.
+
+For this exercise, you need to run on an instance with at least 4 CPU cores. For one of the methods used above (random search, Bayesian optimization), run experiments with <code>, <code>, <code>, and compare results (incumbent trajectories). At least for random search, you should observe linear scaling with respect to the number of workers. Hint: For robust results, you may have to average over several repetitions each.
+
+Advanced. The goal of this exercise is to implement a new scheduler in Syne Tune.
+
+Create a virtual environment containing both the d2lbook and syne-tune sources.
+
+Implement the <code> from Exercise 2 in section <num> as a new searcher in Syne Tune. Hint: Read this tutorial. Alternatively, you may follow this example.
+
+Compare your new <code> with <code> on the <code> benchmark.
+
+Discussions.

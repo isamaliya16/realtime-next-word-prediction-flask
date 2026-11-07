@@ -1,0 +1,111 @@
+Interactive Distributed Applications with Monarch.
+
+Introduction.
+
+As deep learning models continue to grow in size and complexity, training them efficiently requires coordinating computation across multiple GPUs and nodes. In this tutorial, you will learn how to easily set up and run large-scale distributed workflows using Monarch's actor framework together with TorchTitan, on a SLURM-managed cluster. Monarch will allow us to drive a large cluster of machines (organized into a mesh), as if developing on a single host, single process environment.
+
+What is Monarch?
+
+Monarch is an actor framework designed to streamline the development of distributed applications. At its core, Monarch provides:
+
+Actor-based programming model: Encapsulate stateful computations in actors that can run on remote processes and machines.
+
+Process mesh abstractions: Easily manage and coordinate distributed processes across your cluster, with scalable Actor messaging.
+
+Fault tolerance: Actors and processes form a tree and failures propagate up the tree, providing good default error behavior and enabling fine-grained fault recovery.
+
+Flexible resource management: Support for multiple cluster schedulers including SLURM, Kubernetes, custom host management, and local processes.
+
+Integrated monitoring: Stream logs from remote processes back to your client for easy debugging and aggregation.
+
+For more details, see the Monarch documentation.
+
+Why Use Monarch?
+
+TorchTitan is a PyTorch native library for pre-training at scale. While TorchTitan provides excellent primitives for distributed training, launching and managing these jobs across clusters can slow down iteration. Monarch addresses this with:
+
+Simplified cluster interaction: Reserve and manage compute resources with simple async Python calls instead of writing bash scripts.
+
+Interactive development: Modify and re-run training code on existing allocations without waiting for new resources.
+
+Unified workflow: Seamlessly move between local testing and cluster execution with the same code.
+
+Prerequisites.
+
+We rely on a nightly build of Titan for this tutorial, so please ensure that other Torch libraries are tracking nightly builds:
+
+Monarch nightly installed: Install script.
+
+TorchTitan nightly installed: TorchTitan install instructions.
+
+A valid Titan model config and tokenizer in your working directory.
+
+SLURM cluster access:
+
+Sufficient permissions to reserve nodes and launch jobs.
+
+CUDA environment configured for distributed GPU training.
+
+Now let's implement this step by step!
+
+Step 1: Reserve Machine Resources.
+
+First, we'll define a function to programmatically reserve a machine allocation.
+
+Monarch Highlight: Instead of submitting an SBATCH script, you can reserve and manage resources interactively from Python. The JobTrait design pattern allows for interfacing with custom schedulers, such as SLURM and Kubernetes, through a consistent API.
+
+Step 2: Define the Trainer Actor.
+
+Now we create a Monarch Actor that wraps TorchTitan's Trainer. This is the key abstraction that allows TorchTitan to run in Monarch's distributed environment.
+
+Monarch Highlight: The Actor pattern provides several benefits:
+
+Remote execution: Methods marked with @endpoint can be called remotely.
+
+Lifecycle management: Monarch handles initialization, execution, and cleanup.
+
+Error handling: Exceptions are properly propagated back to the client, enabling progressive error handling.
+
+Actor endpoints can be invoked in a variety of patterns. We'll explore a concrete example in Step 4: Execute the Training Workflow, but here is some pseudocode with common usages:
+
+Remote actor endpoints can also utilize Python native breakpoints, enabling interactive debugging sessions. For a complete deep-dive into Monarch debuggers, please refer to the documentation.
+
+Step 3: Define Training Parameters.
+
+Next, we define some common parameters for our training job and cluster resources. This configuration determines both the scale of training (number of nodes and GPUs), and some of the training hyperparameters.
+
+TorchTitan uses a JobConfig object to control all aspects of training. Here we create a function that parses this configuration from our RunParams.
+
+Step 4: Execute the Training Workflow.
+
+With all components defined, we now orchestrate the complete workflow. This is where Monarch's power becomes most apparent.
+
+Monarch Highlights:
+
+Interactive iteration: After reserving the machine allocation, you can adjust your logic and re-spawn actors, without requesting new resources. SLURM's shared filesystem ensures that framework/workspace changes are synchronized across workers.
+
+Transparent logging: All logs from remote workers stream back to your client in real-time, making debugging feel like local execution.
+
+Workflow:
+
+Reserve Machines → Create Proc Mesh → Configure Logging → Spawn Actors → Train → Cleanup.
+
+Step 5: Clean Up Resources.
+
+After training completes (or if you're done experimenting), it's important to free up cluster resources by terminating the SLURM job.
+
+Monarch Highlight: While you can keep allocations alive for multiple training runs during development, always remember to release cluster resources.
+
+Step 6: Run the Complete Pipeline.
+
+Finally, we tie everything together in a main function that kicks off the workflow.
+
+Conclusion.
+
+Congrats! In this tutorial, you learned how to apply Monarch's actor framework with TorchTitan for scalable distributed training.
+
+Further Reading.
+
+Monarch also integrates with TorchFT to provide per-step fault-tolerance across replicated workers. You can find a comprehensive proof of concept of this integration in the TorchFT repo.
+
+For an interactive notebook covering similar topics to this tutorial, please consult this Monarch example.

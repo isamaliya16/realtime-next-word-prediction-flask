@@ -1,0 +1,37 @@
+Ungraded quiz.
+
+So far, this chapter has covered a lot of ground! Don't worry if you didn't grasp all the details, but it's to reflect on what you've learned so far with a quiz.
+
+This quiz is ungraded, so you can try it as many times as you want. If you struggle with some questions, follow the tips and revisit the material. You'll be quizzed on this material again in the certification exam.
+
+1. Explore the Hub and look for the <code> checkpoint. What task does it perform?
+
+roberta-large-mnli page ." }, { text: "Text classification", explain: "More precisely, it classifies if two sentences are logically linked across three labels (contradiction, neutral, entailment) — a task also called natural language inference .", correct: true }, { text: "Text generation", explain: "Look again on the roberta-large-mnli page ." } ]} />.
+
+2. What will the following code return?
+
+sentiment-analysis</code> pipeline." }, { text: "It will return a generated text completing this sentence.", explain: "This is incorrect — it would be a <code>text-generation</code> pipeline.", }, { text: "It will return the words representing persons, organizations or locations.", explain: "Furthermore, with <code>aggregation_strategy="simple"</code>, it will group together the words belonging to the same entity, like \"Hugging Face\".", correct: true } ]} />.
+
+3. What should replace ... in this code sample?
+
+has been waiting for you.", explain: "This is incorrect. Check out the <code>bert-base-cased</code> model card and try to spot your mistake." }, { text: "This [MASK] has been waiting for you.", explain: "This model's mask token is [MASK].", correct: true }, { text: "This man has been waiting for you.", explain: "This is incorrect. This pipeline fills in masked words, so it needs a mask token somewhere." } ]} />.
+
+4. Why will this code fail?
+
+candidate_labels=[...]</code>.", correct: true }, { text: "This pipeline requires several sentences, not just one.", explain: "This is incorrect, though when properly used, this pipeline can take a list of sentences to process (like all other pipelines)." }, { text: "The 🤗 Transformers library is broken, as usual.", explain: "We won't dignify this answer with a comment!" }, { text: "This pipeline requires longer inputs; this one is too short.", explain: "This is incorrect. Note that a very long text will be truncated when processed by this pipeline." } ]} />.
+
+5. What does "transfer learning" mean?
+
+6. True or false? A language model usually does not need labels for its pretraining.
+
+self-supervised , which means the labels are created automatically from the inputs (like predicting the next word or filling in some masked words).", correct: true }, { text: "False", explain: "This is not the correct answer." } ]} />.
+
+7. Select the sentence that best describes the terms "model", "architecture", and "weights".
+
+8. Which of these types of models would you use for completing prompts with generated text?
+
+9. Which of those types of models would you use for summarizing texts?
+
+10. Which of these types of models would you use for classifying text inputs according to certain labels?
+
+11. What possible source can the bias observed in a model have?

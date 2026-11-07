@@ -1,0 +1,127 @@
+Premade Estimators.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+This tutorial shows you how to solve the Iris classification problem in TensorFlow using Estimators. An Estimator is a legacy TensorFlow high-level representation of a complete model. For more details see Estimators.
+
+Note: In TensorFlow 2.0, the Keras API can accomplish these same tasks, and is believed to be an easier API to learn. If you are starting fresh, it is recommended you start with Keras.
+
+First things first.
+
+In order to get started, you will first import TensorFlow and a number of libraries you will need.
+
+The data set.
+
+The sample program in this document builds and tests a model that classifies Iris flowers into three different species based on the size of their sepals and petals.
+
+You will train a model using the Iris data set. The Iris data set contains four features and one label. The four features identify the following botanical characteristics of individual Iris flowers:
+
+sepal length.
+
+sepal width.
+
+petal length.
+
+petal width.
+
+Based on this information, you can define a few helpful constants for parsing the data:
+
+Next, download and parse the Iris data set using Keras and Pandas. Note that you keep distinct datasets for training and testing.
+
+You can inspect your data to see that you have four float feature columns and one int32 label.
+
+For each of the datasets, split out the labels, which the model will be trained to predict.
+
+Overview of programming with Estimators.
+
+Now that you have the data set up, you can define a model using a TensorFlow Estimator. An Estimator is any class derived from <code>. TensorFlow provides a collection of <code> (for example, <code>) to implement common ML algorithms. Beyond those, you may write your own custom Estimators. It is recommended using pre-made Estimators when just getting started.
+
+To write a TensorFlow program based on pre-made Estimators, you must perform the following tasks:
+
+Create one or more input functions.
+
+Define the model's feature columns.
+
+Instantiate an Estimator, specifying the feature columns and various hyperparameters.
+
+Call one or more methods on the Estimator object, passing the appropriate input function as the source of the data.
+
+Let's see how those tasks are implemented for Iris classification.
+
+Create input functions.
+
+You must create input functions to supply data for training, evaluating, and prediction.
+
+An input function is a function that returns a <code> object which outputs the following two-element tuple:
+
+<code> - A Python dictionary in which:
+
+Each key is the name of a feature.
+
+Each value is an array containing all of that feature's values.
+
+<code> - An array containing the values of the label for every example.
+
+Just to demonstrate the format of the input function, here's a simple implementation:
+
+Your input function may generate the <code> dictionary and <code> list any way you like. However, It is recommended using TensorFlow's Dataset API, which can parse all sorts of data.
+
+The Dataset API can handle a lot of common cases for you. For example, using the Dataset API, you can easily read in records from a large collection of files in parallel and join them into a single stream.
+
+To keep things simple in this example you are going to load the data with pandas, and build an input pipeline from this in-memory data:
+
+Define the feature columns.
+
+A feature column is an object describing how the model should use raw input data from the features dictionary. When you build an Estimator model, you pass it a list of feature columns that describes each of the features you want the model to use. The <code> module provides many options for representing data to the model.
+
+For Iris, the 4 raw features are numeric values, so you'll build a list of feature columns to tell the Estimator model to represent each of the four features as 32-bit floating-point values. Therefore, the code to create the feature column is:
+
+Feature columns can be far more sophisticated than those shown here. You can read more about Feature Columns in this guide.
+
+Now that you have the description of how you want the model to represent the raw features, you can build the estimator.
+
+Instantiate an estimator.
+
+The Iris problem is a classic classification problem. Fortunately, TensorFlow provides several pre-made classifier Estimators, including:
+
+<code> for deep models that perform multi-class classification.
+
+<code> for wide & deep models.
+
+<code> for classifiers based on linear models.
+
+For the Iris problem, <code> seems like the best choice. Here's how you instantiated this Estimator:
+
+Train, Evaluate, and Predict.
+
+Now that you have an Estimator object, you can call methods to do the following:
+
+Train the model.
+
+Evaluate the trained model.
+
+Use the trained model to make predictions.
+
+Train the model.
+
+Train the model by calling the Estimator's <code> method as follows:
+
+Note that you wrap up your <code> call in a <code> to capture the arguments while providing an input function that takes no arguments, as expected by the Estimator. The <code> argument tells the method to stop training after a number of training steps.
+
+Evaluate the trained model.
+
+Now that the model has been trained, you can get some statistics on its performance. The following code block evaluates the accuracy of the trained model on the test data:
+
+Unlike the call to the <code> method, you did not pass the <code> argument to evaluate. The <code> for eval only yields a single epoch of data.
+
+The <code> dictionary also contains the <code> (mean loss per sample), the <code> (mean loss per mini-batch) and the value of the estimator's <code> (the number of training iterations it underwent).
+
+Making predictions (inferring) from the trained model.
+
+You now have a trained model that produces good evaluation results. You can now use the trained model to predict the species of an Iris flower based on some unlabeled measurements. As with training and evaluation, you make predictions using a single function call:
+
+The <code> method returns a Python iterable, yielding a dictionary of prediction results for each example. The following code prints a few predictions and their probabilities:

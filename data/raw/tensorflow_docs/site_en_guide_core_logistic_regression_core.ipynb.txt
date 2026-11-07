@@ -1,0 +1,163 @@
+Logistic regression for binary classification with Core APIs.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to use the TensorFlow Core low-level APIs to perform binary classification with logistic regression. It uses the Wisconsin Breast Cancer Dataset) for tumor classification.
+
+Logistic regression is one of the most popular algorithms for binary classification. Given a set of examples with features, the goal of logistic regression is to output values between 0 and 1, which can be interpreted as the probabilities of each example belonging to a particular class.
+
+Setup.
+
+This tutorial uses pandas for reading a CSV file into a DataFrame, seaborn for plotting a pairwise relationship in a dataset, Scikit-learn for computing a confusion matrix, and matplotlib for creating visualizations.
+
+Load the data.
+
+Next, load the Wisconsin Breast Cancer Dataset) from the UCI Machine Learning Repository. This dataset contains various features such as a tumor's radius, texture, and concavity.
+
+Read the dataset into a pandas DataFrame using <code>:
+
+Display the first five rows:
+
+Split the dataset into training and test sets using <code>, <code> and <code>. Make sure to split the features from the target labels. The test set is used to evaluate your model's generalizability to unseen data.
+
+Preprocess the data.
+
+This dataset contains the mean, standard error, and largest values for each of the 10 tumor measurements collected per example. The <code> target column is a categorical variable with <code> indicating a malignant tumor and <code> indicating a benign tumor diagnosis. This column needs to be converted into a numerical binary format for model training.
+
+The <code> function is useful for mapping binary values to the categories.
+
+The dataset should also be converted to a tensor with the <code> function after the preprocessing is complete.
+
+Use <code> to review the joint distribution of a few pairs of mean-based features from the training set and observe how they relate to the target:
+
+This pairplot demonstrates that certain features such as radius, perimeter and area are highly correlated. This is expected since the tumor radius is directly involved in the computation of both perimeter and area. Additionally, note that malignant diagnoses seem to be more right-skewed for many of the features.
+
+Make sure to also check the overall statistics. Note how each feature covers a vastly different range of values.
+
+Given the inconsistent ranges, it is beneficial to standardize the data such that each feature has a zero mean and unit variance. This process is called normalization.
+
+Logistic regression.
+
+Before building a logistic regression model, it is crucial to understand the method's differences compared to traditional linear regression.
+
+Logistic regression fundamentals.
+
+Linear regression returns a linear combination of its inputs; this output is unbounded. The output of a logistic regression is in the <code> range. For each example, it represents the probability that the example belongs to the positive class.
+
+Logistic regression maps the continuous outputs of traditional linear regression, <code>, to probabilities, <code>. This transformation is also symmetric so that flipping the sign of the linear output results in the inverse of the original probability.
+
+Let <math> denote the probability of being in class <code> (the tumor is malignant). The desired mapping can be achieved by interpreting the linear regression output as the log odds ratio of being in class <code> as opposed to class <code>:
+
+<math>.
+
+By setting <math>, this equation can then be solved for <math>:
+
+<math>.
+
+The expression <math> is known as the sigmoid function <math>. Hence, the equation for logistic regression can be written as <math>.
+
+The dataset in this tutorial deals with a high-dimensional feature matrix. Therefore, the above equation must be rewritten in a matrix vector form as follows:
+
+<math>.
+
+where:
+
+<math>: a target vector.
+
+<math>: a feature matrix.
+
+<math>: a weight vector.
+
+<math>: a bias.
+
+<math>: a sigmoid function applied to each element of the output vector.
+
+Start by visualizing the sigmoid function, which transforms the linear output, <code>, to fall between <code> and <code>. The sigmoid function is available in <code>.
+
+The log loss function.
+
+The log loss, or binary cross-entropy loss, is the ideal loss function for a binary classification problem with logistic regression. For each example, the log loss quantifies the similarity between a predicted probability and the example's true value. It is determined by the following equation:
+
+<math>.
+
+where:
+
+<math>: a vector of predicted probabilities.
+
+<math>: a vector of true targets.
+
+You can use the <code> function to compute the log loss. This function automatically applies the sigmoid activation to the regression output:
+
+The gradient descent update rule.
+
+The TensorFlow Core APIs support automatic differentiation with <code>. If you are curious about the mathematics behind the logistic regression gradient updates, here is a short explanation:
+
+In the above equation for the log loss, recall that each <math> can be rewritten in terms of the inputs as <math>.
+
+The goal is to find a <math> and <math> that minimize the log loss:
+
+<math>.
+
+By taking the gradient <math> with respect to <math>, you get the following:
+
+<math>.
+
+By taking the gradient <math> with respect to <math>, you get the following:
+
+<math>.
+
+Now, build the logistic regression model.
+
+To validate, make sure the untrained model outputs values in the range of <code> for a small subset of the training data.
+
+Next, write an accuracy function to calculate the proportion of correct classifications during training. In order to retrieve the classifications from the predicted probabilities, set a threshold for which all probabilities higher than the threshold belong to class <code>. This is a configurable hyperparameter that can be set to <code> as a default.
+
+Train the model.
+
+Using mini-batches for training provides both memory efficiency and faster convergence. The <code> API has useful functions for batching and shuffling. The API enables you to build complex input pipelines from simple, reusable pieces.
+
+Now write a training loop for the logistic regression model. The loop utilizes the log loss function and its gradients with respect to the input in order to iteratively update the model's parameters.
+
+Performance evaluation.
+
+Observe the changes in your model's loss and accuracy over time.
+
+The model demonstrates a high accuracy and a low loss when it comes to classifying tumors in the training dataset and also generalizes well to the unseen test data. To go one step further, you can explore error rates that give more insight beyond the overall accuracy score. The two most popular error rates for binary classification problems are the false positive rate (FPR) and the false negative rate (FNR).
+
+For this problem, the FPR is the proportion of malignant tumor predictions amongst tumors that are actually benign. Conversely, the FNR is the proportion of benign tumor predictions among tumors that are actually malignant.
+
+Compute a confusion matrix using <code>, which evaluates the accuracy of the classification, and use matplotlib to display the matrix:
+
+Observe the error rate measurements and interpret their significance in the context of this example. In many medical testing studies such as cancer detection, having a high false positive rate to ensure a low false negative rate is perfectly acceptable and in fact encouraged since the risk of missing a malignant tumor diagnosis (false negative) is a lot worse than misclassifying a benign tumor as malignant (false positive).
+
+In order to control for the FPR and FNR, try changing the threshold hyperparameter before classifying the probability predictions. A lower threshold increases the model's overall chances of making a malignant tumor classification. This inevitably increases the number of false positives and the FPR but it also helps to decrease the number of false negatives and the FNR.
+
+Save the model.
+
+Start by making an export module that takes in raw data and performs the following operations:
+
+Normalization.
+
+Probability prediction.
+
+Class prediction.
+
+If you want to save the model at its current state, you can do so with the <code> function. To load a saved model and make predictions, use the <code> function.
+
+Conclusion.
+
+This notebook introduced a few techniques to handle a logistic regression problem. Here are a few more tips that may help:
+
+The TensorFlow Core APIs can be used to build machine learning workflows with high levels of configurability.
+
+Analyzing error rates is a great way to gain more insight about a classification model's performance beyond its overall accuracy score.
+
+Overfitting is another common problem for logistic regression models, though it wasn't a problem for this tutorial. Visit the Overfit and underfit tutorial for more help with this.
+
+For more examples of using the TensorFlow Core APIs, check out the guide. If you want to learn more about loading and preparing data, see the tutorials on image data loading or CSV data loading.

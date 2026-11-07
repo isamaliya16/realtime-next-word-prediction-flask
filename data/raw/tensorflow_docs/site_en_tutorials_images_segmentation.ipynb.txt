@@ -1,0 +1,91 @@
+Licensed under the Apache License, Version 2.0 (the "License");
+
+Image segmentation.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This tutorial focuses on the task of image segmentation, using a modified U-Net .
+
+What is image segmentation?
+
+In an image classification task, the network assigns a label (or class) to each input image. However, suppose you want to know the shape of that object, which pixel belongs to which object, etc. In this case, you need to assign a class to each pixel of the image—this task is known as segmentation. A segmentation model returns much more detailed information about the image. Image segmentation has many applications in medical imaging, self-driving cars and satellite imaging, just to name a few.
+
+This tutorial uses the Oxford-IIIT Pet Dataset (Parkhi et al, 2012). The dataset consists of images of 37 pet breeds, with 200 images per breed (~100 each in the training and test splits). Each image includes the corresponding labels, and pixel-wise masks. The masks are class-labels for each pixel. Each pixel is given one of three categories:
+
+Class 1: Pixel belonging to the pet.
+
+Class 2: Pixel bordering the pet.
+
+Class 3: None of the above/a surrounding pixel.
+
+Download the Oxford-IIIT Pets dataset.
+
+The dataset is available from TensorFlow Datasets. The segmentation masks are included in version 3+.
+
+In addition, the image color values are normalized to the <code> range. Finally, as mentioned above the pixels in the segmentation mask are labeled either {1, 2, 3}. For the sake of convenience, subtract 1 from the segmentation mask, resulting in labels that are : {0, 1, 2}.
+
+The dataset already contains the required training and test splits, so continue to use the same splits:
+
+The following class performs a simple augmentation by randomly-flipping an image. Go to the Image augmentation tutorial to learn more.
+
+Build the input pipeline, applying the augmentation after batching the inputs:
+
+Visualize an image example and its corresponding mask from the dataset:
+
+Define the model.
+
+The model being used here is a modified U-Net. A U-Net consists of an encoder (downsampler) and decoder (upsampler). To learn robust features and reduce the number of trainable parameters, use a pretrained model—MobileNetV2—as the encoder. For the decoder, you will use the upsample block, which is already implemented in the pix2pix example in the TensorFlow Examples repo. (Check out the pix2pix: Image-to-image translation with a conditional GAN tutorial in a notebook.).
+
+As mentioned, the encoder is a pretrained MobileNetV2 model. You will use the model from <code>. The encoder consists of specific outputs from intermediate layers in the model. Note that the encoder will not be trained during the training process.
+
+The decoder/upsampler is simply a series of upsample blocks implemented in TensorFlow examples:
+
+Note that the number of filters on the last layer is set to the number of <code>. This will be one output channel per class.
+
+Train the model.
+
+Now, all that is left to do is to compile and train the model.
+
+Since this is a multiclass classification problem, use the <code> loss function with the <code> argument set to <code>, since the labels are scalar integers instead of vectors of scores for each pixel of every class.
+
+When running inference, the label assigned to the pixel is the channel with the highest value. This is what the <code> function is doing.
+
+Plot the resulting model architecture:
+
+Try out the model to check what it predicts before training:
+
+The callback defined below is used to observe how the model improves while it is training:
+
+Make predictions.
+
+Now, make some predictions. In the interest of saving time, the number of epochs was kept small, but you may set this higher to achieve more accurate results.
+
+Optional: Imbalanced classes and class weights.
+
+Semantic segmentation datasets can be highly imbalanced meaning that particular class pixels can be present more inside images than that of other classes. Since segmentation problems can be treated as per-pixel classification problems, you can deal with the imbalance problem by weighing the loss function to account for this. It's a simple and elegant way to deal with this problem. Refer to the Classification on imbalanced data tutorial to learn more.
+
+To avoid ambiguity, <code> does not support the <code> argument for targets with 3+ dimensions.
+
+So, in this case you need to implement the weighting yourself. You'll do this using sample weights: In addition to <code> pairs, <code> also accepts <code> triples.
+
+Keras <code> propagates the <code> to the losses and metrics, which also accept a <code> argument. The sample weight is multiplied by the sample's value before the reduction step. For example:
+
+So, to make sample weights for this tutorial, you need a function that takes a <code> pair and returns a <code> triple where the <code> is a 1-channel image containing the class weight for each pixel.
+
+The simplest possible implementation is to use the label as an index into a <code> list:
+
+The resulting dataset elements contain 3 images each:
+
+Now, you can train a model on this weighted dataset:
+
+Next steps.
+
+Now that you have an understanding of what image segmentation is and how it works, you can try this tutorial out with different intermediate layer outputs, or even different pretrained models. You may also challenge yourself by trying out the Carvana image masking challenge hosted on Kaggle.
+
+You may also want to see the Tensorflow Object Detection API for another model you can retrain on your own data. Pretrained models are available on TensorFlow Hub.

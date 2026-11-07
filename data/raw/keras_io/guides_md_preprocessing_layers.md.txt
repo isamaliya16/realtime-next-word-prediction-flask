@@ -1,0 +1,161 @@
+Working with preprocessing layers.
+
+Keras preprocessing.
+
+The Keras preprocessing layers API allows developers to build Keras-native input processing pipelines. These input processing pipelines can be used as independent preprocessing code in non-Keras workflows, combined directly with Keras models, and exported as part of a Keras SavedModel.
+
+With Keras preprocessing layers, you can build and export models that are truly end-to-end: models that accept raw images or raw structured data as input; models that handle feature normalization or feature value indexing on their own.
+
+Available preprocessing.
+
+Text preprocessing.
+
+<code>: turns raw strings into an encoded representation that can be read by an <code> layer or <code> layer.
+
+Numerical features preprocessing.
+
+<code>: performs feature-wise normalization of input features.
+
+<code>: turns continuous numerical features into integer categorical features.
+
+Categorical features preprocessing.
+
+<code>: turns integer categorical features into one-hot, multi-hot, or count dense representations.
+
+<code>: performs categorical feature hashing, also known as the "hashing trick".
+
+<code>: turns string categorical values into an encoded representation that can be read by an <code> layer or <code> layer.
+
+<code>: turns integer categorical values into an encoded representation that can be read by an <code> layer or <code> layer.
+
+Image preprocessing.
+
+These layers are for standardizing the inputs of an image model.
+
+<code>: resizes a batch of images to a target size.
+
+<code>: rescales and offsets the values of a batch of images (e.g. go from inputs in the <code> range to inputs in the <code> range.
+
+<code>: returns a center crop of a batch of images.
+
+Image data augmentation.
+
+These layers apply random augmentation transforms to a batch of images. They are only active during training.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+The <code> method.
+
+Some preprocessing layers have an internal state that can be computed based on a sample of the training data. The list of stateful preprocessing layers is:
+
+<code>: holds a mapping between string tokens and integer indices.
+
+<code> and <code>: hold a mapping between input values and integer indices.
+
+<code>: holds the mean and standard deviation of the features.
+
+<code>: holds information about value bucket boundaries.
+
+Crucially, these layers are non-trainable. Their state is not set during training; it must be set before training, either by initializing them from a precomputed constant, or by "adapting" them on data.
+
+You set the state of a preprocessing layer by exposing it to training data, via the <code> method:
+
+The <code> method takes either a Numpy array or a <code> object. In the case of <code> and <code>, you can also pass a list of strings:
+
+In addition, adaptable layers always expose an option to directly set state via constructor arguments or weight assignment. If the intended state values are known at layer construction time, or are calculated outside of the <code> call, they can be set without relying on the layer's internal computation. For instance, if external vocabulary files for the <code>, <code>, or <code> layers already exist, those can be loaded directly into the lookup tables by passing a path to the vocabulary file in the layer's constructor arguments.
+
+Here's an example where you instantiate a <code> layer with precomputed vocabulary:
+
+Preprocessing data before the model or inside the model.
+
+There are two ways you could be using preprocessing layers:
+
+Option 1: Make them part of the model, like this:
+
+With this option, preprocessing will happen on device, synchronously with the rest of the model execution, meaning that it will benefit from GPU acceleration. If you're training on a GPU, this is the best option for the <code> layer, and for all image preprocessing and data augmentation layers.
+
+Option 2: apply it to your <code>, so as to obtain a dataset that yields batches of preprocessed data, like this:
+
+With this option, your preprocessing will happen on a CPU, asynchronously, and will be buffered before going into the model. In addition, if you call <code> on your dataset, the preprocessing will happen efficiently in parallel with training:
+
+This is the best option for <code>, and all structured data preprocessing layers. It can also be a good option if you're training on a CPU and you use image preprocessing layers.
+
+Note that the <code> layer can only be executed on a CPU, as it is mostly a dictionary lookup operation. Therefore, if you are training your model on a GPU or a TPU, you should put the <code> layer in the <code> pipeline to get the best performance.
+
+When running on a TPU, you should always place preprocessing layers in the <code> pipeline (with the exception of <code> and <code>, which run fine on a TPU and are commonly used as the first layer in an image model).
+
+Benefits of doing preprocessing inside the model at inference time.
+
+Even if you go with option 2, you may later want to export an inference-only end-to-end model that will include the preprocessing layers. The key benefit to doing this is that it makes your model portable and it helps reduce the training/serving skew.
+
+When all data preprocessing is part of the model, other people can load and use your model without having to be aware of how each feature is expected to be encoded & normalized. Your inference model will be able to process raw images or raw structured data, and will not require users of the model to be aware of the details of e.g. the tokenization scheme used for text, the indexing scheme used for categorical features, whether image pixel values are normalized to <code> or to <code>, etc. This is especially powerful if you're exporting your model to another runtime, such as TensorFlow.js: you won't have to reimplement your preprocessing pipeline in JavaScript.
+
+If you initially put your preprocessing layers in your <code> pipeline, you can export an inference model that packages the preprocessing. Simply instantiate a new model that chains your preprocessing layers and your training model:
+
+Preprocessing during multi-worker training.
+
+Preprocessing layers are compatible with the tf.distribute API for running training across multiple machines.
+
+In general, preprocessing layers should be placed inside a <code> and called either inside or before the model as discussed above.
+
+For more details, refer to the Data preprocessing section of the Distributed input tutorial.
+
+Quick recipes.
+
+Image data augmentation.
+
+Note that image data augmentation layers are only active during training (similarly to the <code> layer).
+
+You can see a similar setup in action in the example image classification from scratch.
+
+Normalizing numerical features.
+
+Encoding string categorical features via one-hot encoding.
+
+Note that, here, index 0 is reserved for out-of-vocabulary values (values that were not seen during <code>).
+
+You can see the <code> in action in the Structured data classification from scratch example.
+
+Encoding integer categorical features via one-hot encoding.
+
+Note that index 0 is reserved for missing values (which you should specify as the value 0), and index 1 is reserved for out-of-vocabulary values (values that were not seen during <code>). You can configure this by using the <code> and <code> constructor arguments of <code>.
+
+You can see the <code> in action in the example structured data classification from scratch.
+
+Applying the hashing trick to an integer categorical feature.
+
+If you have a categorical feature that can take many different values (on the order of 10e3 or higher), where each value only appears a few times in the data, it becomes impractical and ineffective to index and one-hot encode the feature values. Instead, it can be a good idea to apply the "hashing trick": hash the values to a vector of fixed size. This keeps the size of the feature space manageable, and removes the need for explicit indexing.
+
+Encoding text as a sequence of token indices.
+
+This is how you should preprocess text to be passed to an <code> layer.
+
+You can see the <code> layer in action, combined with an <code> mode, in the example text classification from scratch.
+
+Note that when training such a model, for best performance, you should always use the <code> layer as part of the input pipeline.
+
+Encoding text as a dense matrix of N-grams with multi-hot encoding.
+
+This is how you should preprocess text to be passed to a <code> layer.
+
+Encoding text as a dense matrix of N-grams with TF-IDF weighting.
+
+This is an alternative way of preprocessing text before passing it to a <code> layer.
+
+Important gotchas.
+
+Working with lookup layers with very large vocabularies.
+
+You may find yourself working with a very large vocabulary in a <code>, a <code> layer, or an <code> layer. Typically, a vocabulary larger than 500MB would be considered "very large".
+
+In such a case, for best performance, you should avoid using <code>. Instead, pre-compute your vocabulary in advance (you could use Apache Beam or TF Transform for this) and store it in a file. Then load the vocabulary into the layer at construction time by passing the file path as the <code> argument.

@@ -1,0 +1,63 @@
+Handling failed trials in KerasTuner.
+
+Introduction.
+
+A KerasTuner program may take a long time to run since each model may take a long time to train. We do not want the program to fail just because some trials failed randomly.
+
+In this guide, we will show how to handle the failed trials in KerasTuner, including:
+
+How to tolerate the failed trials during the search.
+
+How to mark a trial as failed during building and evaluating the model.
+
+How to terminate the search by raising a <code>.
+
+Setup.
+
+Tolerate failed trials.
+
+We will use the <code> and <code> arguments when initializing the tuners.
+
+<code> controls the maximum number of retries to run if a trial keeps failing. For example, if it is set to 3, the trial may run 4 times (1 failed run + 3 failed retries) before it is finally marked as failed. The default value of <code> is 0.
+
+<code> controls how many consecutive failed trials (failed trial here refers to a trial that failed all of its retries) occur before terminating the search. For example, if it is set to 3 and Trial 2, Trial 3, and Trial 4 all failed, the search would be terminated. However, if it is set to 3 and only Trial 2, Trial 3, Trial 5, and Trial 6 fail, the search would not be terminated since the failed trials are not consecutive. The default value of <code> is 3.
+
+The following code shows how these two arguments work in action.
+
+We define a search space with 2 hyperparameters for the number of units in the 2 dense layers.
+
+When their product is larger than 800, we raise a <code> for the model too large.
+
+We set up the tuner as follows.
+
+We set <code>.
+
+We set <code>.
+
+We use <code> to enumerate all hyperparameter value combinations.
+
+Mark a trial as failed.
+
+When the model is too large, we do not need to retry it. No matter how many times we try with the same hyperparameters, it is always too large.
+
+We can set <code> to do it. However, it will not retry no matter what errors are raised while we may still want to retry for other unexpected errors. Is there a way to better handle this situation?
+
+We can raise the <code> to skip the retries. Whenever, this error is raised, the trial would not be retried. The retries will still run when other errors occur. An example is shown as follows.
+
+Terminate the search programmatically.
+
+When there is a bug in the code we should terminate the search immediately and fix the bug. You can terminate the search programmatically when your defined conditions are met. Raising a <code> (or its subclasses <code>, <code>, or <code>) will terminate the search regardless of the <code> argument.
+
+Following is an example to terminate the search when the model is too large.
+
+Takeaways.
+
+In this guide, you learn how to handle failed trials in KerasTuner:
+
+Use <code> to specify the number of retries for a failed trial.
+
+Use <code> to specify the maximum consecutive failed trials to tolerate.
+
+Raise <code> to directly mark a trial as failed and skip the retries.
+
+Raise <code>, <code>, <code>, <code> to terminate the search immediately.

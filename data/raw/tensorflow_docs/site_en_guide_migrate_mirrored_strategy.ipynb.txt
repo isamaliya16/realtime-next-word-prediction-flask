@@ -1,0 +1,47 @@
+Migrate single-worker multiple-GPU training.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to migrate the single-worker multiple-GPU workflows from TensorFlow 1 to TensorFlow 2.
+
+To perform synchronous training across multiple GPUs on one machine:
+
+In TensorFlow 1, you use the <code> APIs with <code>.
+
+In TensorFlow 2, you can use Keras Model.fit or a custom training loop with <code>. Learn more in the Distributed training with TensorFlow guide.
+
+Setup.
+
+Start with imports and a simple dataset for demonstration purposes:
+
+TensorFlow 1: Single-worker distributed training with tf.estimator.Estimator.
+
+This example demonstrates the TensorFlow 1 canonical workflow of single-worker multiple-GPU training. You need to set the distribution strategy (<code>) through the <code> parameter of the <code>:
+
+TensorFlow 2: Single-worker training with Keras.
+
+When migrating to TensorFlow 2, you can use the Keras APIs with <code>.
+
+If you use the <code> APIs for model building and Keras <code> for training, the main difference is instantiating the Keras model, an optimizer, and metrics in the context of <code>, instead of defining a <code> for <code>.
+
+If you need to use a custom training loop, check out the Using tf.distribute.Strategy with custom training loops guide.
+
+Next steps.
+
+To learn more about distributed training with <code> in TensorFlow 2, check out the following documentation:
+
+The Distributed training on one machine with Keras tutorial.
+
+The Distributed training on one machine with a custom training loop tutorial.
+
+The Distributed training with TensorFlow guide.
+
+The Using multiple GPUs guide.
+
+The Optimize the performance on the multi-GPU single host (with the TensorFlow Profiler) guide.

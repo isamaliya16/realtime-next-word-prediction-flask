@@ -1,0 +1,23 @@
+Text classification with Transformer.
+
+Setup.
+
+Implement a Transformer block as a layer.
+
+Implement embedding layer.
+
+Two separate embedding layers, one for tokens, one for token index (positions).
+
+Download and prepare dataset.
+
+Create classifier model using transformer layer.
+
+Transformer layer outputs one vector for each time step of our input sequence. Here, we take the mean across all time steps and use a feed forward network on top of it to classify text.
+
+Train and Evaluate.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.
+
+Chapter 15: Language models and the Transformer.

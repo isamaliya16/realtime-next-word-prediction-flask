@@ -1,0 +1,225 @@
+Better performance with the tf.data API.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+Overview.
+
+GPUs and TPUs can radically reduce the time required to execute a single training step. Achieving peak performance requires an efficient input pipeline that delivers data for the next step before the current step has finished. The <code> API helps to build flexible and efficient input pipelines. This document demonstrates how to use the <code> API to build highly performant TensorFlow input pipelines.
+
+Before you continue, check the Build TensorFlow input pipelines guide to learn how to use the <code> API.
+
+Resources.
+
+Build TensorFlow input pipelines.
+
+<code> API.
+
+Analyze <code> performance with the TF Profiler.
+
+Setup.
+
+Throughout this guide, you will iterate across a dataset and measure the performance. Making reproducible performance benchmarks can be difficult. Different factors affecting reproducibility include:
+
+The current CPU load.
+
+The network traffic.
+
+Complex mechanisms, such as cache.
+
+To get a reproducible benchmark, you will build an artificial example.
+
+The dataset.
+
+Start with defining a class inheriting from <code> called <code>. This dataset:
+
+Generates <code> samples (default is 3).
+
+Sleeps for some time before the first item to simulate opening a file.
+
+Sleeps for some time before producing each item to simulate reading data from a file.
+
+This dataset is similar to the <code> one, adding a fixed delay at the beginning of and in-between each sample.
+
+The training loop.
+
+Next, write a dummy training loop that measures how long it takes to iterate over a dataset. Training time is simulated.
+
+Optimize performance.
+
+To exhibit how performance can be optimized, you will improve the performance of the <code>.
+
+The naive approach.
+
+Start with a naive pipeline using no tricks, iterating over the dataset as-is.
+
+Under the hood, this is how your execution time was spent:
+
+The plot shows that performing a training step involves:
+
+Opening a file if it hasn't been opened yet.
+
+Fetching a data entry from the file.
+
+Using the data for training.
+
+However, in a naive synchronous implementation like here, while your pipeline is fetching the data, your model is sitting idle. Conversely, while your model is training, the input pipeline is sitting idle. The training step time is thus the sum of opening, reading and training times.
+
+The next sections build on this input pipeline, illustrating best practices for designing performant TensorFlow input pipelines.
+
+Prefetching.
+
+Prefetching overlaps the preprocessing and model execution of a training step. While the model is executing training step <code>, the input pipeline is reading the data for step <code>. Doing so reduces the step time to the maximum (as opposed to the sum) of the training and the time it takes to extract the data.
+
+The <code> API provides the <code> transformation. It can be used to decouple the time when data is produced from the time when data is consumed. In particular, the transformation uses a background thread and an internal buffer to prefetch elements from the input dataset ahead of the time they are requested. The number of elements to prefetch should be equal to (or possibly greater than) the number of batches consumed by a single training step. You could either manually tune this value, or set it to <code>, which will prompt the <code> runtime to tune the value dynamically at runtime.
+
+Note that the prefetch transformation provides benefits any time there is an opportunity to overlap the work of a "producer" with the work of a "consumer.".
+
+Now, as the data execution time plot shows, while the training step is running for sample 0, the input pipeline is reading the data for the sample 1, and so on.
+
+Parallelizing data extraction.
+
+In a real-world setting, the input data may be stored remotely (for example, on Google Cloud Storage or HDFS). A dataset pipeline that works well when reading data locally might become bottlenecked on I/O when reading data remotely because of the following differences between local and remote storage:
+
+Time-to-first-byte: Reading the first byte of a file from remote storage can take orders of magnitude longer than from local storage.
+
+Read throughput: While remote storage typically offers large aggregate bandwidth, reading a single file might only be able to utilize a small fraction of this bandwidth.
+
+In addition, once the raw bytes are loaded into memory, it may also be necessary to deserialize and/or decrypt the data (e.g. protobuf), which requires additional computation. This overhead is present irrespective of whether the data is stored locally or remotely, but can be worse in the remote case if data is not prefetched effectively.
+
+To mitigate the impact of the various data extraction overheads, the <code> transformation can be used to parallelize the data loading step, interleaving the contents of other datasets (such as data file readers). The number of datasets to overlap can be specified by the <code> argument, while the level of parallelism can be specified by the <code> argument. Similar to the <code> transformation, the <code> transformation supports <code>, which will delegate the decision about what level of parallelism to use to the <code> runtime.
+
+Sequential interleave.
+
+The default arguments of the <code> transformation make it interleave single samples from two datasets sequentially.
+
+This data execution time plot allows to exhibit the behavior of the <code> transformation, fetching samples alternatively from the two datasets available. However, no performance improvement is involved here.
+
+Parallel interleave.
+
+Now, use the <code> argument of the <code> transformation. This loads multiple datasets in parallel, reducing the time waiting for the files to be opened.
+
+This time, as the data execution time plot shows, the reading of the two datasets is parallelized, reducing the global data processing time.
+
+Parallelizing data transformation.
+
+When preparing data, input elements may need to be pre-processed. To this end, the <code> API offers the <code> transformation, which applies a user-defined function to each element of the input dataset. Because input elements are independent of one another, the pre-processing can be parallelized across multiple CPU cores. To make this possible, similarly to the <code> and <code> transformations, the <code> transformation provides the <code> argument to specify the level of parallelism.
+
+Choosing the best value for the <code> argument depends on your hardware, characteristics of your training data (such as its size and shape), the cost of your map function, and what other processing is happening on the CPU at the same time. A simple heuristic is to use the number of available CPU cores. However, as for the <code> and <code> transformation, the <code> transformation supports <code> which will delegate the decision about what level of parallelism to use to the <code> runtime.
+
+Sequential mapping.
+
+Start by using the <code> transformation without parallelism as a baseline example.
+
+As for the naive approach, here, as the plot shows, the times spent for opening, reading, pre-processing (mapping) and training steps sum together for a single iteration.
+
+Parallel mapping.
+
+Now, use the same pre-processing function but apply it in parallel on multiple samples.
+
+As the data plot demonstrates, the pre-processing steps overlap, reducing the overall time for a single iteration.
+
+Caching.
+
+The <code> transformation can cache a dataset, either in memory or on local storage. This will save some operations (like file opening and data reading) from being executed during each epoch.
+
+Here, the data execution time plot shows that when you cache a dataset, the transformations before the <code> one (like the file opening and data reading) are executed only during the first epoch. The next epochs will reuse the data cached by the<code> transformation.
+
+If the user-defined function passed into the <code> transformation is expensive, apply the <code> transformation after the <code> transformation as long as the resulting dataset can still fit into memory or local storage. If the user-defined function increases the space required to store the dataset beyond the cache capacity, either apply it after the <code> transformation or consider pre-processing your data before your training job to reduce resource usage.
+
+Vectorizing mapping.
+
+Invoking a user-defined function passed into the <code> transformation has overhead related to scheduling and executing the user-defined function. Vectorize the user-defined function (that is, have it operate over a batch of inputs at once) and apply the <code> transformation before the <code> transformation.
+
+To illustrate this good practice, your artificial dataset is not suitable. The scheduling delay is around 10 microseconds (10e-6 seconds), far less than the tens of milliseconds used in the <code>, and thus its impact is hard to see.
+
+For this example, use the base <code> function and simplify the training loop to its simplest form.
+
+Scalar mapping.
+
+The plot above illustrates what is going on (with less samples) using the scalar mapping method. It shows that the mapped function is applied for each sample. While this function is very fast, it has some overhead that impact the time performance.
+
+Vectorized mapping.
+
+This time, the mapped function is called once and applies to a batch of sample. As the data execution time plot shows, while the function could takes more time to execute, the overhead appear only once, improving the overall time performance.
+
+Reducing memory footprint.
+
+A number of transformations, including <code>, <code>, and <code>, maintain an internal buffer of elements. If the user-defined function passed into the <code> transformation changes the size of the elements, then the ordering of the map transformation and the transformations that buffer elements affects the memory usage. In general, choose the order that results in lower memory footprint, unless different ordering is desirable for performance.
+
+Caching partial computations.
+
+It is recommended to cache the dataset after the <code> transformation except if this transformation makes the data too big to fit in memory. A trade-off can be achieved if your mapped function can be split in two parts: a time consuming one and a memory consuming part. In this case, you can chain your transformations like below:
+
+This way, the time consuming part is only executed during the first epoch, and you avoid using too much cache space.
+
+Best practice summary.
+
+Here is a summary of the best practices for designing performant TensorFlow input pipelines:
+
+Use the <code> transformation to overlap the work of a producer and consumer.
+
+Parallelize the data reading transformation using the <code> transformation.
+
+Parallelize the <code> transformation by setting the <code> argument.
+
+Use the <code> transformation to cache data in memory during the first epoch.
+
+Vectorize user-defined functions passed in to the <code> transformation.
+
+Reduce memory usage when applying the <code>, <code>, and <code> transformations.
+
+Reproducing the figures.
+
+Note: The rest of this notebook is about how to reproduce the above figures. Feel free to play around with this code, but understanding it is not an essential part of this tutorial.
+
+To go deeper in the <code> API understanding, you can play with your own pipelines. Below is the code used to plot the images from this guide. It can be a good starting point, showing some workarounds for common difficulties such as:
+
+Execution time reproducibility.
+
+Mapped functions eager execution.
+
+<code> transformation callable.
+
+The dataset.
+
+Similar to the <code> you can build a dataset returning the time spent in each step.
+
+This dataset provides samples of shape <code> and of type <code>. Each sample is:
+
+Where:
+
+<code> and <code> are steps identifiers.
+
+<code> is the timestamp when the corresponding step started.
+
+<code> is the time spent in the corresponding step.
+
+<code> is the instance index.
+
+<code> is the epoch index (number of times the dataset has been iterated).
+
+<code> is the sample index.
+
+The iteration loop.
+
+Make the iteration loop a little bit more complicated to aggregate all timings. This will only work with datasets generating samples as detailed above.
+
+The plotting method.
+
+Finally, define a function able to plot a timeline given the values returned by the <code> function.
+
+Use wrappers for mapped function.
+
+To run mapped function in an eager context, you have to wrap them inside a <code> call.
+
+Pipelines comparison.
+
+Naive.
+
+Optimized.

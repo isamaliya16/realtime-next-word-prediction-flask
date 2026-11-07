@@ -1,0 +1,83 @@
+Customizing Saving and Serialization.
+
+Introduction.
+
+This guide covers advanced methods that can be customized in Keras saving. For most users, the methods outlined in the primary Serialize, save, and export guide are sufficient.
+
+APIs.
+
+We will cover the following APIs:
+
+<code> and <code>.
+
+<code> and <code>.
+
+<code> and <code>.
+
+<code> and <code>.
+
+When restoring a model, these get executed in the following order:
+
+<code>.
+
+<code>.
+
+<code>.
+
+<code>.
+
+Setup.
+
+State saving customization.
+
+These methods determine how the state of your model's layers is saved when calling <code>. You can override them to take full control of the state saving process.
+
+<code> and <code>.
+
+These methods save and load the state variables of the layer when <code> and <code> are called, respectively. By default, the state variables saved and loaded are the weights of the layer (both trainable and non-trainable). Here is the default implementation of <code>:
+
+The store used by these methods is a dictionary that can be populated with the layer variables. Let's take a look at an example customizing this.
+
+Example:
+
+<code> and <code>.
+
+These methods can be added to your model class definition to store and load any additional information that your model needs.
+
+For example, NLP domain layers such as TextVectorization layers and IndexLookup layers may need to store their associated vocabulary (or lookup table) in a text file upon saving.
+
+Let's take at the basics of this workflow with a simple file <code>.
+
+Example:
+
+<code> and <code> saving customization.
+
+<code> and <code>.
+
+These methods work together to save the layer's built states and restore them upon loading.
+
+By default, this only includes a build config dictionary with the layer's input shape, but overriding these methods can be used to include further Variables and Lookup Tables that can be useful to restore for your built model.
+
+Example:
+
+<code> and <code>.
+
+These methods work together to save the information with which the model was compiled (optimizers, losses, etc.) and restore and re-compile the model with this information.
+
+Overriding these methods can be useful for compiling the restored model with custom optimizers, custom losses, etc., as these will need to be deserialized prior to calling <code> in <code>.
+
+Let's take a look at an example of this.
+
+Example:
+
+Conclusion.
+
+Using the methods learned in this tutorial allows for a wide variety of use cases, allowing the saving and loading of complex models with exotic assets and state elements. To recap:
+
+<code> and <code> determine how your states are saved and loaded.
+
+<code> and <code> can be added to store and load any additional information your model needs.
+
+<code> and <code> save and restore the model's built states.
+
+<code> and <code> save and restore the model's compiled states.

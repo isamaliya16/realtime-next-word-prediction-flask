@@ -1,0 +1,151 @@
+Function Calling with KerasHub models.
+
+Introduction.
+
+Tool calling is a powerful new feature in modern large language models that allows them to use external tools, such as Python functions, to answer questions and perform actions. Instead of just generating text, a tool-calling model can generate code that calls a function you've provided, allowing it to interact with the real world, access live data, and perform complex calculations.
+
+In this guide, we'll walk you through a simple example of tool calling with the Gemma 3 and Mistral models and KerasHub. We'll show you how to:
+
+Define a tool (a Python function).
+
+Tell the models about the tool.
+
+Use the model to generate code that calls the tool.
+
+Execute the code and feed the result back to the model.
+
+Get a final, natural-language response from the model.
+
+Let's get started!
+
+Setup.
+
+First, let's import the necessary libraries and configure our environment. We'll be using KerasHub to download and run the language models, and we'll need to authenticate with Kaggle to access the model weights.
+
+Loading the Model.
+
+Next, we'll load the Gemma 3 model from KerasHub. We're using the <code> preset, which is a version of the model that has been specifically fine-tuned for instruction following and tool calling.
+
+Defining a Tool.
+
+Now, let's define a simple tool that we want our model to be able to use. For this example, we'll create a Python function called <code> that can convert one currency to another.
+
+Telling the Model About the Tool.
+
+Now that we have a tool, we need to tell the Gemma 3 model about it. We do this by providing a carefully crafted prompt that includes:
+
+A description of the tool calling process.
+
+The Python code for the tool, including its function signature and docstring.
+
+The user's question.
+
+Here's the prompt we'll use:
+
+User: What is $200,000 in EUR? model '''.
+
+User: What is $200,000 in EUR? model.
+
+As you can see, the model has correctly identified that it can use the <code> function to answer the question, and it has generated the corresponding Python code.
+
+Executing the Tool Call and Getting a Final Answer.
+
+In a real application, you would now take this generated code, execute it, and feed the result back to the model. Let's create a practical example that shows how to do this:
+
+User: What is $200,000 in EUR? model.
+
+model '''.
+
+Get the final response.
+
+finalresponse = gemma.generate(messagewithresult) print("\nFinal response:") print(finalresponse).
+
+except Exception as e: print(f"Error executing tool call: {e}") else: print("No tool call found in the response").
+
+Model's response:
+
+user At each turn, if you decide to invoke any of the function(s), it should be wrapped with `<code><code><code><code><code>` think step by step why and how it should be used.
+
+The following Python methods are available:
+
+User: What is $200,000 in EUR? model.
+
+User: What is $200,000 in EUR? model.
+
+model Okay, $200,000 is equivalent to 170,000 EUR.
+
+User: {user_message} model '''.
+
+for turn in range(max_turns): print(f"\n--- Turn {turn + 1} ---").
+
+Build conversation context by appending history to base prompt.
+
+context = baseprompt for hist in conversationhistory: context += hist + "\n".
+
+Get model response.
+
+response = gemma.generate(context, strip_prompt=True) print(f"Model response: {response}").
+
+Extract tool call.
+
+toolcode = extracttool_call(response).
+
+if toolcode: print(f"Executing: {toolcode}") try: localvars = {"convert": convert} toolresult = capturecodeoutput(toolcode, globalsdict=localvars) conversationhistory.append( f"`<code>` " ) conversationhistory.append( f" user\n`<code>` " ) conversationhistory.append(f" model\n") print(f"Tool result: {toolresult}") except Exception as e: print(f"Error executing tool: {e}") break else: print("No tool call found - conversation complete") conversationhistory.append(response) break.
+
+print("\n--- Final Conversation ---") print(context) for hist in conversation_history: print(hist).
+
+Run the automated example.
+
+print("Running automated tool calling example:") automatedtoolcalling_example().
+
+Running automated tool calling example:
+
+Turn 1 --- Model response: ```tool_code print(convert(500, 'USD', 'EUR')).
+
+User: What is $500 in EUR, and then what is that amount in USD? model.
+
+Mistral.
+
+Mistral differs from Gemma in its approach to tool calling, as it requires a specific format and defines special control tokens for this purpose. This JSON-based syntax for tool calling is also adopted by other models, such as Qwen and Llama.
+
+We will now extend the example to a more exciting use case: building a flight booking agent. This agent will be able to search for appropriate flights and book them automatically.
+
+To do this, we will first download the Mistral model using KerasHub. For agentic AI with Mistral, low-level access to tokenization is necessary due to the use of control tokens. Therefore, we will instantiate the tokenizer and model separately, and disable the preprocessor for the model.
+
+Next, we'll define functions for tokenization. The <code> function will take a tokenized conversation in list form and format it correctly for the model. We'll also create an additional function, <code>, for tokenizing text and adding instruction control tokens.
+
+Now, we'll define a function, <code>, to handle the model's function calls. These calls are identified by the <code> control token. The function will parse the subsequent data, which is in JSON format. Mistral also requires us to add a random call ID to each function call. Finally, the function will call the matching tool and encode its results using the <code> control token.
+
+We will extend our set of tools to include functions for currency conversion, finding flights, and booking flights. For this example, we'll use mock implementations for these functions, meaning they will return dummy data instead of interacting with real services.
+
+It's crucial to inform the model about these available functions at the very beginning of the conversation. To do this, we will define the available tools in a specific JSON format, as shown in the following code block.
+
+We will define the conversation as a <code> list. At the very beginning of this list, we need to include a Beginning-Of-Sequence (BOS) token. This is followed by the tool definitions, which must be wrapped in <code> and <code> control tokens.
+
+Now, let's get started! We will task the model with the following: Book the most comfortable flight from Linz to London on the 24th of July 2025, but only if it costs less than 20€ as of the latest exchange rate.
+
+In an agentic AI system, the model interacts with its tools through a sequence of messages. We will continue to handle these messages until the flight is successfully booked. For educational purposes, we will output the tool calls issued by the model; typically, a user would not see this level of detail. It's important to note that after the tool call JSON, the data must be truncated. If not, a less capable model may 'babble', outputting redundant or confused data.
+
+[{"name": "book_flight", "arguments": {"id": $flights[0].id}}].
+
+[{"name": "book_flight", "arguments": {"id": $flights[0].id}}].
+
+For understandability, here's the conversation as received by the model, i.e. when truncating after the tool calling JSON:
+
+User:
+
+Model:
+
+Tool Output:
+
+Model:
+
+Tool Output:
+
+Model:
+
+It's important to acknowledge that you might have to run the model a few times to obtain a good output as depicted above. As a 7-billion parameter model, Mistral may still make several mistakes, such as misinterpreting data, outputting malformed tool calls, or making incorrect decisions. However, the continued development in this field paves the way for increasingly powerful agentic AI in the future.
+
+Conclusion.
+
+Tool calling is a powerful feature that allows large language models to interact with the real world, access live data, and perform complex calculations. By defining a set of tools and telling the model about them, you can create sophisticated applications that go far beyond simple text generation.

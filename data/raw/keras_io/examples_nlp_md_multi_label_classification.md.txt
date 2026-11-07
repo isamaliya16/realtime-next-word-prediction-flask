@@ -1,0 +1,145 @@
+Large-scale multi-label text classification.
+
+Introduction.
+
+In this example, we will build a multi-label text classifier to predict the subject areas of arXiv papers from their abstract bodies. This type of classifier can be useful for conference submission portals like OpenReview. Given a paper abstract, the portal could provide suggestions for which areas the paper would best belong to.
+
+The dataset was collected using the <code> Python library that provides a wrapper around the original arXiv API. To learn more about the data collection process, please refer to this notebook. Additionally, you can also find the dataset on Kaggle.
+
+Imports.
+
+Perform exploratory data analysis.
+
+In this section, we first load the dataset into a <code> dataframe and then perform some basic exploratory data analysis (EDA).
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+titles summaries terms.
+
+0 Survey on Semantic Stereo Matching / Semantic ... Stereo matching is one of the widely used tech... ['cs.CV', 'cs.LG'].
+
+1 FUTURE-AI: Guiding Principles and Consensus Re... The recent advancements in artificial intellig... ['cs.CV', 'cs.AI', 'cs.LG'].
+
+2 Enforcing Mutual Consistency of Hard Regions f... In this paper, we proposed a novel mutual cons... ['cs.CV', 'cs.AI'].
+
+3 Parameter Decoupling Strategy for Semi-supervi... Consistency training has proven to be an advan... ['cs.CV'].
+
+4 Background-Foreground Segmentation for Interio... To ensure safety in automated driving, the cor... ['cs.CV', 'cs.LG'].
+
+Our text features are present in the <code> column and their corresponding labels are in <code>. As you can notice, there are multiple categories associated with a particular entry.
+
+Real-world data is noisy. One of the most commonly observed source of noise is data duplication. Here we notice that our initial dataset has got about 13k duplicate entries.
+
+Before proceeding further, we drop these entries.
+
+As observed above, out of 3,157 unique combinations of <code>, 2,321 entries have the lowest occurrence. To prepare our train, validation, and test sets with stratification, we need to drop these terms.
+
+Convert the string labels to lists of strings.
+
+The initial labels are represented as raw strings. Here we make them <code> for a more compact representation.
+
+Use stratified splits because of class imbalance.
+
+The dataset has a class imbalance problem. So, to have a fair evaluation result, we need to ensure the datasets are sampled with stratification. To know more about different strategies to deal with the class imbalance problem, you can follow this tutorial. For an end-to-end demonstration of classification with imbablanced data, refer to Imbalanced classification: credit card fraud detection.
+
+Multi-label binarization.
+
+Now we preprocess our labels using the <code> layer.
+
+Here we are separating the individual unique classes available from the label pool and then using this information to represent a given label set with 0's and 1's. Below is an example.
+
+Data preprocessing and <code> objects.
+
+We first get percentile estimates of the sequence lengths. The purpose will be clear in a moment.
+
+Notice that 50% of the abstracts have a length of 154 (you may get a different number based on the split). So, any number close to that value is a good enough approximate for the maximum sequence length.
+
+Now, we implement utilities to prepare our datasets.
+
+Now we can prepare the <code> objects.
+
+Dataset preview.
+
+Vectorization.
+
+Before we feed the data to our model, we need to vectorize it (represent it in a numerical form). For that purpose, we will use the <code> layer. It can operate as a part of your main model so that the model is excluded from the core preprocessing logic. This greatly reduces the chances of training / serving skew during inference.
+
+We first calculate the number of unique words present in the abstracts.
+
+We now create our vectorization layer and <code> to the <code>s created earlier.
+
+A batch of raw text will first go through the <code> layer and it will generate their integer representations. Internally, the <code> layer will first create bi-grams out of the sequences and then represent them using TF-IDF. The output representations will then be passed to the shallow model responsible for text classification.
+
+To learn more about other possible configurations with <code>, please consult the official documentation.
+
+Note: Setting the <code> argument to a pre-calculated vocabulary size is not a requirement.
+
+Create a text classification model.
+
+We will keep our model simple -- it will be a small stack of fully-connected layers with ReLU as the non-linearity.
+
+Train the model.
+
+We will train our model using the binary crossentropy loss. This is because the labels are not disjoint. For a given abstract, we may have multiple categories. So, we will divide the prediction task into a series of multiple binary classification problems. This is also why we kept the activation function of the classification layer in our model to sigmoid. Researchers have used other combinations of loss function and activation function as well. For example, in Exploring the Limits of Weakly Supervised Pretraining, Mahajan et al. used the softmax activation function and cross-entropy loss to train their models.
+
+There are several options of metrics that can be used in multi-label classification. To keep this code example narrow we decided to use the binary accuracy metric. To see the explanation why this metric is used we refer to this pull-request. There are also other suitable metrics for multi-label classification, like F1 Score or Hamming loss.
+
+1/13 ━37m━━━━━━━━━━━━━━━━━━━ 26s 2s/step - binary_accuracy: 0.4491 - loss: 1.4007.
+
+2/13 ━━━[37m━━━━━━━━━━━━━━━━━ 3s 307ms/step - binary_accuracy: 0.5609 - loss: 1.1359.
+
+3/13 ━━━━[37m━━━━━━━━━━━━━━━━ 2s 290ms/step - binary_accuracy: 0.6315 - loss: 0.9654.
+
+4/13 ━━━━━━[37m━━━━━━━━━━━━━━ 2s 286ms/step - binary_accuracy: 0.6785 - loss: 0.8508.
+
+5/13 ━━━━━━━[37m━━━━━━━━━━━━━ 2s 282ms/step - binary_accuracy: 0.7128 - loss: 0.7661.
+
+6/13 ━━━━━━━━━[37m━━━━━━━━━━━ 1s 283ms/step - binary_accuracy: 0.7391 - loss: 0.7006.
+
+7/13 ━━━━━━━━━━[37m━━━━━━━━━━ 1s 277ms/step - binary_accuracy: 0.7600 - loss: 0.6485.
+
+8/13 ━━━━━━━━━━━━[37m━━━━━━━━ 1s 275ms/step - binary_accuracy: 0.7770 - loss: 0.6054.
+
+9/13 ━━━━━━━━━━━━━[37m━━━━━━━ 1s 272ms/step - binary_accuracy: 0.7913 - loss: 0.5693.
+
+10/13 ━━━━━━━━━━━━━━━[37m━━━━━ 0s 270ms/step - binary_accuracy: 0.8033 - loss: 0.5389.
+
+11/13 ━━━━━━━━━━━━━━━━[37m━━━━ 0s 272ms/step - binary_accuracy: 0.8136 - loss: 0.5127.
+
+12/13 ━━━━━━━━━━━━━━━━━━[37m━━ 0s 273ms/step - binary_accuracy: 0.8225 - loss: 0.4899.
+
+13/13 ━━━━━━━━━━━━━━━━━━━━ 0s 363ms/step - binary_accuracy: 0.8303 - loss: 0.4702.
+
+13/13 ━━━━━━━━━━━━━━━━━━━━ 7s 402ms/step - binaryaccuracy: 0.8369 - loss: 0.4532 - valbinaryaccuracy: 0.9782 - valloss: 0.0867.
+
+While training, we notice an initial sharp fall in the loss followed by a gradual decay.
+
+Evaluate the model.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 483ms/step - binary_accuracy: 0.9734 - loss: 0.0927.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 486ms/step - binary_accuracy: 0.9734 - loss: 0.0927.
+
+The trained model gives us an evaluation accuracy of ~99%.
+
+Inference.
+
+An important feature of the [preprocessing layers provided by Keras is that they can be included inside a <code>. We will export an inference model by including the <code> layer on top of <code>. This will allow our inference model to directly operate on raw strings.
+
+Note that during training it is always preferable to use these preprocessing layers as a part of the data input pipeline rather than the model to avoid surfacing bottlenecks for the hardware accelerators. This also allows for asynchronous data processing.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 141ms/step.
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 142ms/step.
+
+The prediction results are not that great but not below the par for a simple model like ours. We can improve this performance with models that consider word order like LSTM or even those that use Transformers (Vaswani et al.).
+
+Acknowledgements.
+
+We would like to thank Matt Watson for helping us tackle the multi-label binarization part and inverse-transforming the processed labels to the original form.
+
+Thanks to Cingis Kratochvil for suggesting and extending this code example by introducing binary accuracy as the evaluation metric.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 14: Text classification.

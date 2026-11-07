@@ -1,0 +1,113 @@
+Structured data classification with FeatureSpace.
+
+Introduction.
+
+This example demonstrates how to do structured data classification (also known as tabular data classification), starting from a raw CSV file. Our data includes numerical features, and integer categorical features, and string categorical features. We will use the utility <code> to index, preprocess, and encode our features.
+
+The code is adapted from the example Structured data classification from scratch. While the previous example managed its own low-level feature preprocessing and encoding with Keras preprocessing layers, in this example we delegate everything to <code>, making the workflow extremely quick and easy.
+
+The dataset.
+
+Our dataset is provided by the Cleveland Clinic Foundation for Heart Disease. It's a CSV file with 303 rows. Each row contains information about a patient (a sample), and each column describes an attribute of the patient (a feature). We use the features to predict whether a patient has a heart disease (binary classification).
+
+Here's the description of each feature:
+
+Column| Description| Feature Type ------------|--------------------|---------------------- Age | Age in years | Numerical Sex | (1 = male; 0 = female) | Categorical CP | Chest pain type (0, 1, 2, 3, 4) | Categorical Trestbpd | Resting blood pressure (in mm Hg on admission) | Numerical Chol | Serum cholesterol in mg/dl | Numerical FBS | fasting blood sugar in 120 mg/dl (1 = true; 0 = false) | Categorical RestECG | Resting electrocardiogram results (0, 1, 2) | Categorical Thalach | Maximum heart rate achieved | Numerical Exang | Exercise induced angina (1 = yes; 0 = no) | Categorical Oldpeak | ST depression induced by exercise relative to rest | Numerical Slope | Slope of the peak exercise ST segment | Numerical CA | Number of major vessels (0-3) colored by fluoroscopy | Both numerical & categorical Thal | 3 = normal; 6 = fixed defect; 7 = reversible defect | Categorical Target | Diagnosis of heart disease (1 = true; 0 = false) | Target.
+
+Setup.
+
+Preparing the data.
+
+Let's download the data and load it into a Pandas dataframe:
+
+The dataset includes 303 samples with 14 columns per sample (13 features, plus the target label):
+
+Here's a preview of a few samples:
+
+.dataframe tbody tr th:only-of-type { vertical-align: middle; }.
+
+age sex cp trestbps chol fbs restecg thalach exang oldpeak slope ca thal target.
+
+0 63 1 1 145 233 1 2 150 0 2.3 3 0 fixed 0.
+
+1 67 1 4 160 286 0 2 108 1 1.5 2 3 normal 1.
+
+2 67 1 4 120 229 0 2 129 1 2.6 2 2 reversible 0.
+
+3 37 1 3 130 250 0 0 187 0 3.5 3 0 normal 0.
+
+4 41 0 2 130 204 0 2 172 0 1.4 1 0 normal 0.
+
+The last column, "target", indicates whether the patient has a heart disease (1) or not (0).
+
+Let's split the data into a training and validation set:
+
+Let's generate <code> objects for each dataframe:
+
+Each <code> yields a tuple <code> where <code> is a dictionary of features and <code> is the value <code> or <code>:
+
+Let's batch the datasets:
+
+Configuring a <code>.
+
+To configure how each feature should be preprocessed, we instantiate a <code>, and we pass to it a dictionary that maps the name of our features to a string that describes the feature type.
+
+We have a few "integer categorical" features such as <code>, one "string categorical" feature (<code>), and a few numerical features, which we'd like to normalize -- except <code>, which we'd like to discretize into a number of bins.
+
+We also use the <code> argument to capture feature interactions for some categorical features, that is to say, create additional features that represent value co-occurrences for these categorical features. You can compute feature crosses like this for arbitrary sets of categorical features -- not just tuples of two features. Because the resulting co-occurences are hashed into a fixed-sized vector, you don't need to worry about whether the co-occurence space is too large.
+
+Further customizing a <code>.
+
+Specifying the feature type via a string name is quick and easy, but sometimes you may want to further configure the preprocessing of each feature. For instance, in our case, our categorical features don't have a large set of possible values -- it's only a handful of values per feature (e.g. <code> and <code> for the feature <code>), and all possible values are represented in the training set. As a result, we don't need to reserve an index to represent "out of vocabulary" values for these features -- which would have been the default behavior. Below, we just specify <code> in each of these features to tell the feature preprocessor to skip "out of vocabulary" indexing.
+
+Other customizations you have access to include specifying the number of bins for discretizing features of type <code>, or the dimensionality of the hashing space for feature crossing.
+
+Adapt the <code> to the training data.
+
+Before we start using the <code> to build a model, we have to adapt it to the training data. During <code>, the <code> will:
+
+Index the set of possible values for categorical features.
+
+Compute the mean and variance for numerical features to normalize.
+
+Compute the value boundaries for the different bins for numerical features to discretize.
+
+Note that <code> should be called on a <code> which yields dicts of feature values -- no labels.
+
+At this point, the <code> can be called on a dict of raw feature values, and will return a single concatenate vector for each sample, combining encoded features and feature crosses.
+
+Two ways to manage preprocessing: as part of the <code> pipeline, or in the model itself.
+
+There are two ways in which you can leverage your <code>:
+
+Asynchronous preprocessing in <code>.
+
+You can make it part of your data pipeline, before the model. This enables asynchronous parallel preprocessing of the data on CPU before it hits the model. Do this if you're training on GPU or TPU, or if you want to speed up preprocessing. Usually, this is always the right thing to do during training.
+
+Synchronous preprocessing in the model.
+
+You can make it part of your model. This means that the model will expect dicts of raw feature values, and the preprocessing batch will be done synchronously (in a blocking manner) before the rest of the forward pass. Do this if you want to have an end-to-end model that can process raw feature values -- but keep in mind that your model will only be able to run on CPU, since most types of feature preprocessing (e.g. string preprocessing) are not GPU or TPU compatible.
+
+Do not do this on GPU / TPU or in performance-sensitive settings. In general, you want to do in-model preprocessing when you do inference on CPU.
+
+In our case, we will apply the <code> in the tf.data pipeline during training, but we will do inference with an end-to-end model that includes the <code>.
+
+Let's create a training and validation dataset of preprocessed batches:
+
+Build a model.
+
+Time to build a model -- or rather two models:
+
+A training model that expects preprocessed features (one sample = one vector).
+
+An inference model that expects raw features (one sample = dict of raw feature values).
+
+Train the model.
+
+Let's train our model for 50 epochs. Note that feature preprocessing is happening as part of the tf.data pipeline, not as part of the model.
+
+We quickly get to 80% validation accuracy.
+
+Inference on new data with the end-to-end model.
+
+Now, we can use our inference model (which includes the <code>) to make predictions based on dicts of raw features values, as follows:

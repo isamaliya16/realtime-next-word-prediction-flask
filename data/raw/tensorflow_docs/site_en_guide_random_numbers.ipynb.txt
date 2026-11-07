@@ -1,0 +1,141 @@
+Random number generation.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+TensorFlow provides a set of pseudo-random number generators (RNG), in the <code> module. This document describes how you can control the random number generators, and how these generators interact with other tensorflow sub-systems.
+
+Note: The random numbers are not guaranteed to be consistent across TensorFlow versions. See: Version Compatibility.
+
+TensorFlow provides two approaches for controlling the random number generation process:
+
+Through the explicit use of <code> objects. Each such object maintains a state (in <code>) that will be changed after each number generation.
+
+Through the purely-functional stateless random functions like <code>. Calling these functions with the same arguments (which include the seed) and on the same device will always produce the same results.
+
+Warning: The old RNGs from TF 1.x such as <code> and <code> are not yet deprecated but strongly discouraged.
+
+Setup.
+
+The <code> class.
+
+The <code> class is used in cases where you want each RNG call to produce different results. It maintains an internal state (managed by a <code> object) which will be updated every time random numbers are generated. Because the state is managed by <code>, it enjoys all facilities provided by <code> such as easy checkpointing, automatic control-dependency and thread safety.
+
+You can get a <code> by manually creating an object of the class or call <code> to get the default global generator:
+
+There are multiple ways to create a generator object. The easiest is <code>, as shown above, that creates a generator from a seed. A seed is any non-negative integer. <code> also takes an optional argument <code> which is the RNG algorithm that will be used by this generator:
+
+See the Algorithms section below for more information about it.
+
+Another way to create a generator is with <code>. A generator created this way will start from a non-deterministic state, depending on e.g., time and OS.
+
+There are yet other ways to create generators, such as from explicit states, which are not covered by this guide.
+
+When using <code> to get the global generator, you need to be careful about device placement. The global generator is created (from a non-deterministic state) at the first time <code> is called, and placed on the default device at that call. So, for example, if the first site you call <code> is within a <code> scope, the global generator will be placed on the GPU, and using the global generator later on from the CPU will incur a GPU-to-CPU copy.
+
+There is also a function <code> for replacing the global generator with another generator object. This function should be used with caution though, because the old global generator may have been captured by a <code> (as a weak reference), and replacing it will cause it to be garbage collected, breaking the <code>. A better way to reset the global generator is to use one of the "reset" functions such as <code>, which won't create new generator objects.
+
+Creating independent random-number streams.
+
+In many applications one needs multiple independent random-number streams, independent in the sense that they won't overlap and won't have any statistically detectable correlations. This is achieved by using <code> to create multiple generators that are guaranteed to be independent of each other (i.e. generating independent streams).
+
+<code> will change the state of the generator on which it is called (<code> in the above example), similar to an RNG method such as <code>. In addition to being independent of each other, the new generators (<code>) are also guaranteed to be independent of the old one (<code>).
+
+Spawning new generators is also useful when you want to make sure the generator you use is on the same device as other computations, to avoid the overhead of cross-device copy. For example:
+
+Note: In theory, you can use constructors such as <code> instead of <code> here to obtain a new generator, but by doing so you lose the guarantee that the new generator is independent of the global generator. You will also run the risk that you may accidentally create two generators with the same seed or with seeds that lead to overlapping random-number streams.
+
+You can do splitting recursively, calling <code> on split generators. There are no limits (barring integer overflow) on the depth of recursions.
+
+Interaction with <code>.
+
+<code> obeys the same rules as <code> when used with <code>. This includes three aspects.
+
+Creating generators outside <code>.
+
+<code> can use a generator created outside of it.
+
+The user needs to make sure that the generator object is still alive (not garbage-collected) when the function is called.
+
+Creating generators inside <code>.
+
+Creation of generators inside a <code> can only happened during the first run of the function.
+
+Passing generators as arguments to <code>.
+
+When used as an argument to a <code>, different generator objects will cause retracing of the <code>.
+
+Note that this retracing behavior is consistent with <code>:
+
+Interaction with distribution strategies.
+
+There are two ways in which <code> interacts with distribution strategies.
+
+Creating generators outside distribution strategies.
+
+If a generator is created outside strategy scopes, all replicas’ access to the generator will be serialized, and hence the replicas will get different random numbers.
+
+Note that this usage may have performance issues because the generator's device is different from the replicas.
+
+Creating generators inside distribution strategies.
+
+If a generator is created inside a strategy scope, each replica will get a different and independent stream of random numbers.
+
+Note: Currently <code> doesn't provide an option to let different replicas get identical (instead of different) streams (which is technically not hard). If you have a use case for this feature, please let the TensorFlow developers know.
+
+If the generator is seeded (e.g. created by <code>), the random numbers are determined by the seed, even though different replicas get different and uncorrelated numbers. One can think of a random number generated on a replica as a hash of the replica ID and a "primary" random number that is common to all replicas. Hence, the whole system is still deterministic.
+
+<code> can also be created inside <code>:
+
+We no longer recommend passing <code> as arguments to <code>, because <code> generally expects the arguments to be tensors, not generators.
+
+Saving generators.
+
+Generally for saving or serializing you can handle a <code> the same way you would handle a <code> or a <code> (or its subclasses). In TF there are two mechanisms for serialization: Checkpoint and SavedModel.
+
+Checkpoint.
+
+Generators can be freely saved and restored using <code>. The random-number stream from the restoring point will be the same as that from the saving point.
+
+You can also save and restore within a distribution strategy:
+
+You should make sure that the replicas don't diverge in their RNG call history (e.g. one replica makes one RNG call while another makes two RNG calls) before saving. Otherwise, their internal RNG states will diverge and <code> (which only saves the first replica's state) won't properly restore all the replicas.
+
+You can also restore a saved checkpoint to a different distribution strategy with a different number of replicas. Because a <code> object created in a strategy can only be used in the same strategy, to restore to a different strategy, you have to create a new <code> in the target strategy and a new <code> for it, as shown in this example:
+
+Although <code> and <code> are different objects from <code> and <code>, they are linked via the common checkpoint file <code> and object name <code>. Overlapping replicas between strategies (e.g. <code> and <code> above) will have their RNG streams properly restored like in previous examples. This guarantee doesn't cover the case when a generator is saved in a strategy scope and restored outside of any strategy scope or vice versa, because a device outside strategies is treated as different from any replica in a strategy.
+
+SavedModel.
+
+<code> can be saved to a SavedModel. The generator can be created within a strategy scope. The saving can also happen within a strategy scope.
+
+Loading a SavedModel containing <code> into a distribution strategy is not recommended because the replicas will all generate the same random-number stream (which is because replica ID is frozen in SavedModel's graph).
+
+Loading a distributed <code> (a generator created within a distribution strategy) into a non-strategy environment, like the above example, also has a caveat. The RNG state will be properly restored, but the random numbers generated will be different from the original generator in its strategy (again because a device outside strategies is treated as different from any replica in a strategy).
+
+Stateless RNGs.
+
+Usage of stateless RNGs is simple. Since they are just pure functions, there is no state or side effect involved.
+
+Every stateless RNG requires a <code> argument, which needs to be an integer Tensor of shape <code>. The results of the op are fully determined by this seed.
+
+The RNG algorithm used by stateless RNGs is device-dependent, meaning the same op running on a different device may produce different outputs.
+
+Algorithms.
+
+General.
+
+Both the <code> class and the <code> functions support the Philox algorithm (written as <code> or <code>) on all devices.
+
+Different devices will generate the same integer numbers, if using the same algorithm and starting from the same state. They will also generate "almost the same" float-point numbers, though there may be small numerical discrepancies caused by the different ways the devices carry out the float-point computation (e.g. reduction order).
+
+XLA devices.
+
+On XLA-driven devices (such as TPU, and also CPU/GPU when XLA is enabled) the ThreeFry algorithm (written as <code> or <code>) is also supported. This algorithm is fast on TPU but slow on CPU/GPU compared to Philox.
+
+See paper 'Parallel Random Numbers: As Easy as 1, 2, 3' for more details about these algorithms.

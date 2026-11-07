@@ -1,0 +1,119 @@
+Introduction to Keras for engineers.
+
+Introduction.
+
+Keras 3 is a deep learning framework works with TensorFlow, JAX, and PyTorch interchangeably. This notebook will walk you through key Keras 3 workflows.
+
+Setup.
+
+We're going to be using the JAX backend here -- but you can edit the string below to <code> or <code> and hit "Restart runtime", and the whole notebook will run just the same! This entire guide is backend-agnostic.
+
+A first example: A MNIST convnet.
+
+Let's start with the Hello World of ML: training a convnet to classify MNIST digits.
+
+Here's the data:
+
+Here's our model.
+
+Different model-building options that Keras offers include:
+
+The Sequential API (what we use below).
+
+The Functional API (most typical).
+
+Writing your own models yourself via subclassing (for advanced use cases).
+
+Here's our model summary:
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ conv2d ( Conv2D ) │ ( None , 26 , 26 , 64 ) │ 640 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d1 ( Conv2D ) │ ( None , 24 , 24 , 64 ) │ 36,928 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling2d ( MaxPooling2D ) │ ( None , 12 , 12 , 64 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d2 ( Conv2D ) │ ( None , 10 , 10 , 128 ) │ 73,856 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ conv2d3 ( Conv2D ) │ ( None , 8 , 8 , 128 ) │ 147,584 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ globalaveragepooling2d │ ( None , 128 ) │ 0 │ │ ( GlobalAveragePooling2D ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 128 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 10 ) │ 1,290 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 260,298 (1016.79 KB).
+
+Trainable params: 260,298 (1016.79 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+We use the <code> method to specify the optimizer, loss function, and the metrics to monitor. Note that with the JAX and TensorFlow backends, XLA compilation is turned on by default.
+
+Let's train and evaluate the model. We'll set aside a validation split of 15% of the data during training to monitor generalization on unseen data.
+
+During training, we were saving a model at the end of each epoch. You can also save the model in its latest state like this:
+
+And reload it like this:
+
+Next, you can query predictions of class probabilities with <code>:
+
+That's it for the basics!
+
+Writing cross-framework custom components.
+
+Keras enables you to write custom Layers, Models, Metrics, Losses, and Optimizers that work across TensorFlow, JAX, and PyTorch with the same codebase. Let's take a look at custom layers first.
+
+The <code> namespace contains:
+
+An implementation of the NumPy API, e.g. <code> or <code>.
+
+A set of neural network specific ops that are absent from NumPy, such as <code> or <code>.
+
+Let's make a custom <code> layer that works with all backends:
+
+Next, let's make a custom <code> layer that relies on the <code> namespace:
+
+Next, let's write a custom subclassed model that uses our two custom layers:
+
+Let's compile it and fit it:
+
+Training models on arbitrary data sources.
+
+All Keras models can be trained and evaluated on a wide variety of data sources, independently of the backend you're using. This includes:
+
+NumPy arrays.
+
+Pandas dataframes.
+
+TensorFlow <code> objects.
+
+PyTorch <code> objects.
+
+Keras <code> objects.
+
+They all work whether you're using TensorFlow, JAX, or PyTorch as your Keras backend.
+
+Let's try it out with PyTorch <code>:
+
+Now let's try this out with <code>:
+
+Further reading.
+
+This concludes our short overview of the new multi-backend capabilities of Keras 3. Next, you can learn about:
+
+How to customize what happens in <code>.
+
+Want to implement a non-standard training algorithm yourself but still want to benefit from the power and usability of <code>? It's easy to customize <code> to support arbitrary use cases:
+
+Customizing what happens in <code> with TensorFlow.
+
+Customizing what happens in <code> with JAX.
+
+Customizing what happens in <code> with PyTorch.
+
+How to write custom training loops.
+
+Writing a training loop from scratch in TensorFlow.
+
+Writing a training loop from scratch in JAX.
+
+Writing a training loop from scratch in PyTorch.
+
+How to distribute training.
+
+Guide to distributed training with TensorFlow.
+
+JAX distributed training example.
+
+PyTorch distributed training example.
+
+Enjoy the library! 🚀.

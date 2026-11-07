@@ -1,0 +1,325 @@
+Geometry and Linear Algebraic Operations.
+
+In section <num>, we encountered the basics of linear algebra and saw how it could be used to express common operations for transforming our data. Linear algebra is one of the key mathematical pillars underlying much of the work that we do in deep learning and in machine learning more broadly. While section <num> contained enough machinery to communicate the mechanics of modern deep learning models, there is a lot more to the subject. In this section, we will go deeper, highlighting some geometric interpretations of linear algebra operations, and introducing a few fundamental concepts, including of eigenvalues and eigenvectors.
+
+Geometry of Vectors.
+
+First, we need to discuss the two common geometric interpretations of vectors, as either points or directions in space. Fundamentally, a vector is a list of numbers such as the Python list below.
+
+Mathematicians most often write this as either a column or row vector, which is to say either as.
+
+<math>.
+
+or.
+
+<math>.
+
+These often have different interpretations, where data examples are column vectors and weights used to form weighted sums are row vectors. However, it can be beneficial to be flexible. As we have described in section <num>, though a single vector's default orientation is a column vector, for any matrix representing a tabular dataset, treating each data example as a row vector in the matrix is more conventional.
+
+Given a vector, the first interpretation that we should give it is as a point in space. In two or three dimensions, we can visualize these points by using the components of the vectors to define the location of the points in space compared to a fixed reference called the origin. This can be seen in section <num>.
+
+This geometric point of view allows us to consider the problem on a more abstract level. No longer faced with some insurmountable seeming problem like classifying pictures as either cats or dogs, we can start considering tasks abstractly as collections of points in space and picturing the task as discovering how to separate two distinct clusters of points.
+
+In parallel, there is a second point of view that people often take of vectors: as directions in space. Not only can we think of the vector <math> as the location <math> units to the right and <math> units up from the origin, we can also think of it as the direction itself to take <math> steps to the right and <math> steps up. In this way, we consider all the vectors in figure section <num> the same.
+
+One of the benefits of this shift is that we can make visual sense of the act of vector addition. In particular, we follow the directions given by one vector, and then follow the directions given by the other, as is seen in section <num>.
+
+Vector subtraction has a similar interpretation. By considering the identity that <math>, we see that the vector <math> is the direction that takes us from the point <math> to the point <math>.
+
+Dot Products and Angles.
+
+As we saw in section <num>, if we take two column vectors <math> and <math>, we can form their dot product by computing:
+
+<math>.
+
+Because <num> is symmetric, we will mirror the notation of classical multiplication and write.
+
+<math>.
+
+to highlight the fact that exchanging the order of the vectors will yield the same answer.
+
+The dot product <num> also admits a geometric interpretation: it is closely related to the angle between two vectors. Consider the angle shown in section <num>.
+
+To start, let's consider two specific vectors:
+
+<math>.
+
+The vector <math> is length <math> and runs parallel to the <math>-axis, and the vector <math> is of length <math> and at angle <math> with the <math>-axis. If we compute the dot product of these two vectors, we see that.
+
+<math>.
+
+With some simple algebraic manipulation, we can rearrange terms to obtain.
+
+<math>.
+
+In short, for these two specific vectors, the dot product combined with the norms tell us the angle between the two vectors. This same fact is true in general. We will not derive the expression here, however, if we consider writing <math> in two ways: one with the dot product, and the other geometrically using the law of cosines, we can obtain the full relationship. Indeed, for any two vectors <math> and <math>, the angle between the two vectors is.
+
+<math>.
+
+This is a nice result since nothing in the computation references two-dimensions. Indeed, we can use this in three or three million dimensions without issue.
+
+As a simple example, let's see how to compute the angle between a pair of vectors:
+
+We will not use it right now, but it is useful to know that we will refer to vectors for which the angle is <math> (or equivalently <math>) as being orthogonal. By examining the equation above, we see that this happens when <math>, which is the same thing as <math>. The only way this can happen is if the dot product itself is zero, and two vectors are orthogonal if and only if <math>. This will prove to be a helpful formula when understanding objects geometrically.
+
+It is reasonable to ask: why is computing the angle useful? The answer comes in the kind of invariance we expect data to have. Consider an image, and a duplicate image, where every pixel value is the same but <math> the brightness. The values of the individual pixels are in general far from the original values. Thus, if one computed the distance between the original image and the darker one, the distance can be large. However, for most ML applications, the content is the same---it is still an image of a cat as far as a cat/dog classifier is concerned. However, if we consider the angle, it is not hard to see that for any vector <math>, the angle between <math> and <math> is zero. This corresponds to the fact that scaling vectors keeps the same direction and just changes the length. The angle considers the darker image identical.
+
+Examples like this are everywhere. In text, we might want the topic being discussed to not change if we write twice as long of document that says the same thing. For some encoding (such as counting the number of occurrences of words in some vocabulary), this corresponds to a doubling of the vector encoding the document, so again we can use the angle.
+
+Cosine Similarity.
+
+In ML contexts where the angle is employed to measure the closeness of two vectors, practitioners adopt the term cosine similarity to refer to the portion <math>.
+
+The cosine takes a maximum value of <math> when the two vectors point in the same direction, a minimum value of <math> when they point in opposite directions, and a value of <math> when the two vectors are orthogonal. Note that if the components of high-dimensional vectors are sampled randomly with mean <math>, their cosine will nearly always be close to <math>.
+
+Hyperplanes.
+
+In addition to working with vectors, another key object that you must understand to go far in linear algebra is the hyperplane, a generalization to higher dimensions of a line (two dimensions) or of a plane (three dimensions). In an <math>-dimensional vector space, a hyperplane has <math> dimensions and divides the space into two half-spaces.
+
+Let's start with an example. Suppose that we have a column vector <math>. We want to know, "what are the points <math> with <math>?" By recalling the connection between dot products and angles above <num>, we can see that this is equivalent to <math>.
+
+If we consider the geometric meaning of this expression, we see that this is equivalent to saying that the length of the projection of <math> onto the direction of <math> is exactly <math>, as is shown in section <num>. The set of all points where this is true is a line at right angles to the vector <math>. If we wanted, we could find the equation for this line and see that it is <math> or equivalently <math>.
+
+If we now look at what happens when we ask about the set of points with <math> or <math>, we can see that these are cases where the projections are longer or shorter than <math>, respectively. Thus, those two inequalities define either side of the line. In this way, we have found a way to cut our space into two halves, where all the points on one side have dot product below a threshold, and the other side above as we see in section <num>.
+
+The story in higher dimension is much the same. If we now take <math> and ask about the points in three dimensions with <math>, we obtain a plane at right angles to the given vector <math>. The two inequalities again define the two sides of the plane as is shown in section <num>.
+
+While our ability to visualize runs out at this point, nothing stops us from doing this in tens, hundreds, or billions of dimensions. This occurs often when thinking about machine learned models. For instance, we can understand linear classification models like those from section <num>, as methods to find hyperplanes that separate the different target classes. In this context, such hyperplanes are often referred to as decision planes. The majority of deep learned classification models end with a linear layer fed into a softmax, so one can interpret the role of the deep neural network to be to find a non-linear embedding such that the target classes can be separated cleanly by hyperplanes.
+
+To give a hand-built example, notice that we can produce a reasonable model to classify tiny images of t-shirts and trousers from the Fashion-MNIST dataset (seen in section <num>) by just taking the vector between their means to define the decision plane and eyeball a crude threshold. First we will load the data and compute the averages.
+
+It can be informative to examine these averages in detail, so let's plot what they look like. In this case, we see that the average indeed resembles a blurry image of a t-shirt.
+
+In the second case, we again see that the average resembles a blurry image of trousers.
+
+In a fully machine learned solution, we would learn the threshold from the dataset. In this case, I simply eyeballed a threshold that looked good on the training data by hand.
+
+Geometry of Linear Transformations.
+
+Through section <num> and the above discussions, we have a solid understanding of the geometry of vectors, lengths, and angles. However, there is one important object we have omitted discussing, and that is a geometric understanding of linear transformations represented by matrices. Fully internalizing what matrices can do to transform data between two potentially different high dimensional spaces takes significant practice, and is beyond the scope of this appendix. However, we can start building up intuition in two dimensions.
+
+Suppose that we have some matrix:
+
+<math>.
+
+If we want to apply this to an arbitrary vector <math>, we multiply and see that.
+
+<math>.
+
+This may seem like an odd computation, where something clear became somewhat impenetrable. However, it tells us that we can write the way that a matrix transforms any vector in terms of how it transforms two specific vectors: <math> and <math>. This is worth considering for a moment. We have essentially reduced an infinite problem (what happens to any pair of real numbers) to a finite one (what happens to these specific vectors). These vectors are an example a basis, where we can write any vector in our space as a weighted sum of these basis vectors.
+
+Let's draw what happens when we use the specific matrix.
+
+<math>.
+
+If we look at the specific vector <math>, we see this is <math>, and thus we know that the matrix <math> will send this to <math>. If we follow this logic through carefully, say by considering the grid of all integer pairs of points, we see that what happens is that the matrix multiplication can skew, rotate, and scale the grid, but the grid structure must remain as you see in section <num>.
+
+This is the most important intuitive point to internalize about linear transformations represented by matrices. Matrices are incapable of distorting some parts of space differently than others. All they can do is take the original coordinates on our space and skew, rotate, and scale them.
+
+Some distortions can be severe. For instance the matrix.
+
+<math>.
+
+compresses the entire two-dimensional plane down to a single line. Identifying and working with such transformations are the topic of a later section, but geometrically we can see that this is fundamentally different from the types of transformations we saw above. For instance, the result from matrix <math> can be "bent back" to the original grid. The results from matrix <math> cannot because we will never know where the vector <math> came from---was it <math> or <math>?
+
+While this picture was for a <math> matrix, nothing prevents us from taking the lessons learned into higher dimensions. If we take similar basis vectors like <math> and see where our matrix sends them, we can start to get a feeling for how the matrix multiplication distorts the entire space in whatever dimension space we are dealing with.
+
+Linear Dependence.
+
+Consider again the matrix.
+
+<math>.
+
+This compresses the entire plane down to live on the single line <math>. The question now arises: is there some way we can detect this just looking at the matrix itself? The answer is that indeed we can. Let's take <math> and <math> be the two columns of <math>. Remember that we can write everything transformed by the matrix <math> as a weighted sum of the columns of the matrix: like <math>. We call this a linear combination. The fact that <math> means that we can write any linear combination of those two columns entirely in terms of say <math> since.
+
+<math>.
+
+This means that one of the columns is, in a sense, redundant because it does not define a unique direction in space. This should not surprise us too much since we already saw that this matrix collapses the entire plane down into a single line. Moreover, we see that the linear dependence <math> captures this. To make this more symmetrical between the two vectors, we will write this as.
+
+<math>.
+
+In general, we will say that a collection of vectors <math> are linearly dependent if there exist coefficients <math> not all equal to zero so that.
+
+<math>.
+
+In this case, we can solve for one of the vectors in terms of some combination of the others, and effectively render it redundant. Thus, a linear dependence in the columns of a matrix is a witness to the fact that our matrix is compressing the space down to some lower dimension. If there is no linear dependence we say the vectors are linearly independent. If the columns of a matrix are linearly independent, no compression occurs and the operation can be undone.
+
+Rank.
+
+If we have a general <math> matrix, it is reasonable to ask what dimension space the matrix maps into. A concept known as the rank will be our answer. In the previous section, we noted that a linear dependence bears witness to compression of space into a lower dimension and so we will be able to use this to define the notion of rank. In particular, the rank of a matrix <math> is the largest number of linearly independent columns amongst all subsets of columns. For example, the matrix.
+
+<math>.
+
+has <math>, since the two columns are linearly dependent, but either column by itself is not linearly dependent. For a more challenging example, we can consider.
+
+<math>.
+
+and show that <math> has rank two since, for instance, the first two columns are linearly independent, however any of the four collections of three columns are dependent.
+
+This procedure, as described, is very inefficient. It requires looking at every subset of the columns of our given matrix, and thus is potentially exponential in the number of columns. Later we will see a more computationally efficient way to compute the rank of a matrix, but for now, this is sufficient to see that the concept is well defined and understand the meaning.
+
+Invertibility.
+
+We have seen above that multiplication by a matrix with linearly dependent columns cannot be undone, i.e., there is no inverse operation that can always recover the input. However, multiplication by a full-rank matrix (i.e., some <math> that is <math> matrix with rank <math>), we should always be able to undo it. Consider the matrix.
+
+<math>.
+
+which is the matrix with ones along the diagonal, and zeros elsewhere. We call this the identity matrix. It is the matrix which leaves our data unchanged when applied. To find a matrix which undoes what our matrix <math> has done, we want to find a matrix <math> such that.
+
+<math>.
+
+If we look at this as a system, we have <math> unknowns (the entries of <math>) and <math> equations (the equality that needs to hold between every entry of the product <math> and every entry of <math>) so we should generically expect a solution to exist. Indeed, in the next section we will see a quantity called the determinant, which has the property that as long as the determinant is not zero, we can find a solution. We call such a matrix <math> the inverse matrix. As an example, if <math> is the general <math> matrix.
+
+<math>.
+
+then we can see that the inverse is.
+
+<math>.
+
+We can test to see this by seeing that multiplying by the inverse given by the formula above works in practice.
+
+Numerical Issues.
+
+While the inverse of a matrix is useful in theory, we must say that most of the time we do not wish to use the matrix inverse to solve a problem in practice. In general, there are far more numerically stable algorithms for solving linear equations like.
+
+<math>.
+
+than computing the inverse and multiplying to get.
+
+<math>.
+
+Just as division by a small number can lead to numerical instability, so can inversion of a matrix which is close to having low rank.
+
+Moreover, it is common that the matrix <math> is sparse, which is to say that it contains only a small number of non-zero values. If we were to explore examples, we would see that this does not mean the inverse is sparse. Even if <math> was a <math> million by <math> million matrix with only <math> million non-zero entries (and thus we need only store those <math> million), the inverse will typically have almost every entry non-negative, requiring us to store all <math> entries---that is <math> trillion entries!
+
+While we do not have time to dive all the way into the thorny numerical issues frequently encountered when working with linear algebra, we want to provide you with some intuition about when to proceed with caution, and generally avoiding inversion in practice is a good rule of thumb.
+
+Determinant.
+
+The geometric view of linear algebra gives an intuitive way to interpret a fundamental quantity known as the determinant. Consider the grid image from before, but now with a highlighted region (section <num>).
+
+Look at the highlighted square. This is a square with edges given by <math> and <math> and thus it has area one. After <math> transforms this square, we see that it becomes a parallelogram. There is no reason this parallelogram should have the same area that we started with, and indeed in the specific case shown here of.
+
+<math>.
+
+it is an exercise in coordinate geometry to compute the area of this parallelogram and obtain that the area is <math>.
+
+In general, if we have a matrix.
+
+<math>.
+
+we can see with some computation that the area of the resulting parallelogram is <math>. This area is referred to as the determinant.
+
+Let's check this quickly with some example code.
+
+The eagle-eyed amongst us will notice that this expression can be zero or even negative. For the negative term, this is a matter of convention taken generally in mathematics: if the matrix flips the figure, we say the area is negated. Let's see now that when the determinant is zero, we learn more.
+
+Let's consider.
+
+<math>.
+
+If we compute the determinant of this matrix, we get <math>. Given our understanding above, this makes sense. <math> compresses the square from the original image down to a line segment, which has zero area. And indeed, being compressed into a lower dimensional space is the only way to have zero area after the transformation. Thus we see the following result is true: a matrix <math> is invertible if and only if the determinant is not equal to zero.
+
+As a final comment, imagine that we have any figure drawn on the plane. Thinking like computer scientists, we can decompose that figure into a collection of little squares so that the area of the figure is in essence just the number of squares in the decomposition. If we now transform that figure by a matrix, we send each of these squares to parallelograms, each one of which has area given by the determinant. We see that for any figure, the determinant gives the (signed) number that a matrix scales the area of any figure.
+
+Computing determinants for larger matrices can be laborious, but the intuition is the same. The determinant remains the factor that <math> matrices scale <math>-dimensional volumes.
+
+Tensors and Common Linear Algebra Operations.
+
+In section <num> the concept of tensors was introduced. In this section, we will dive more deeply into tensor contractions (the tensor equivalent of matrix multiplication), and see how it can provide a unified view on a number of matrix and vector operations.
+
+With matrices and vectors we knew how to multiply them to transform data. We need to have a similar definition for tensors if they are to be useful to us. Think about matrix multiplication:
+
+<math>.
+
+or equivalently.
+
+<math>.
+
+This pattern is one we can repeat for tensors. For tensors, there is no one case of what to sum over that can be universally chosen, so we need specify exactly which indices we want to sum over. For instance we could consider.
+
+<math>.
+
+Such a transformation is called a tensor contraction. It can represent a far more flexible family of transformations that matrix multiplication alone.
+
+As a often-used notational simplification, we can notice that the sum is over exactly those indices that occur more than once in the expression, thus people often work with Einstein notation, where the summation is implicitly taken over all repeated indices. This gives the compact expression:
+
+<math>.
+
+Common Examples from Linear Algebra.
+
+Let's see how many of the linear algebraic definitions we have seen before can be expressed in this compressed tensor notation:
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+<math>.
+
+In this way, we can replace a myriad of specialized notations with short tensor expressions.
+
+Expressing in Code.
+
+Tensors may flexibly be operated on in code as well. As seen in section <num>, we can create tensors as is shown below.
+
+Einstein summation has been implemented directly. The indices that occurs in the Einstein summation can be passed as a string, followed by the tensors that are being acted upon. For instance, to implement matrix multiplication, we can consider the Einstein summation seen above (<math>) and strip out the indices themselves to get the implementation:
+
+This is a highly flexible notation. For instance if we want to compute what would be traditionally written as.
+
+<math>.
+
+it can be implemented via Einstein summation as:
+
+This notation is readable and efficient for humans, however bulky if for whatever reason we need to generate a tensor contraction programmatically. For this reason, <code> provides an alternative notation by providing integer indices for each tensor. For example, the same tensor contraction can also be written as:
+
+Either notation allows for concise and efficient representation of tensor contractions in code.
+
+Summary.
+
+Vectors can be interpreted geometrically as either points or directions in space.
+
+Dot products define the notion of angle to arbitrarily high-dimensional spaces.
+
+Hyperplanes are high-dimensional generalizations of lines and planes. They can be used to define decision planes that are often used as the last step in a classification task.
+
+Matrix multiplication can be geometrically interpreted as uniform distortions of the underlying coordinates. They represent a very restricted, but mathematically clean, way to transform vectors.
+
+Linear dependence is a way to tell when a collection of vectors are in a lower dimensional space than we would expect (say you have <math> vectors living in a <math>-dimensional space). The rank of a matrix is the size of the largest subset of its columns that are linearly independent.
+
+When a matrix's inverse is defined, matrix inversion allows us to find another matrix that undoes the action of the first. Matrix inversion is useful in theory, but requires care in practice owing to numerical instability.
+
+Determinants allow us to measure how much a matrix expands or contracts a space. A nonzero determinant implies an invertible (non-singular) matrix and a zero-valued determinant means that the matrix is non-invertible (singular).
+
+Tensor contractions and Einstein summation provide for a neat and clean notation for expressing many of the computations that are seen in machine learning.
+
+Exercises.
+
+What is the angle between <math>.
+
+True or false: <math> and <math> are inverses of one another?
+
+Suppose that we draw a shape in the plane with area <math>. What is the area after transforming the figure by the matrix <math>.
+
+Which of the following sets of vectors are linearly independent?
+
+<math>.
+
+<math>.
+
+<math>.
+
+Suppose that you have a matrix written as <math> for some choice of values <math>, and <math>. True or false: the determinant of such a matrix is always <math>?
+
+The vectors <math> and <math> are orthogonal. What is the condition on a matrix <math> so that <math> and <math> are orthogonal?
+
+How can you write <math> in Einstein notation for an arbitrary matrix <math>?
+
+Discussions.
+
+Discussions.
+
+Discussions.

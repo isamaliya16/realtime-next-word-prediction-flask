@@ -1,0 +1,65 @@
+Image classification with ConvMixer.
+
+Introduction.
+
+Vision Transformers (ViT; Dosovitskiy et al.) extract small patches from the input images, linearly project them, and then apply the Transformer (Vaswani et al.) blocks. The application of ViTs to image recognition tasks is quickly becoming a promising area of research, because ViTs eliminate the need to have strong inductive biases (such as convolutions) for modeling locality. This presents them as a general computation primititive capable of learning just from the training data with as minimal inductive priors as possible. ViTs yield great downstream performance when trained with proper regularization, data augmentation, and relatively large datasets.
+
+In the Patches Are All You Need paper (note: at the time of writing, it is a submission to the ICLR 2022 conference), the authors extend the idea of using patches to train an all-convolutional network and demonstrate competitive results. Their architecture namely ConvMixer uses recipes from the recent isotrophic architectures like ViT, MLP-Mixer (Tolstikhin et al.), such as using the same depth and resolution across different layers in the network, residual connections, and so on.
+
+In this example, we will implement the ConvMixer model and demonstrate its performance on the CIFAR-10 dataset.
+
+Imports.
+
+Hyperparameters.
+
+To keep run time short, we will train the model for only 10 epochs. To focus on the core ideas of ConvMixer, we will not use other training-specific elements like RandAugment (Cubuk et al.). If you are interested in learning more about those details, please refer to the original paper.
+
+Load the CIFAR-10 dataset.
+
+Prepare <code> objects.
+
+Our data augmentation pipeline is different from what the authors used for the CIFAR-10 dataset, which is fine for the purpose of the example. Note that, it's ok to use TF APIs for data I/O and preprocessing with other backends (jax, torch) as it is feature-complete framework when it comes to data preprocessing.
+
+ConvMixer utilities.
+
+The following figure (taken from the original paper) depicts the ConvMixer model:
+
+ConvMixer is very similar to the MLP-Mixer, model with the following key differences:
+
+Instead of using fully-connected layers, it uses standard convolution layers.
+
+Instead of LayerNorm (which is typical for ViTs and MLP-Mixers), it uses BatchNorm.
+
+Two types of convolution layers are used in ConvMixer. (1): Depthwise convolutions, for mixing spatial locations of the images, (2): Pointwise convolutions (which follow the depthwise convolutions), for mixing channel-wise information across the patches. Another keypoint is the use of larger kernel sizes to allow a larger receptive field.
+
+The model used in this experiment is termed as ConvMixer-256/8 where 256 denotes the number of channels and 8 denotes the depth. The resulting model only has 0.8 million parameters.
+
+Model training and evaluation utility.
+
+Train and evaluate model.
+
+The gap in training and validation performance can be mitigated by using additional regularization techniques. Nevertheless, being able to get to ~83% accuracy within 10 epochs with 0.8 million parameters is a strong result.
+
+Visualizing the internals of ConvMixer.
+
+We can visualize the patch embeddings and the learned convolution filters. Recall that each patch embedding and intermediate feature map have the same number of channels (256 in this case). This will make our visualization utility easier to implement.
+
+Even though we did not train the network to convergence, we can notice that different patches show different patterns. Some share similarity with others while some are very different. These visualizations are more salient with larger image sizes.
+
+Similarly, we can visualize the raw convolution kernels. This can help us understand the patterns to which a given kernel is receptive.
+
+We see that different filters in the kernel have different locality spans, and this pattern is likely to evolve with more training.
+
+Final notes.
+
+There's been a recent trend on fusing convolutions with other data-agnostic operations like self-attention. Following works are along this line of research:
+
+ConViT (d'Ascoli et al.).
+
+CCT (Hassani et al.).
+
+CoAtNet (Dai et al.).
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 8: Image classification.

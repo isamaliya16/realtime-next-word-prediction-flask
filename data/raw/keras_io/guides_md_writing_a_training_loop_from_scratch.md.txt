@@ -1,0 +1,127 @@
+Writing a training loop from scratch.
+
+Setup.
+
+Introduction.
+
+Keras provides default training and evaluation loops, <code> and <code>. Their usage is covered in the guide Training & evaluation with the built-in methods.
+
+If you want to customize the learning algorithm of your model while still leveraging the convenience of <code> (for instance, to train a GAN using <code>), you can subclass the <code> class and implement your own <code> method, which is called repeatedly during <code>. This is covered in the guide Customizing what happens in <code>.
+
+Now, if you want very low-level control over training & evaluation, you should write your own training & evaluation loops from scratch. This is what this guide is about.
+
+Using the <code>: a first end-to-end example.
+
+Calling a model inside a <code> scope enables you to retrieve the gradients of the trainable weights of the layer with respect to a loss value. Using an optimizer instance, you can use these gradients to update these variables (which you can retrieve using <code>).
+
+Let's consider a simple MNIST model:
+
+Let's train it using mini-batch gradient with a custom training loop.
+
+First, we're going to need an optimizer, a loss function, and a dataset:
+
+Here's our training loop:
+
+We open a <code> loop that iterates over epochs.
+
+For each epoch, we open a <code> loop that iterates over the dataset, in batches.
+
+For each batch, we open a <code> scope.
+
+Inside this scope, we call the model (forward pass) and compute the loss.
+
+Outside the scope, we retrieve the gradients of the weights of the model with regard to the loss.
+
+Finally, we use the optimizer to update the weights of the model based on the gradients.
+
+Low-level handling of metrics.
+
+Let's add metrics monitoring to this basic loop.
+
+You can readily reuse the built-in metrics (or custom ones you wrote) in such training loops written from scratch. Here's the flow:
+
+Instantiate the metric at the start of the loop.
+
+Call <code> after each batch.
+
+Call <code> when you need to display the current value of the metric.
+
+Call <code> when you need to clear the state of the metric (typically at the end of an epoch).
+
+Let's use this knowledge to compute <code> on validation data at the end of each epoch:
+
+Here's our training & evaluation loop:
+
+Speeding-up your training step with <code>.
+
+The default runtime in TensorFlow 2 is eager execution. As such, our training loop above executes eagerly.
+
+This is great for debugging, but graph compilation has a definite performance advantage. Describing your computation as a static graph enables the framework to apply global performance optimizations. This is impossible when the framework is constrained to greedily execute one operation after another, with no knowledge of what comes next.
+
+You can compile into a static graph any function that takes tensors as input. Just add a <code> decorator on it, like this:
+
+Let's do the same with the evaluation step:
+
+Now, let's re-run our training loop with this compiled training step:
+
+Much faster, isn't it?
+
+Low-level handling of losses tracked by the model.
+
+Layers & models recursively track any losses created during the forward pass by layers that call <code>. The resulting list of scalar loss values are available via the property <code> at the end of the forward pass.
+
+If you want to be using these loss components, you should sum them and add them to the main loss in your training step.
+
+Consider this layer, that creates an activity regularization loss:
+
+Let's build a really simple model that uses it:
+
+Here's what our training step should look like now:
+
+Summary.
+
+Now you know everything there is to know about using built-in training loops and writing your own from scratch.
+
+To conclude, here's a simple end-to-end example that ties together everything you've learned in this guide: a DCGAN trained on MNIST digits.
+
+End-to-end example: a GAN training loop from scratch.
+
+You may be familiar with Generative Adversarial Networks (GANs). GANs can generate new images that look almost real, by learning the latent distribution of a training dataset of images (the "latent space" of the images).
+
+A GAN is made of two parts: a "generator" model that maps points in the latent space to points in image space, a "discriminator" model, a classifier that can tell the difference between real images (from the training dataset) and fake images (the output of the generator network).
+
+A GAN training loop looks like this:
+
+Train the discriminator.
+
+Sample a batch of random points in the latent space.
+
+Turn the points into fake images via the "generator" model.
+
+Get a batch of real images and combine them with the generated images.
+
+Train the "discriminator" model to classify generated vs. real images.
+
+Train the generator.
+
+Sample random points in the latent space.
+
+Turn the points into fake images via the "generator" network.
+
+Get a batch of real images and combine them with the generated images.
+
+Train the "generator" model to "fool" the discriminator and classify the fake images as real.
+
+For a much more detailed overview of how GANs works, see Deep Learning with Python.
+
+Let's implement this training loop. First, create the discriminator meant to classify fake vs real digits:
+
+Then let's create a generator network, that turns latent vectors into outputs of shape <code> (representing MNIST digits):
+
+Here's the key bit: the training loop. As you can see it is quite straightforward. The training step function only takes 17 lines.
+
+Let's train our GAN, by repeatedly calling <code> on batches of images.
+
+Since our discriminator and generator are convnets, you're going to want to run this code on a GPU.
+
+That's it! You'll get nice-looking fake MNIST digits after just ~30s of training on the Colab GPU.

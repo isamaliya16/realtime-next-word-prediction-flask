@@ -1,0 +1,37 @@
+Customizing the convolution operation of a Conv2D layer.
+
+Introduction.
+
+You may sometimes need to implement custom versions of convolution layers like <code> and <code>. Keras enables you do this without implementing the entire layer from scratch: you can reuse most of the base convolution layer and just customize the convolution op itself via the <code> method.
+
+This method was introduced in Keras 2.7. So before using the <code> API, ensure that you are running Keras version 2.7.0 or greater.
+
+A Simple <code> implementation.
+
+There are two ways to use the <code> API. The first way is to override the <code> method on a convolution layer subclass. Using this approach, we can quickly implement a StandardizedConv2D as shown below.
+
+The other way to use the <code> API is to directly call the <code> method from the <code> method of a convolution layer subclass. A comparable class implemented using this approach is shown below.
+
+Example Usage.
+
+Both of these layers work as drop-in replacements for <code>. The following demonstration performs classification on the MNIST dataset.
+
+Model: "sequential".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ standardizedconv2dwithcall │ ( None , 26 , 26 , 32 ) │ 320 │ │ ( StandardizedConv2DWithCall ) │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling2d ( MaxPooling2D ) │ ( None , 13 , 13 , 32 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ standardizedconv2dwithoverr… │ ( None , 11 , 11 , 64 ) │ 18,496 │ │ ( StandardizedConv2DWithOverrid… │ │ │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ maxpooling2d_1 ( MaxPooling2D ) │ ( None , 5 , 5 , 64 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ flatten ( Flatten ) │ ( None , 1600 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dropout ( Dropout ) │ ( None , 1600 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 10 ) │ 16,010 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 34,826 (136.04 KB).
+
+Trainable params: 34,826 (136.04 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+Conclusion.
+
+The <code> API provides an easy and readable way to implement custom convolution layers. A <code> implementation using the API is quite terse, consisting of only four lines of code.
+
+Relevant Chapters from Deep Learning with Python.
+
+Chapter 7: A deep dive on Keras.
+
+Chapter 8: Image classification.

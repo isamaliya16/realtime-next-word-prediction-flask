@@ -1,0 +1,65 @@
+Timeseries forecasting for weather prediction.
+
+Setup.
+
+Climate Data Time-Series.
+
+We will be using Jena Climate dataset recorded by the Max Planck Institute for Biogeochemistry. The dataset consists of 14 features such as temperature, pressure, humidity etc, recorded once per 10 minutes.
+
+Location: Weather Station, Max Planck Institute for Biogeochemistry in Jena, Germany.
+
+Time-frame Considered: Jan 10, 2009 - December 31, 2016.
+
+The table below shows the column names, their value formats, and their description.
+
+Index| Features |Format |Description -----|---------------|-------------------|----------------------- 1 |Date Time |01.01.2009 00:10:00|Date-time reference 2 |p (mbar) |996.52 |The pascal SI derived unit of pressure used to quantify internal pressure. Meteorological reports typically state atmospheric pressure in millibars. 3 |T (degC) |-8.02 |Temperature in Celsius 4 |Tpot (K) |265.4 |Temperature in Kelvin 5 |Tdew (degC) |-8.9 |Temperature in Celsius relative to humidity. Dew Point is a measure of the absolute amount of water in the air, the DP is the temperature at which the air cannot hold all the moisture in it and water condenses. 6 |rh (%) |93.3 |Relative Humidity is a measure of how saturated the air is with water vapor, the %RH determines the amount of water contained within collection objects. 7 |VPmax (mbar) |3.33 |Saturation vapor pressure 8 |VPact (mbar) |3.11 |Vapor pressure 9 |VPdef (mbar) |0.22 |Vapor pressure deficit 10 |sh (g/kg) |1.94 |Specific humidity 11 |H2OC (mmol/mol)|3.12 |Water vapor concentration 12 |rho (g/m 3) |1307.75 |Airtight 13 |wv (m/s) |1.03 |Wind speed 14 |max. wv (m/s) |1.75 |Maximum wind speed 15 |wd (deg) |152.3 |Wind direction in degrees.
+
+Raw Data Visualization.
+
+To give us a sense of the data we are working with, each feature has been plotted below. This shows the distinct pattern of each feature over the time period from 2009 to 2016. It also shows where anomalies are present, which will be addressed during normalization.
+
+Data Preprocessing.
+
+Here we are picking ~300,000 data points for training. Observation is recorded every 10 mins, that means 6 times per hour. We will resample one point per hour since no drastic change is expected within 60 minutes. We do this via the <code> argument in <code> utility.
+
+We are tracking data from past 720 timestamps (720/6=120 hours). This data will be used to predict the temperature after 72 timestamps (72/6=12 hours).
+
+Since every feature has values with varying ranges, we do normalization to confine feature values to a range of <code> before training a neural network. We do this by subtracting the mean and dividing by the standard deviation of each feature.
+
+71.5 % of the data will be used to train the model, i.e. 300,693 rows. <code> can be changed to alter this percentage.
+
+The model is shown data for first 5 days i.e. 720 observations, that are sampled every hour. The temperature after 72 (12 hours 6 observation per hour) observation will be used as a label.
+
+We can see from the correlation heatmap, few parameters like Relative Humidity and Specific Humidity are redundant. Hence we will be using select features, not all.
+
+Training dataset.
+
+The training dataset labels starts from the 792nd observation (720 + 72).
+
+The <code> function takes in a sequence of data-points gathered at equal intervals, along with time series parameters such as length of the sequences/windows, spacing between two sequence/windows, etc., to produce batches of sub-timeseries inputs and targets sampled from the main timeseries.
+
+Validation dataset.
+
+The validation dataset must not contain the last 792 rows as we won't have label data for those records, hence 792 must be subtracted from the end of the data.
+
+The validation label dataset must start from 792 after trainsplit, hence we must add past + future (792) to labelstart.
+
+Training.
+
+Model: "functional_1".
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓ ┃ Layer (type) ┃ Output Shape ┃ Param # ┃ ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩ │ input_layer ( InputLayer ) │ ( None , 120 , 7 ) │ 0 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ lstm ( LSTM ) │ ( None , 32 ) │ 5,120 │ ├─────────────────────────────────┼───────────────────────────┼────────────┤ │ dense ( Dense ) │ ( None , 1 ) │ 33 │ └─────────────────────────────────┴───────────────────────────┴────────────┘.
+
+Total params: 5,153 (20.13 KB).
+
+Trainable params: 5,153 (20.13 KB).
+
+Non-trainable params: 0 (0.00 B).
+
+We'll use the <code> callback to regularly save checkpoints, and the <code> callback to interrupt training when the validation loss is not longer improving.
+
+We can visualize the loss with the function below. After one point, the loss stops decreasing.
+
+Prediction.
+
+The trained model above is now able to make predictions for 5 sets of values from validation set.

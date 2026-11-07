@@ -1,0 +1,179 @@
+Building a tokenizer, block by block.
+
+As we've seen in the previous sections, tokenization comprises several steps:
+
+Normalization (any cleanup of the text that is deemed necessary, such as removing spaces or accents, Unicode normalization, etc.).
+
+Pre-tokenization (splitting the input into words).
+
+Running the input through the model (using the pre-tokenized words to produce a sequence of tokens).
+
+Post-processing (adding the special tokens of the tokenizer, generating the attention mask and token type IDs).
+
+As a reminder, here's another look at the overall process:
+
+The 🤗 Tokenizers library has been built to provide several options for each of those steps, which you can mix and match together. In this section we'll see how we can build a tokenizer from scratch, as opposed to training a new tokenizer from an old one as we did in section 2. You'll then be able to build any kind of tokenizer you can think of!
+
+More precisely, the library is built around a central <code> class with the building blocks regrouped in submodules:
+
+<code> contains all the possible types of <code> you can use (complete list here).
+
+<code> contains all the possible types of <code> you can use (complete list here).
+
+<code> contains the various types of <code> you can use, like <code>, <code>, and <code> (complete list here).
+
+<code> contains all the different types of <code> you can use to train your model on a corpus (one per type of model; complete list here).
+
+<code> contains the various types of <code> you can use (complete list here).
+
+<code> contains the various types of <code> you can use to decode the outputs of tokenization (complete list here).
+
+You can find the whole list of building blocks here.
+
+Acquiring a corpus.
+
+To train our new tokenizer, we will use a small corpus of text (so the examples run fast). The steps for acquiring the corpus are similar to the ones we took at the beginning of this chapter, but this time we'll use the WikiText-2 dataset:
+
+The function <code> is a generator that will yield batches of 1,000 texts, which we will use to train the tokenizer.
+
+🤗 Tokenizers can also be trained on text files directly. Here's how we can generate a text file containing all the texts/inputs from WikiText-2 that we can use locally:
+
+Next we'll show you how to build your own BERT, GPT-2, and XLNet tokenizers, block by block. That will give us an example of each of the three main tokenization algorithms: WordPiece, BPE, and Unigram. Let's start with BERT!
+
+Building a WordPiece tokenizer from scratch.
+
+To build a tokenizer with the 🤗 Tokenizers library, we start by instantiating a <code> object with a <code>, then set its <code>, <code>, <code>, and <code> attributes to the values we want.
+
+For this example, we'll create a <code> with a WordPiece model:
+
+We have to specify the <code> so the model knows what to return when it encounters characters it hasn't seen before. Other arguments we can set here include the <code> of our model (we're going to train the model, so we don't need to set this) and <code>, which specifies a maximum length for each word (words longer than the value passed will be split).
+
+The first step of tokenization is normalization, so let's begin with that. Since BERT is widely used, there is a <code> with the classic options we can set for BERT: <code> and <code>, which are self-explanatory; <code> to remove all control characters and replace repeating spaces with a single one; and <code>, which places spaces around Chinese characters. To replicate the <code> tokenizer, we can just set this normalizer:
+
+Generally speaking, however, when building a new tokenizer you won't have access to such a handy normalizer already implemented in the 🤗 Tokenizers library -- so let's see how to create the BERT normalizer by hand. The library provides a <code> normalizer and a <code> normalizer, and you can compose several normalizers using a <code>:
+
+We're also using an <code> Unicode normalizer, as otherwise the <code> normalizer won't properly recognize the accented characters and thus won't strip them out.
+
+As we've seen before, we can use the <code> method of the <code> to check out the effects it has on a given text:
+
+To go further If you test the two versions of the previous normalizers on a string containing the unicode character <code> you will surely notice that these two normalizers are not exactly equivalent. To not over-complicate the version with <code> too much , we haven't included the Regex replacements that the <code> requires when the <code> argument is set to <code> - which is the default behavior. But don't worry: it is possible to get exactly the same normalization without using the handy <code> by adding two <code>'s to the normalizers sequence.
+
+Next is the pre-tokenization step. Again, there is a prebuilt <code> that we can use:
+
+Or we can build it from scratch:
+
+Note that the <code> pre-tokenizer splits on whitespace and all characters that are not letters, digits, or the underscore character, so it technically splits on whitespace and punctuation:
+
+If you only want to split on whitespace, you should use the <code> pre-tokenizer instead:
+
+Like with normalizers, you can use a <code> to compose several pre-tokenizers:
+
+The next step in the tokenization pipeline is running the inputs through the model. We already specified our model in the initialization, but we still need to train it, which will require a <code>. The main thing to remember when instantiating a trainer in 🤗 Tokenizers is that you need to pass it all the special tokens you intend to use -- otherwise it won't add them to the vocabulary, since they are not in the training corpus:
+
+As well as specifying the <code> and <code>, we can set the <code> (the number of times a token must appear to be included in the vocabulary) or change the <code> (if we want to use something different from <code>).
+
+To train our model using the iterator we defined earlier, we just have to execute this command:
+
+We can also use text files to train our tokenizer, which would look like this (we reinitialize the model with an empty <code> beforehand):
+
+In both cases, we can then test the tokenizer on a text by calling the <code> method:
+
+The <code> obtained is an <code>, which contains all the necessary outputs of the tokenizer in its various attributes: <code>, <code>, <code>, <code>, <code>, <code>, and <code>.
+
+The last step in the tokenization pipeline is post-processing. We need to add the <code> token at the beginning and the <code> token at the end (or after each sentence, if we have a pair of sentences). We will use a <code> for this, but first we need to know the IDs of the <code> and <code> tokens in the vocabulary:
+
+To write the template for the <code>, we have to specify how to treat a single sentence and a pair of sentences. For both, we write the special tokens we want to use; the first (or single) sentence is represented by <code>, while the second sentence (if encoding a pair) is represented by <code>. For each of these (special tokens and sentences), we also specify the corresponding token type ID after a colon.
+
+The classic BERT template is thus defined as follows:
+
+Note that we need to pass along the IDs of the special tokens, so the tokenizer can properly convert them to their IDs.
+
+Once this is added, going back to our previous example will give:
+
+And on a pair of sentences, we get the proper result:
+
+We've almost finished building this tokenizer from scratch -- the last step is to include a decoder:
+
+Let's test it on our previous <code>:
+
+Great! We can save our tokenizer in a single JSON file like this:
+
+We can then reload that file in a <code> object with the <code> method:
+
+To use this tokenizer in 🤗 Transformers, we have to wrap it in a <code>. We can either use the generic class or, if our tokenizer corresponds to an existing model, use that class (here, <code>). If you apply this lesson to build a brand new tokenizer, you will have to use the first option.
+
+To wrap the tokenizer in a <code>, we can either pass the tokenizer we built as a <code> or pass the tokenizer file we saved as <code>. The key thing to remember is that we have to manually set all the special tokens, since that class can't infer from the <code> object which token is the mask token, the <code> token, etc.:
+
+If you are using a specific tokenizer class (like <code>), you will only need to specify the special tokens that are different from the default ones (here, none):
+
+You can then use this tokenizer like any other 🤗 Transformers tokenizer. You can save it with the <code> method, or upload it to the Hub with the <code> method.
+
+Now that we've seen how to build a WordPiece tokenizer, let's do the same for a BPE tokenizer. We'll go a bit faster since you know all the steps, and only highlight the differences.
+
+Building a BPE tokenizer from scratch.
+
+Let's now build a GPT-2 tokenizer. Like for the BERT tokenizer, we start by initializing a <code> with a BPE model:
+
+Also like for BERT, we could initialize this model with a vocabulary if we had one (we would need to pass the <code> and <code> in this case), but since we will train from scratch, we don't need to do that. We also don't need to specify an <code> because GPT-2 uses byte-level BPE, which doesn't require it.
+
+GPT-2 does not use a normalizer, so we skip that step and go directly to the pre-tokenization:
+
+The option we added to <code> here is to not add a space at the beginning of a sentence (which is the default otherwise). We can have a look at the pre-tokenization of an example text like before:
+
+Next is the model, which needs training. For GPT-2, the only special token is the end-of-text token:
+
+Like with the <code>, as well as the <code> and <code>, we can specify the <code> if we want to, or if we have an end-of-word suffix (like <code>), we can set it with <code>.
+
+This tokenizer can also be trained on text files:
+
+Let's have a look at the tokenization of a sample text:
+
+We apply the byte-level post-processing for the GPT-2 tokenizer as follows:
+
+The <code> option indicates to the post-processor that we should leave the offsets of tokens that begin with 'Ġ' as they are: this way the start of the offsets will point to the space before the word, not the first character of the word (since the space is technically part of the token). Let's have a look at the result with the text we just encoded, where <code> is the token at index 4:
+
+Finally, we add a byte-level decoder:
+
+and we can double-check it works properly:
+
+Great! Now that we're done, we can save the tokenizer like before, and wrap it in a <code> or <code> if we want to use it in 🤗 Transformers:
+
+or:
+
+As the last example, we'll show you how to build a Unigram tokenizer from scratch.
+
+Building a Unigram tokenizer from scratch.
+
+Let's now build an XLNet tokenizer. Like for the previous tokenizers, we start by initializing a <code> with a Unigram model:
+
+Again, we could initialize this model with a vocabulary if we had one.
+
+For the normalization, XLNet uses a few replacements (which come from SentencePiece):
+
+This replaces <code>``</code> and <code>''</code> with <code>"</code> and any sequence of two or more spaces with a single space, as well as removing the accents in the texts to tokenize.
+
+The pre-tokenizer to use for any SentencePiece tokenizer is <code>:
+
+We can have a look at the pre-tokenization of an example text like before:
+
+Next is the model, which needs training. XLNet has quite a few special tokens:
+
+A very important argument not to forget for the <code> is the <code>. We can also pass along other arguments specific to the Unigram algorithm, such as the <code> for each step where we remove tokens (defaults to 0.75) or the <code> to specify the maximum length of a given token (defaults to 16).
+
+This tokenizer can also be trained on text files:
+
+Let's have a look at the tokenization of a sample text:
+
+A peculiarity of XLNet is that it puts the <code> token at the end of the sentence, with a type ID of 2 (to distinguish it from the other tokens). It's padding on the left, as a result. We can deal with all the special tokens and token type IDs with a template, like for BERT, but first we have to get the IDs of the <code> and <code> tokens:
+
+The template looks like this:
+
+And we can test it works by encoding a pair of sentences:
+
+Finally, we add a <code> decoder:
+
+and we're done with this tokenizer! We can save the tokenizer like before, and wrap it in a <code> or <code> if we want to use it in 🤗 Transformers. One thing to note when using <code> is that on top of the special tokens, we need to tell the 🤗 Transformers library to pad on the left:
+
+Or alternatively:
+
+Now that you have seen how the various building blocks are used to build existing tokenizers, you should be able to write any tokenizer you want with the 🤗 Tokenizers library and be able to use it in 🤗 Transformers.

@@ -1,0 +1,57 @@
+Getting Started with Distributed RPC Framework Author: Shen Li.
+
+Prerequisites:
+
+PyTorch Distributed Overview.
+
+RPC API documents.
+
+This tutorial uses two simple examples to demonstrate how to build distributed training with the torch.distributed.rpc package which was first introduced as an experimental feature in PyTorch v1.4. Source code of the two examples can be found in PyTorch examples.
+
+Previous tutorials, Getting Started With Distributed Data Parallel and Writing Distributed Applications With PyTorch, described DistributedDataParallel which supports a specific training paradigm where the model is replicated across multiple processes and each process handles a split of the input data. Sometimes, you might run into scenarios that require different training paradigms. For example:
+
+In reinforcement learning, it might be relatively expensive to acquire training data from environments while the model itself can be quite small. In this case, it might be useful to spawn multiple observers running in parallel and share a single agent. In this case, the agent takes care of the training locally, but the application would still need libraries to send and receive data between observers and the trainer.
+
+Your model might be too large to fit in GPUs on a single machine, and hence would need a library to help split the model onto multiple machines. Or you might be implementing a parameter server training framework, where model parameters and trainers live on different machines.
+
+The torch.distributed.rpc package can help with the above scenarios. In case 1, RPC and RRef allow sending data from one worker to another while easily referencing remote data objects. In case 2, distributed autograd and distributed optimizer make executing backward pass and optimizer step as if it is local training. In the next two sections, we will demonstrate APIs of torch.distributed.rpc using a reinforcement learning example and a language model example. Please note, this tutorial does not aim at building the most accurate or efficient models to solve given problems, instead, the main goal here is to show how to use the torch.distributed.rpc package to build distributed training applications.
+
+Distributed Reinforcement Learning using RPC and RRef.
+
+This section describes steps to build a toy distributed reinforcement learning model using RPC to solve CartPole-v1 from OpenAI Gym. The policy code is mostly borrowed from the existing single-thread example as shown below. We will skip details of the <code> design, and focus on RPC usages.
+
+We are ready to present the observer. In this example, each observer creates its own environment, and waits for the agent's command to run an episode. In each episode, one observer loops at most <code> iterations, and in each iteration, it uses RPC to pass its environment state to the agent and gets an action back. Then it applies that action to its environment, and gets the reward and the next state from the environment. After that, the observer uses another RPC to report the reward to the agent. Again, please note that, this is obviously not the most efficient observer implementation. For example, one simple optimization could be packing current state and last reward in one RPC to reduce the communication overhead. However, the goal is to demonstrate RPC API instead of building the best solver for CartPole. So, let's keep the logic simple and the two steps explicit in this example.
+
+The code for agent is a little more complex, and we will break it into multiple pieces. In this example, the agent serves as both the trainer and the master, such that it sends command to multiple distributed observers to run episodes, and it also records all actions and rewards locally which will be used during the training phase after each episode. The code below shows <code> constructor where most lines are initializing various components. The loop at the end initializes observers remotely on other workers, and holds <code> to those observers locally. The agent will use those observer <code> later to send commands. Applications don't need to worry about the lifetime of <code>. The owner of each <code> maintains a reference counting map to track its lifetime, and guarantees the remote data object will not be deleted as long as there is any live user of that <code>. Please refer to the <code> design doc for details.
+
+Next, the agent exposes two APIs to observers for selecting actions and reporting rewards. Those functions only run locally on the agent, but will be triggered by observers through RPC.
+
+Let's add a <code> function on agent which tells all observers to execute an episode. In this function, it first creates a list to collect futures from asynchronous RPCs, and then loop over all observer <code> to make asynchronous RPCs. In these RPCs, the agent also passes an <code> of itself to the observer, so that the observer can call functions on the agent as well. As shown above, each observer will make RPCs back to the agent, which are nested RPCs. After each episode, the <code> and <code> will contain the recorded action probs and rewards.
+
+Finally, after one episode, the agent needs to train the model, which is implemented in the <code> function below. There is no RPCs in this function and it is mostly borrowed from the single-thread example. Hence, we skip describing its contents.
+
+With <code>, <code>, and <code> classes, we are ready to launch multiple processes to perform the distributed training. In this example, all processes run the same <code> function, and they use the rank to distinguish their role. Rank 0 is always the agent, and all other ranks are observers. The agent serves as master by repeatedly calling <code> and <code> until the running reward surpasses the reward threshold specified by the environment. All observers passively waiting for commands from the agent. The code is wrapped by rpc.init_rpc and rpc.shutdown, which initializes and terminates RPC instances respectively. More details are available in the API page.
+
+Below are some sample outputs when training with <code>.
+
+: In this example, we show how to use RPC as the communication vehicle to pass data across workers, and how to use RRef to reference remote objects. It is true that you could build the entire structure directly on top of <code> <code> and <code> APIs or use other communication/RPC libraries. However, by using <code>, you can get the native support and continuously optimized performance under the hood.
+
+Next, we will show how to combine RPC and RRef with distributed autograd and distributed optimizer to perform distributed model parallel training.
+
+Distributed RNN using Distributed Autograd and Distributed Optimizer.
+
+In this section, we use an RNN model to show how to build distributed model parallel training with the RPC API. The example RNN model is very small and can easily fit into a single GPU, but we still divide its layers onto two different workers to demonstrate the idea. Developer can apply the similar techniques to distribute much larger models across multiple devices and machines.
+
+The RNN model design is borrowed from the word language model in PyTorch example repository, which contains three main components, an embedding table, an <code> layer, and a decoder. The code below wraps the embedding table and the decoder into sub-modules, so that their constructors can be passed to the RPC API. In the <code> sub-module, we intentionally put the <code> layer on GPU to cover the use case. In v1.4, RPC always creates CPU tensor arguments or return values on the destination worker. If the function takes a GPU tensor, you need to move it to the proper device explicitly.
+
+With the above sub-modules, we can now piece them together using RPC to create an RNN model. In the code below <code> represents a parameter server, which hosts parameters of the embedding table and the decoder. The constructor uses the remote API to create an <code> object and a <code> object on the parameter server, and locally creates the <code> sub-module. During the forward pass, the trainer uses the <code> <code> to find the remote sub-module and passes the input data to the <code> using RPC and fetches the lookup results. Then, it runs the embedding through the local <code> layer, and finally uses another RPC to send the output to the <code> sub-module. In general, to implement distributed model parallel training, developers can divide the model into sub-modules, invoke RPC to create sub-module instances remotely, and use on <code> to find them when necessary. As you can see in the code below, it looks very similar to single-machine model parallel training. The main difference is replacing <code> with RPC functions.
+
+Before introducing the distributed optimizer, let's add a helper function to generate a list of RRefs of model parameters, which will be consumed by the distributed optimizer. In local training, applications could call <code> to grab references to all parameter tensors, and pass it to the local optimizer for subsequent updates. However, the same API does not work in distributed training scenarios as some parameters live on remote machines. Therefore, instead of taking a list of parameter <code>, the distributed optimizer takes a list of <code>, one <code> per model parameter for both local and remote model parameters. The helper function is pretty simple, just call <code> and creates a local <code> on each of the parameters.
+
+Then, as the <code> contains three sub-modules, we need to call <code> three times, and wrap that into another helper function.
+
+Now, we are ready to implement the training loop. After initializing model arguments, we create the <code> and the <code>. The distributed optimizer will take a list of parameter <code>, find all distinct owner workers, and create the given local optimizer (i.e., <code> in this case, you can use other local optimizers as well) on each of the owner worker using the given arguments (i.e., <code>).
+
+In the training loop, it first creates a distributed autograd context, which will help the distributed autograd engine to find gradients and involved RPC send/recv functions. The design details of the distributed autograd engine can be found in its design note. Then, it kicks off the forward pass as if it is a local model, and run the distributed backward pass. For the distributed backward, you only need to specify a list of roots, in this case, it is the loss <code>. The distributed autograd engine will traverse the distributed graph automatically and write gradients properly. Next, it runs the <code> function on the distributed optimizer, which will reach out to all involved local optimizers to update model parameters. Compared to local training, one minor difference is that you don't need to run <code> because each autograd context has dedicated space to store gradients, and as we create a context per iteration, those gradients from different iterations will not accumulate to the same set of <code>.
+
+Finally, let's add some glue code to launch the parameter server and the trainer processes.

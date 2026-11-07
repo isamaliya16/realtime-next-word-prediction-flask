@@ -1,0 +1,13 @@
+Introduction || Tensors || Autograd || Building Models || TensorBoard Support || Training Models || Model Understanding.
+
+Introduction to PyTorch - YouTube Series.
+
+This tutorial follows along with the PyTorch Beginner Series on YouTube.
+
+<code>.
+
+Running the Tutorial Code You can run this tutorial in a couple of ways:
+
+On the cloud: This is the easiest way to get started! Each section has a Colab link at the top, which opens a notebook with the code in a fully-hosted environment. Pro tip: Use Colab with a GPU runtime to speed up operations Runtime > Change runtime type > GPU.
+
+Locally: This option requires you to set up PyTorch and torchvision on your local machine (installation instructions). Download the notebook or copy the code into your favorite IDE.

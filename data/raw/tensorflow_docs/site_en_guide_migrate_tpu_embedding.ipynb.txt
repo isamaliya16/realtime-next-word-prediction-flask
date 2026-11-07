@@ -1,0 +1,109 @@
+Migrate from TPU embedding_columns to TPUEmbedding layer.
+
+View on TensorFlow.org.
+
+Run in Google Colab.
+
+View source on GitHub.
+
+Download notebook.
+
+This guide demonstrates how to migrate embedding training on on TPUs from TensorFlow 1's <code> API with <code> to TensorFlow 2's <code> layer API with <code>.
+
+Embeddings are (large) matrices. They are lookup tables that map from a sparse feature space to dense vectors. Embeddings provide efficient and dense representations, capturing complex similarities and relationships between features.
+
+TensorFlow includes specialized support for training embeddings on TPUs. This TPU-specific embedding support allows you to train embeddings that are larger than the memory of a single TPU device, and to use sparse and ragged inputs on TPUs.
+
+In TensorFlow 1, <code> is a high level API that encapsulates training, evaluation, prediction, and exporting for serving with TPUs. It has special support for <code>.
+
+To implement this in TensorFlow 2, use the TensorFlow Recommenders' <code> layer. For training and evaluation, use a TPU distribution strategy—<code>—which is compatible with the Keras APIs for, for example, model building (<code>), optimizers (<code>), and training with <code> or a custom training loop with <code> and <code>.
+
+For additional information, refer to the <code> layer's API documentation, as well as the <code> and <code> docs for additional information. For an overview of <code>, check out the Distributed training guide and the Use TPUs guide. If you're migrating from <code> to <code>, check out the TPU migration guide.
+
+Setup.
+
+Start by installing TensorFlow Recommenders and importing some necessary packages:
+
+And prepare a simple dataset for demonstration purposes:
+
+TensorFlow 1: Train embeddings on TPUs with TPUEstimator.
+
+In TensorFlow 1, you set up TPU embeddings using the <code> API and train/evaluate the model on TPUs with <code>.
+
+The inputs are integers ranging from zero to the vocabulary size for the TPU embedding table. Begin with encoding the inputs to categorical ID with <code>. Use <code> for the <code> parameter, since the input features are integer-valued, while <code> is the vocabulary size for the embedding table (<code>).
+
+Next, convert the sparse categorical inputs to a dense representation with <code>, where <code> is the width of the embedding table. It will store an embedding vector for each of the <code>.
+
+Now, define the TPU-specific embedding configuration via <code>. You will pass it later to <code> as an <code> parameter.
+
+Next, to use a <code>, define:
+
+An input function for the training data.
+
+An evaluation input function for the evaluation data.
+
+A model function for instructing the <code> how the training op is defined with the features and labels.
+
+With those functions defined, create a <code> that provides the cluster information, and a <code> object.
+
+Along with the model function you have defined, you can now create a <code>. Here, you will simplify the flow by skipping checkpoint savings. Then, you will specify the batch size for both training and evaluation for the <code>.
+
+Call <code> to begin training the model:
+
+Then, call <code> to evaluate the model using the evaluation data:
+
+TensorFlow 2: Train embeddings on TPUs with TPUStrategy.
+
+In TensorFlow 2, to train on the TPU workers, use <code> together with the Keras APIs for model definition and training/evaluation. (Refer to the Use TPUs guide for more examples of training with Keras Model.fit and a custom training loop (with <code> and <code>).).
+
+Since you need to perform some initialization work to connect to the remote cluster and initialize the TPU workers, start by creating a <code> to provide the cluster information and connect to the cluster. (Learn more in the TPU initialization section of the Use TPUs guide.).
+
+Next, prepare your data. This is similar to how you created a dataset in the TensorFlow 1 example, except the dataset function is now passed a <code> object rather than a <code> dict. You can use this object to determine the local batch size (and which host this pipeline is for, so you can properly partition your data).
+
+When using the <code> API, it is important to include the <code> option when batching the dataset with <code>, since <code> requires a fixed batch size.
+
+Additionally, the same batch size must be used for evaluation and training if they are taking place on the same set of devices.
+
+Finally, you should use <code> along with the special input option—<code>—in <code> (which holds strategy-specific configurations). This is demonstrated below:
+
+Next, once the data is prepared, you will create a <code>, and define a model, metrics, and an optimizer under the scope of this strategy (<code>).
+
+You should pick a number for <code> in <code> since it specifies the number of batches to run during each <code> call, and is critical for performance. This argument is similar to <code> used in <code>.
+
+The features and table configuration that were specified in TensorFlow 1 via the <code> (and <code>) can be specified directly in TensorFlow 2 via a pair of configuration objects:
+
+<code>.
+
+<code>.
+
+(Refer to the associated API documentation for more details.).
+
+With that, you are ready to train the model with the training dataset:
+
+Finally, evaluate the model using the evaluation dataset:
+
+Next steps.
+
+Learn more about setting up TPU-specific embeddings in the API docs:
+
+<code>: particularly about feature and table configuration, setting the optimizer, creating a model (using the Keras functional API or via subclassing <code>), training/evaluation, and model serving with <code>.
+
+<code>.
+
+<code>.
+
+For more information about <code> in TensorFlow 2, consider the following resources:
+
+Guide: Use TPUs (covering training with Keras <code>/a custom training loop with <code>, as well as tips on improving the performance with <code>).
+
+Guide: Distributed training with TensorFlow.
+
+Guide: Migrate from TPUEstimator to TPUStrategy.
+
+To learn more about customizing your training, refer to:
+
+Guide: Customize what happens in Model.fit.
+
+Guide: Writing a training loop from scratch.
+
+TPUs—Google's specialized ASICs for machine learning—are available through Google Colab, the TPU Research Cloud, and Cloud TPU.

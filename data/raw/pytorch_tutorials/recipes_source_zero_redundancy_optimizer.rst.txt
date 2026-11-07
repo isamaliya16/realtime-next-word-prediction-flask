@@ -1,0 +1,23 @@
+Shard Optimizer States with ZeroRedundancyOptimizer.
+
+In this recipe, you will learn:
+
+The high-level idea of ZeroRedundancyOptimizer.
+
+How to use ZeroRedundancyOptimizer in distributed training and its impact.
+
+Requirements.
+
+PyTorch 1.8+.
+
+Getting Started With Distributed Data Parallel.
+
+What is <code>?
+
+The idea of ZeroRedundancyOptimizer comes from DeepSpeed/ZeRO project and Marian that shard optimizer states across distributed data-parallel processes to reduce per-process memory footprint. In the Getting Started With Distributed Data Parallel tutorial, we have shown how to use DistributedDataParallel (DDP) to train models. In that tutorial, each process keeps a dedicated replica of the optimizer. Since DDP has already synchronized gradients in the backward pass, all optimizer replicas will operate on the same parameter and gradient values in every iteration, and this is how DDP keeps model replicas in the same state. Oftentimes, optimizers also maintain local states. For example, the <code> optimizer uses per-parameter <code> and <code> states. As a result, the <code> optimizer's memory consumption is at least twice the model size. Given this observation, we can reduce the optimizer memory footprint by sharding optimizer states across DDP processes. More specifically, instead of creating per-param states for all parameters, each optimizer instance in different DDP processes only keeps optimizer states for a shard of all model parameters. The optimizer <code> function only updates the parameters in its shard and then broadcasts its updated parameters to all other peer DDP processes, so that all model replicas still land in the same state.
+
+How to use <code>?
+
+The code below demonstrates how to use ZeroRedundancyOptimizer. The majority of the code is similar to the simple DDP example presented in Distributed Data Parallel notes. The main difference is the <code> clause in the <code> function which wraps optimizer constructions, toggling between ZeroRedundancyOptimizer and <code> optimizer.
+
+: The output is shown below. When enabling <code> with <code>, the optimizer <code> peak memory consumption is half of vanilla <code>'s memory consumption. This agrees with our expectation, as we are sharding <code> optimizer states across two processes. The output also shows that, with <code>, the model parameters still end up with the same values after one iterations (the parameters sum is the same with and without <code>).

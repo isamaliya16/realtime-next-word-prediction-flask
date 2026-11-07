@@ -1,0 +1,81 @@
+Understanding the Interface class.
+
+In this section, we will take a closer look at the <code> class, and understand the main parameters used to create one.
+
+How to create an Interface.
+
+You'll notice that the <code> class has 3 required parameters:
+
+<code>.
+
+These parameters are:
+
+<code>: the prediction function that is wrapped by the Gradio interface. This function can take one or more parameters and return one or more values.
+
+<code>: the input component type(s). Gradio provides many pre-built components such as<code> or <code>.
+
+<code>: the output component type(s). Again, Gradio provides many pre-built components e.g. <code> or <code>.
+
+For a complete list of components, see the Gradio docs . Each pre-built component can be customized by instantiating the class corresponding to the component.
+
+For example, as we saw in the previous section, instead of passing in <code> to the <code> parameter, you can pass in a <code> component to create a textbox with 7 lines and a label.
+
+Let's take a look at another example, this time with an <code> component.
+
+A simple example with audio.
+
+As mentioned earlier, Gradio provides many different inputs and outputs. So let's build an <code> that works with audio.
+
+In this example, we'll build an audio-to-audio function that takes an audio file and simply reverses it.
+
+We will use for the input the <code> component. When using the <code> component, you can specify whether you want the <code> of the audio to be a file that the user uploads or a microphone that the user records their voice with. In this case, let's set it to a <code>. Just for fun, we'll add a label to our <code> that says "Speak here...".
+
+In addition, we'd like to receive the audio as a numpy array so that we can easily "reverse" it. So we'll set the <code> to be <code>, which passes the input data as a tuple of (<code>, <code>) into our function.
+
+We will also use the <code> output component which can automatically render a tuple with a sample rate and numpy array of data as a playable audio file. In this case, we do not need to do any customization, so we will use the string shortcut <code>.
+
+The code above will produce an interface like the one below (if your browser doesn't ask you for microphone permissions, open the demo in a separate tab .).
+
+You should now be able to record your voice and hear yourself speaking in reverse - spooky 👻!
+
+Handling multiple inputs and outputs.
+
+Let's say we had a more complicated function, with multiple inputs and outputs. In the example below, we have a function that takes a dropdown index, a slider value, and number, and returns an audio sample of a musical tone.
+
+Take a look how we pass a list of input and output components, and see if you can follow along what's happening.
+
+The key here is that when you pass:
+
+a list of input components, each component corresponds to a parameter in order.
+
+a list of output coponents, each component corresponds to a returned value.
+
+The code snippet below shows how three input components line up with the three arguments of the <code> function:
+
+The <code> method.
+
+So far, we have used the <code> method to launch the interface, but we haven't really discussed what it does.
+
+By default, the <code> method will launch the demo in a web server that is running locally. If you are running your code in a Jupyter or Colab notebook, then Gradio will embed the demo GUI in the notebook so you can easily use it.
+
+You can customize the behavior of <code> through different parameters:
+
+<code> - whether to display the interface inline on Python notebooks.
+
+<code> - whether to automatically launch the interface in a new tab on the default browser.
+
+<code> - whether to create a publicly shareable link from your computer for the interface. Kind of like a Google Drive link!
+
+We'll cover the <code> parameter in a lot more detail in the next section!
+
+✏️ Let's apply it!
+
+Let's build an interface that allows you to demo a speech-recognition model. To make it interesting, we will accept either a mic input or an uploaded file.
+
+As usual, we'll load our speech recognition model using the <code> function from 🤗 Transformers. If you need a quick refresher, you can go back to that section in Chapter 1. Next, we'll implement a <code> function that processes the audio and returns the transcription. Finally, we'll wrap this function in an <code> with the <code> components for the inputs and just text for the output. Altogether, the code for this application is the following:
+
+If your browser doesn't ask you for microphone permissions, open the demo in a separate tab .
+
+That's it! You can now use this interface to transcribe audio. Notice here that by passing in the <code> parameter as <code>, we allow the user to either provide a microphone or an audio file (or neither, but that will return an error message).
+
+Keep going to see how to share your interface with others!

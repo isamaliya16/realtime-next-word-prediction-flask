@@ -1,0 +1,5 @@
+# Python 3.10 - 3.12 recommended (TensorFlow wheels lag behind the newest Python)
+tensorflow>=2.16,<2.23      # on Linux with an NVIDIA GPU use: tensorflow[and-cuda]
+Flask>=3.0
+numpy>=1.26
+matplotlib>=3.8

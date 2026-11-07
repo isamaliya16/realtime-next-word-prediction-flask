@@ -444,7 +444,6 @@ next-word-predictor/
 
 <div align="center">
 
-<img src="https://github.com/isamaliya16.png" width="100" height="100" style="border-radius:50%;" alt="Author"/>
 
 ### **Ayush Isamaliya**
 *Data Science & Aspiring ML Engineer*

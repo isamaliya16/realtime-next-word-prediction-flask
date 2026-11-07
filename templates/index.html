@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deep Learning Next-Word Predictor · RNN · LSTM · GRU</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="shell">
+
+  <header class="top">
+    <div>
+      <p class="eyebrow">Deep Learning project</p>
+      <h1>Next-Word Predictor</h1>
+    </div>
+    <span class="pill {{ 'ok' if ready else 'warn' }}" id="status-pill">
+      {{ 'Models ready' if ready else 'Training required' }}
+    </span>
+  </header>
+
+  {% if not ready %}
+  <div class="notice warn" role="alert">
+    No trained models were found. Run <code>python download_dataset.py</code>,
+    <code>python preprocess.py</code> and <code>python train.py</code>, then restart this server.
+  </div>
+  {% endif %}
+
+  <!-- ===================== editor ===================== -->
+  <section class="card" aria-labelledby="editor-title">
+    <div class="card-head">
+      <h2 id="editor-title">Write about deep learning</h2>
+      <div class="controls">
+        <div class="segmented" role="radiogroup" aria-label="Model architecture" id="model-switch">
+          {% for m in (models if models else ['RNN', 'LSTM', 'GRU']) %}
+          <button type="button" role="radio" class="seg" data-model="{{ m }}"
+                  aria-checked="false" {{ 'disabled' if not ready }}>{{ m }}</button>
+          {% endfor %}
+        </div>
+        <label class="select-wrap">
+          <span>Suggestions</span>
+          <select id="topk" {{ 'disabled' if not ready }}>
+            <option value="3">3</option><option value="4">4</option><option value="5" selected>5</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="editor" id="editor-box">
+      <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off"
+                maxlength="{{ max_chars }}" aria-label="Your text" aria-describedby="hint"
+                placeholder="Start typing, for example: A neural network learns"
+                {{ 'disabled' if not ready }}></textarea>
+    </div>
+
+    <div class="suggest-row">
+      <div class="chips" id="chips" role="list" aria-label="Predicted next words"></div>
+    </div>
+
+    <div class="status-row">
+      <span class="spinner" id="spinner" hidden aria-hidden="true"></span>
+      <span id="status" aria-live="polite">Predictions appear automatically as you type.</span>
+    </div>
+    <p class="hint" id="hint">
+      <kbd>Tab</kbd> accepts the highlighted suggestion · click any word to insert it · <kbd>Esc</kbd> hides suggestions.
+      Suggestions come from the selected trained network; you never need to press a button.
+    </p>
+  </section>
+
+  <!-- ===================== dashboard ===================== -->
+  <section class="card" id="dashboard" aria-labelledby="dash-title">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">Evaluation</p>
+        <h2 id="dash-title">Model evaluation dashboard</h2>
+      </div>
+    </div>
+
+    {% if metrics %}
+      {% if metrics.smoke_test %}
+      <div class="notice warn">These numbers come from a quick smoke test on a small subset and are not a real comparison. Run <code>python train.py</code> for full training.</div>
+      {% endif %}
+
+      <div class="stats">
+        <div class="stat"><span>Vocabulary size</span><b>{{ '{:,}'.format(metrics.dataset.vocabulary_size) }}</b></div>
+        <div class="stat"><span>Dataset words</span><b>{{ '{:,}'.format(metrics.dataset.words) }}</b></div>
+        <div class="stat"><span>Documents</span><b>{{ '{:,}'.format(metrics.dataset.documents) }}</b></div>
+        <div class="stat"><span>Training sequences</span><b>{{ '{:,}'.format(metrics.dataset.train_sequences) }}</b></div>
+        <div class="stat"><span>Validation sequences</span><b>{{ '{:,}'.format(metrics.dataset.validation_sequences) }}</b></div>
+        <div class="stat"><span>Context length</span><b>{{ metrics.dataset.sequence_length }} tokens</b></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Model</th><th>Val accuracy</th><th>Val top-5</th><th>Val loss</th><th>Perplexity</th>
+                <th>Train acc.</th><th>Train loss</th><th>Epochs (best)</th><th>Training time</th><th>Parameters</th></tr>
+          </thead>
+          <tbody>
+          {% for name, r in metrics.models.items() %}
+            <tr>
+              <th scope="row">{{ name }}</th>
+              <td>{{ '%.2f'|format(r.val_accuracy * 100) }}%</td>
+              <td>{{ '%.2f'|format(r.val_top5_accuracy * 100) }}%</td>
+              <td>{{ '%.4f'|format(r.val_loss) }}</td>
+              <td>{{ '%.1f'|format(r.perplexity) }}</td>
+              <td>{{ '%.2f'|format(r.train_accuracy * 100) }}%</td>
+              <td>{{ '%.4f'|format(r.train_loss) }}</td>
+              <td>{{ r.epochs_run }} ({{ r.best_epoch }})</td>
+              <td>{{ '%.1f'|format(r.train_seconds / 60) }} min</td>
+              <td>{{ '{:,}'.format(r.parameters) }}</td>
+            </tr>
+          {% endfor %}
+            <tr class="baseline">
+              <th scope="row">Unigram baseline</th>
+              <td>{{ '%.2f'|format(metrics.baseline_unigram.val_accuracy * 100) }}%</td>
+              <td>{{ '%.2f'|format(metrics.baseline_unigram.val_top5_accuracy * 100) }}%</td>
+              <td>{{ '%.4f'|format(metrics.baseline_unigram.val_loss) }}</td>
+              <td>{{ '%.1f'|format(metrics.baseline_unigram.perplexity) }}</td>
+              <td colspan="5">no context: always guesses the most frequent words</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="note">
+        <strong>How to read this.</strong> Validation accuracy is the share of held-out positions where the model's single
+        top word equals the word that actually came next; top-5 counts the true word anywhere in its five best guesses.
+        These are metrics for a next-word <em>classification</em> task on documents the models never saw in training. They are
+        not a guarantee of fluent or factually correct language, and many different words can be reasonable continuations.
+        Training accuracy is measured with dropout active, so it is not directly comparable to validation accuracy.
+        All three models use the same data split, vocabulary, hyper-parameters and evaluation code.
+      </p>
+
+      {% if graphs %}
+      <div class="graphs">
+        {% for g in graphs %}
+        <figure><img src="{{ url_for('output_file', name=g) }}" alt="{{ g.replace('_', ' ').replace('.png', '') }}" loading="lazy"></figure>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% else %}
+      <p class="note">Evaluation results are not available yet. They are created by <code>python train.py</code>
+      (or <code>python evaluate.py</code>) and appear here automatically.</p>
+    {% endif %}
+
+    {% if stats %}
+    <details class="sources">
+      <summary>Dataset composition and sources</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Source</th><th>Documents</th><th>Words</th><th>Held-out docs</th></tr></thead>
+          <tbody>
+          {% for src, s in stats.by_source.items() %}
+            <tr><th scope="row">{{ src }}</th><td>{{ s.documents }}</td><td>{{ '{:,}'.format(s.words) }}</td><td>{{ s.val_documents }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Raw text collected: {{ '{:,}'.format(stats.raw.words) }} words in {{ stats.raw.documents }} documents; after cleaning and
+        de-duplication: {{ '{:,}'.format(stats.clean.words) }} words in {{ stats.clean.documents }} documents
+        ({{ '{:,}'.format(stats.clean.characters) }} characters, {{ '{:,}'.format(stats.clean.unique_words) }} distinct words).
+        Train/validation split: {{ stats.split.method }}. Licences and attribution are listed in <code>data/SOURCES.md</code>.</p>
+    </details>
+    {% endif %}
+  </section>
+
+  <footer>Flask · TensorFlow/Keras · SimpleRNN, LSTM and GRU trained on a Deep Learning text corpus</footer>
+</main>
+
+<script>window.NW_CONFIG = { ready: {{ 'true' if ready else 'false' }}, models: {{ (models or [])|tojson }} };</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

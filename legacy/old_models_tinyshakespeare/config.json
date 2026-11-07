@@ -1,0 +1,21 @@
+{
+  "max_len": 12,
+  "vocab_size": 12000,
+  "results": {
+    "RNN": {
+      "val_loss": 6.658309459686279,
+      "val_accuracy": 0.08496251702308655,
+      "epochs_trained": 4
+    },
+    "LSTM": {
+      "val_loss": 6.705190658569336,
+      "val_accuracy": 0.08270861208438873,
+      "epochs_trained": 5
+    },
+    "GRU": {
+      "val_loss": 6.613315582275391,
+      "val_accuracy": 0.08755940943956375,
+      "epochs_trained": 4
+    }
+  }
+}
